@@ -4,6 +4,9 @@ spring:
   security.user:
     name: test
     roles: USER
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
 
 server:
   port: 9098

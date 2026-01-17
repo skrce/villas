@@ -18,7 +18,7 @@
 Should create a new file in: src/main/resources with name: application-default.yml and copy content of application-default-template.yml into it, then update the: security password, database user and password
 
 Requires:
- Java 1.8+
+ Java 21+
  MySQL 5.7+
  Maven 3.6+
 ---
