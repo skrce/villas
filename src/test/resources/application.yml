@@ -18,7 +18,7 @@ spring:
       roles: USER
 
 datasource:
-  jdbcUrl: jdbc:h2:mem:villarosa;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+  jdbcUrl: jdbc:h2:mem:villarosa;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_UPPER=false
   driverClassName: org.h2.Driver
   username: sa
   password:
