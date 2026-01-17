@@ -20,5 +20,5 @@ class ExceptionHandler : ResponseEntityExceptionHandler() {
 
     data class ErrorResponse(val message: String)
 
-    data class ClientException(override val message: String) : Exception()
+    data class ClientException(override val message: String) : RuntimeException()
 }

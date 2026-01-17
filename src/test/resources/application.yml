@@ -1,0 +1,21 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  security:
+    user:
+      name: test
+      password: test
+      roles: USER
+
+datasource:
+  jdbcUrl: jdbc:h2:mem:villarosa;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+  driverClassName: org.h2.Driver
+  username: sa
+  password:

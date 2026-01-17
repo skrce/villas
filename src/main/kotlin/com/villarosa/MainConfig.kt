@@ -1,6 +1,8 @@
 package com.villarosa
 
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateProperties
+import org.springframework.boot.autoconfigure.orm.jpa.JpaProperties
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.jdbc.DataSourceBuilder
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder
@@ -21,7 +23,10 @@ import javax.sql.DataSource
                        transactionManagerRef = "transactionManager",
                        basePackages = ["com.villarosa.repository"])
 
-open class MainConfig {
+open class MainConfig(
+    private val jpaProperties: JpaProperties,
+    private val hibernateProperties: HibernateProperties
+) {
 
     @Bean
     @ConfigurationProperties(prefix = "datasource")
@@ -32,9 +37,15 @@ open class MainConfig {
     @Bean(name = ["entityManagerFactory"])
     @Primary
     open fun entityManagerFactory(builder: EntityManagerFactoryBuilder): LocalContainerEntityManagerFactoryBean? {
+        val properties = HashMap(jpaProperties.properties)
+        val ddlAuto = hibernateProperties.ddlAuto
+        if (ddlAuto.isNullOrBlank().not()) {
+            properties["hibernate.hbm2ddl.auto"] = ddlAuto
+        }
         return builder.dataSource(dataSource())
                 .packages("com.villarosa.repository")
                 .persistenceUnit("persistenceUnit")
+                .properties(properties)
                 .build()
     }
 
