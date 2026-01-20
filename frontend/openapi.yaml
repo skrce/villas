@@ -1,0 +1,298 @@
+openapi: 3.0.3
+info:
+  title: Villarosa API
+  version: 1.0.0
+  description: Local API for managing apartments, customers, and reservations.
+servers:
+  - url: http://localhost:9098
+tags:
+  - name: Apartment
+    description: Apartment operations
+  - name: Customer
+    description: Customer operations
+  - name: Reservation
+    description: Reservation operations
+paths:
+  /apartment:
+    get:
+      tags:
+        - Apartment
+      summary: List all apartments
+      operationId: listApartments
+      security:
+        - basicAuth: []
+      responses:
+        "200":
+          description: A list of apartments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Apartment"
+  /customer:
+    post:
+      tags:
+        - Customer
+      summary: Create a customer
+      operationId: createCustomer
+      security:
+        - basicAuth: []
+      parameters:
+        - name: firstName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: lastName
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: phone
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The new customer ID
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: int32
+    get:
+      tags:
+        - Customer
+      summary: Search customers by first name or phone
+      operationId: searchCustomer
+      security:
+        - basicAuth: []
+      parameters:
+        - name: firstName
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: phone
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Customer"
+  /reservation:
+    post:
+      tags:
+        - Reservation
+      summary: Create a reservation
+      operationId: createReservation
+      security:
+        - basicAuth: []
+      parameters:
+        - name: customerId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: roomId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The new reservation ID
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: int32
+    delete:
+      tags:
+        - Reservation
+      summary: Cancel a reservation
+      operationId: cancelReservation
+      security:
+        - basicAuth: []
+      parameters:
+        - name: reservationId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: Reservation cancelled
+    patch:
+      tags:
+        - Reservation
+      summary: Update a reservation's room
+      operationId: updateReservationRoom
+      security:
+        - basicAuth: []
+      parameters:
+        - name: reservationId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+        - name: newRoomId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: Reservation updated
+  /reservation/available-apartments:
+    get:
+      tags:
+        - Reservation
+      summary: Find available apartments for a date range
+      operationId: findAvailableApartments
+      security:
+        - basicAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Available apartments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Apartment"
+  /reservation/customer:
+    get:
+      tags:
+        - Reservation
+      summary: Find reservations by customer
+      operationId: findReservationsByCustomer
+      security:
+        - basicAuth: []
+      parameters:
+        - name: customerId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: Customer reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReservationInfo"
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  schemas:
+    Apartment:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          nullable: true
+        capacity:
+          type: integer
+          format: int32
+          nullable: true
+        orientation:
+          type: string
+          nullable: true
+        view:
+          type: string
+          nullable: true
+        regularPrice:
+          type: integer
+          format: int32
+          nullable: true
+        topSeasonPrice:
+          type: integer
+          format: int32
+          nullable: true
+    Customer:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          nullable: true
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+    ReservationInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int32
+          nullable: true
+        customerId:
+          type: integer
+          format: int32
+          nullable: true
+        roomId:
+          type: integer
+          format: int32
+          nullable: true
+        startDate:
+          type: string
+          nullable: true
+        endDate:
+          type: string
+          nullable: true

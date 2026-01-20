@@ -43,6 +43,26 @@ Access http://localhost:9098/swagger-ui.html
 
 ---
 
+# UI (Local Frontend)
+
+The frontend lives in `frontend/` and talks to the backend over Basic Auth.
+
+## Start
+From the repo root:
+
+    cd frontend
+    npm install
+    npm run dev
+
+Open the printed Vite URL (usually http://localhost:5173).
+
+## Configure
+- Base URL: `/api` (default, uses the Vite proxy to http://localhost:9098)
+- Username: `test`
+- Password: the value from `src/main/resources/application-default.yml`
+
+---
+
 ## Endpoints
 
 **Endpoint** -  /apartments
