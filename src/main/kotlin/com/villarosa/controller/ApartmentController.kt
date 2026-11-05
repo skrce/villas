@@ -17,7 +17,7 @@ class ApartmentController(private val apartmentService: ApartmentService) {
     }
 
     @GetMapping(
-        value = ["/apartment", "/api/v1/apartments"],
+        value = ["/apartment", "/apartment/", "/api/v1/apartments"],
         produces = [MediaType.APPLICATION_JSON_VALUE],
     )
     @Operation(summary = "Lists all apartments.", operationId = "listApartments")

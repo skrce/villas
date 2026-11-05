@@ -5,13 +5,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
-import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.security.provisioning.InMemoryUserDetailsManager
+import org.springframework.security.web.AuthenticationEntryPoint
 import org.springframework.security.web.SecurityFilterChain
 
 @Configuration(proxyBeanMethods = false)
@@ -45,16 +45,17 @@ class SecurityConfiguration {
     @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
     fun staffSecurity(http: HttpSecurity, environment: Environment): SecurityFilterChain {
         val development = environment.getProperty("villas.mode", "production") != "production"
+        val authenticationRequired = AuthenticationEntryPoint { _, response, _ ->
+            response.status = HttpServletResponse.SC_UNAUTHORIZED
+            response.contentType = "application/json"
+            response.writer.write(
+                """{"code":"AUTHENTICATION_REQUIRED","message":"Authentication required."}"""
+            )
+        }
         http
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .exceptionHandling {
-                it.authenticationEntryPoint { _, response, _ ->
-                    response.status = HttpServletResponse.SC_UNAUTHORIZED
-                    response.contentType = "application/json"
-                    response.writer.write(
-                        """{"code":"AUTHENTICATION_REQUIRED","message":"Authentication required."}"""
-                    )
-                }
+                it.authenticationEntryPoint(authenticationRequired)
                 it.accessDeniedHandler { _, response, _ ->
                     response.status = HttpServletResponse.SC_FORBIDDEN
                     response.contentType = "application/json"
@@ -71,7 +72,7 @@ class SecurityConfiguration {
                         .anyRequest()
                         .authenticated()
                 }
-                .httpBasic(Customizer.withDefaults())
+                .httpBasic { it.authenticationEntryPoint(authenticationRequired) }
         } else {
             http.authorizeHttpRequests { it.anyRequest().denyAll() }
         }
