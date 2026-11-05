@@ -8,13 +8,17 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 
+@ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Transactional
-class CustomerServiceIntegrationTest @Autowired constructor(
+class CustomerServiceIntegrationTest
+@Autowired
+constructor(
     private val customerService: CustomerService,
-    private val customerRepository: CustomerRepository
+    private val customerRepository: CustomerRepository,
 ) {
 
     @Test
@@ -31,9 +35,10 @@ class CustomerServiceIntegrationTest @Autowired constructor(
 
     @Test
     fun createCustomer_throwsWhenParamEmpty() {
-        val exception = assertThrows<IllegalArgumentException> {
-            customerService.createCustomer("", "Doe", "123", "Main")
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                customerService.createCustomer("", "Doe", "123", "Main")
+            }
 
         assertThat(exception.message).isEqualTo("All params should have value")
     }
@@ -42,9 +47,10 @@ class CustomerServiceIntegrationTest @Autowired constructor(
     fun createCustomer_throwsWhenDuplicate() {
         customerService.createCustomer("Jane", "Doe", "123", "Main")
 
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            customerService.createCustomer("Jane", "Doe", "123", "Main")
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                customerService.createCustomer("Jane", "Doe", "123", "Main")
+            }
 
         assertThat(exception.message).isEqualTo("Customer already exists!")
     }
@@ -82,9 +88,10 @@ class CustomerServiceIntegrationTest @Autowired constructor(
 
     @Test
     fun searchCustomer_throwsWhenNoParams() {
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            customerService.searchCustomer(null, null)
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                customerService.searchCustomer(null, null)
+            }
 
         assertThat(exception.message).isEqualTo("You must provide at least one parameter!")
     }

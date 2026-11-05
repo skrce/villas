@@ -7,22 +7,26 @@ import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.Apartment
 import com.villarosa.repository.model.Customer
 import com.villarosa.repository.model.Reservation
+import java.text.SimpleDateFormat
+import java.util.Date
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
-import java.text.SimpleDateFormat
-import java.util.Date
 
+@ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Transactional
-class ReservationServiceIntegrationTest @Autowired constructor(
+class ReservationServiceIntegrationTest
+@Autowired
+constructor(
     private val reservationService: ReservationService,
     private val reservationRepository: ReservationRepository,
     private val apartmentRepository: ApartmentRepository,
-    private val customerRepository: CustomerRepository
+    private val customerRepository: CustomerRepository,
 ) {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd")
@@ -32,12 +36,13 @@ class ReservationServiceIntegrationTest @Autowired constructor(
         val customer = saveCustomer()
         val apartment = saveApartment()
 
-        val reservationId = reservationService.createReservation(
-            customer.id!!,
-            apartment.id!!,
-            "2020-01-01",
-            "2020-01-05"
-        )
+        val reservationId =
+            reservationService.createReservation(
+                customer.id!!,
+                apartment.id!!,
+                "2020-01-01",
+                "2020-01-05",
+            )
 
         val saved = reservationRepository.findById(reservationId).orElse(null)
         assertThat(saved).isNotNull
@@ -52,9 +57,15 @@ class ReservationServiceIntegrationTest @Autowired constructor(
         val customer = saveCustomer()
         val apartment = saveApartment()
 
-        val exception = assertThrows<IllegalArgumentException> {
-            reservationService.createReservation(customer.id!!, apartment.id!!, "", "2020-01-05")
-        }
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                reservationService.createReservation(
+                    customer.id!!,
+                    apartment.id!!,
+                    "",
+                    "2020-01-05",
+                )
+            }
 
         assertThat(exception.message).isEqualTo("Dates should not be empty")
     }
@@ -64,18 +75,25 @@ class ReservationServiceIntegrationTest @Autowired constructor(
         val customer = saveCustomer()
         val apartment = saveApartment()
 
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            reservationService.createReservation(customer.id!!, apartment.id!!, "2020/01/01", "2020-01-05")
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                reservationService.createReservation(
+                    customer.id!!,
+                    apartment.id!!,
+                    "2020/01/01",
+                    "2020-01-05",
+                )
+            }
 
         assertThat(exception.message).isEqualTo("Date should have format: yyyy-MM-dd")
     }
 
     @Test
     fun createReservation_throwsWhenStartAfterEnd() {
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            reservationService.createReservation(9999, 9999, "2020-02-01", "2020-01-01")
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                reservationService.createReservation(9999, 9999, "2020-02-01", "2020-01-01")
+            }
 
         assertThat(exception.message).isEqualTo("StartDate can't be after EndDate")
     }
@@ -84,9 +102,15 @@ class ReservationServiceIntegrationTest @Autowired constructor(
     fun createReservation_throwsWhenCustomerMissing() {
         val apartment = saveApartment()
 
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            reservationService.createReservation(9999, apartment.id!!, "2020-01-01", "2020-01-05")
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                reservationService.createReservation(
+                    9999,
+                    apartment.id!!,
+                    "2020-01-01",
+                    "2020-01-05",
+                )
+            }
 
         assertThat(exception.message).isEqualTo("Customer does not exist!")
     }
@@ -99,9 +123,15 @@ class ReservationServiceIntegrationTest @Autowired constructor(
             Reservation(null, customer.id, apartment.id, date("2020-01-03"), date("2020-01-06"))
         )
 
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            reservationService.createReservation(customer.id!!, apartment.id!!, "2020-01-01", "2020-01-10")
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                reservationService.createReservation(
+                    customer.id!!,
+                    apartment.id!!,
+                    "2020-01-01",
+                    "2020-01-10",
+                )
+            }
 
         assertThat(exception.message).contains("Existing overlapping reservations exists:")
     }
@@ -128,18 +158,20 @@ class ReservationServiceIntegrationTest @Autowired constructor(
 
     @Test
     fun findAvailableApartments_throwsOnInvalidDateFormat() {
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            reservationService.findAvailableApartments("2020/01/01", "2020-01-10")
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                reservationService.findAvailableApartments("2020/01/01", "2020-01-10")
+            }
 
         assertThat(exception.message).isEqualTo("Date should have format: yyyy-MM-dd")
     }
 
     @Test
     fun findAvailableApartments_throwsWhenStartAfterEnd() {
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            reservationService.findAvailableApartments("2020-02-01", "2020-01-01")
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                reservationService.findAvailableApartments("2020-02-01", "2020-01-01")
+            }
 
         assertThat(exception.message).isEqualTo("StartDate can't be after EndDate")
     }
@@ -148,9 +180,10 @@ class ReservationServiceIntegrationTest @Autowired constructor(
     fun cancelReservation_deletesReservation() {
         val customer = saveCustomer()
         val apartment = saveApartment()
-        val reservation = reservationRepository.save(
-            Reservation(null, customer.id, apartment.id, date("2020-01-01"), date("2020-01-05"))
-        )
+        val reservation =
+            reservationRepository.save(
+                Reservation(null, customer.id, apartment.id, date("2020-01-01"), date("2020-01-05"))
+            )
 
         reservationService.cancelReservation(reservation.id!!)
 
@@ -159,9 +192,10 @@ class ReservationServiceIntegrationTest @Autowired constructor(
 
     @Test
     fun cancelReservation_throwsWhenMissing() {
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            reservationService.cancelReservation(9999)
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                reservationService.cancelReservation(9999)
+            }
 
         assertThat(exception.message).isEqualTo("Reservation does not exist.")
     }
@@ -171,9 +205,16 @@ class ReservationServiceIntegrationTest @Autowired constructor(
         val customer = saveCustomer()
         val apartment1 = saveApartment()
         val apartment2 = saveApartment()
-        val reservation = reservationRepository.save(
-            Reservation(null, customer.id, apartment1.id, date("2020-01-01"), date("2020-01-05"))
-        )
+        val reservation =
+            reservationRepository.save(
+                Reservation(
+                    null,
+                    customer.id,
+                    apartment1.id,
+                    date("2020-01-01"),
+                    date("2020-01-05"),
+                )
+            )
 
         reservationService.updateReservationRoom(reservation.id!!, apartment2.id!!)
 
@@ -187,16 +228,24 @@ class ReservationServiceIntegrationTest @Autowired constructor(
         val customer = saveCustomer()
         val apartment1 = saveApartment()
         val apartment2 = saveApartment()
-        val reservation = reservationRepository.save(
-            Reservation(null, customer.id, apartment1.id, date("2020-01-01"), date("2020-01-05"))
-        )
+        val reservation =
+            reservationRepository.save(
+                Reservation(
+                    null,
+                    customer.id,
+                    apartment1.id,
+                    date("2020-01-01"),
+                    date("2020-01-05"),
+                )
+            )
         reservationRepository.save(
             Reservation(null, customer.id, apartment2.id, date("2020-01-03"), date("2020-01-06"))
         )
 
-        val exception = assertThrows<ExceptionHandler.ClientException> {
-            reservationService.updateReservationRoom(reservation.id!!, apartment2.id!!)
-        }
+        val exception =
+            assertThrows<ExceptionHandler.ClientException> {
+                reservationService.updateReservationRoom(reservation.id!!, apartment2.id!!)
+            }
 
         assertThat(exception.message).contains("New room has overlapping reservation:")
     }
@@ -217,25 +266,28 @@ class ReservationServiceIntegrationTest @Autowired constructor(
 
         val results = reservationService.findReservationsByCustomer(customer.id!!)
 
-        assertThat(results.map { it.startDate }).containsExactly("2020-03-01", "2020-02-01", "2020-01-01")
+        assertThat(results.map { it.startDate })
+            .containsExactly("2020-03-01", "2020-02-01", "2020-01-01")
     }
 
     private fun saveCustomer(
         firstName: String = "Jane",
         lastName: String = "Doe",
         phone: String = "123",
-        address: String = "Main"
-    ): Customer = customerRepository.save(Customer.buildCustomer(firstName, lastName, phone, address))
+        address: String = "Main",
+    ): Customer =
+        customerRepository.save(Customer.buildCustomer(firstName, lastName, phone, address))
 
     private fun saveApartment(
         capacity: Int = 2,
         orientation: String = "South",
         view: String = "Lake",
         regularPrice: Int = 100,
-        topSeasonPrice: Int = 150
-    ): Apartment = apartmentRepository.save(
-        Apartment(null, capacity, orientation, view, regularPrice, topSeasonPrice)
-    )
+        topSeasonPrice: Int = 150,
+    ): Apartment =
+        apartmentRepository.save(
+            Apartment(null, capacity, orientation, view, regularPrice, topSeasonPrice)
+        )
 
     private fun date(value: String): Date = dateFormat.parse(value)
 }

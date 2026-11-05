@@ -15,20 +15,27 @@
 ---
 
 ## Configuration
-Should create a new file in: src/main/resources with name: application-default.yml and copy content of application-default-template.yml into it, then update the: security password, database user and password
 
-Requires:
- Java 21+
- MySQL 5.7+
- Maven 3.6+
+Use Java from `.java-version` and the checked-in Maven wrapper. The backend uses Spring Boot 4.1, Kotlin/Jakarta Persistence, and standard Spring datasource configuration.
+
+For an isolated local database, set `VILLAS_DB_URL`, `VILLAS_DB_USERNAME`, and `VILLAS_DB_PASSWORD`. Set a local-only `VILLAS_LOCAL_PASSWORD`, then run:
+
+```sh
+./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+```
+
+The explicit local profile keeps the existing Basic Auth console usable. It is development compatibility, with username `test` unless `VILLAS_LOCAL_USERNAME` overrides it. Google staff login is milestone 3. The default production mode denies business access, rejects development-auth settings, disables API docs, and does not initialize demo records. Schema setup must happen separately.
+
+The canonical API uses `/api/v1`; the existing unversioned endpoints remain compatibility aliases. Local OpenAPI is available at `/v3/api-docs` and `/swagger-ui.html`. EUR and `Europe/Skopje` are the agreed property defaults.
+
 ---
 
 # Build
 In villarosa/ folder
-* mvn clean install
+* ./mvnw clean verify
 
 To build with no tests:
-* mvn clean install -DskipTests
+* ./mvnw clean verify -DskipTests
 
 
 # Run
@@ -36,7 +43,7 @@ Execute SQL script:
  /resources/database_setup.sql
 
 In villarosa/ folder:
-* mvn spring-boot:run
+* ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 
 # Operate
 Access http://localhost:9098/swagger-ui.html
