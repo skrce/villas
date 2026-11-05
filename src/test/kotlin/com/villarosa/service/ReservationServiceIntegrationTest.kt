@@ -7,8 +7,7 @@ import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.Apartment
 import com.villarosa.repository.model.Customer
 import com.villarosa.repository.model.Reservation
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalDate
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -29,8 +28,6 @@ constructor(
     private val customerRepository: CustomerRepository,
 ) {
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd")
-
     @Test
     fun createReservation_persistsAndReturnsId() {
         val customer = saveCustomer()
@@ -48,8 +45,8 @@ constructor(
         assertThat(saved).isNotNull
         assertThat(saved!!.customerId).isEqualTo(customer.id)
         assertThat(saved.roomId).isEqualTo(apartment.id)
-        assertThat(Reservation.dateFormat.format(saved.startDate)).isEqualTo("2020-01-01")
-        assertThat(Reservation.dateFormat.format(saved.endDate)).isEqualTo("2020-01-05")
+        assertThat(saved.startDate.toString()).isEqualTo("2020-01-01")
+        assertThat(saved.endDate.toString()).isEqualTo("2020-01-05")
     }
 
     @Test
@@ -95,7 +92,7 @@ constructor(
                 reservationService.createReservation(9999, 9999, "2020-02-01", "2020-01-01")
             }
 
-        assertThat(exception.message).isEqualTo("StartDate can't be after EndDate")
+        assertThat(exception.message).isEqualTo("Checkout must be after check-in.")
     }
 
     @Test
@@ -173,7 +170,7 @@ constructor(
                 reservationService.findAvailableApartments("2020-02-01", "2020-01-01")
             }
 
-        assertThat(exception.message).isEqualTo("StartDate can't be after EndDate")
+        assertThat(exception.message).isEqualTo("Checkout must be after check-in.")
     }
 
     @Test
@@ -289,5 +286,5 @@ constructor(
             Apartment(null, capacity, orientation, view, regularPrice, topSeasonPrice)
         )
 
-    private fun date(value: String): Date = dateFormat.parse(value)
+    private fun date(value: String): LocalDate = LocalDate.parse(value)
 }

@@ -8,9 +8,13 @@ Name | Type
 ------------ | -------------
 `customerId` | number
 `endDate` | string
+`guestCount` | number
 `id` | number
+`nights` | number
 `roomId` | number
 `startDate` | string
+`status` | string
+`version` | number
 
 ## Example
 
@@ -21,9 +25,13 @@ import type { ReservationInfo } from ''
 const example = {
   "customerId": null,
   "endDate": null,
+  "guestCount": null,
   "id": null,
+  "nights": null,
   "roomId": null,
   "startDate": null,
+  "status": null,
+  "version": null,
 } satisfies ReservationInfo
 
 console.log(example)

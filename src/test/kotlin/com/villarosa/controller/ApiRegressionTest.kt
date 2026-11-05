@@ -6,7 +6,7 @@ import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.Apartment
 import com.villarosa.repository.model.Customer
 import com.villarosa.repository.model.Reservation
-import java.text.SimpleDateFormat
+import java.time.LocalDate
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -250,13 +250,12 @@ constructor(
         val guest =
             customers.save(Customer.buildCustomer("Test", "Guest", "000", "Synthetic address"))
         val room = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
-        val dates = SimpleDateFormat("yyyy-MM-dd")
         return reservations.save(
             Reservation.buildReservation(
                 guest.id!!,
                 room.id!!,
-                dates.parse("2026-11-06"),
-                dates.parse("2026-11-09"),
+                LocalDate.parse("2026-11-06"),
+                LocalDate.parse("2026-11-09"),
             )
         )
     }

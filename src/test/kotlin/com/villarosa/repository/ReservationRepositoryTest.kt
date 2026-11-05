@@ -1,8 +1,7 @@
 package com.villarosa.repository
 
 import com.villarosa.repository.model.Reservation
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalDate
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -16,8 +15,6 @@ import org.springframework.transaction.annotation.Transactional
 class ReservationRepositoryTest
 @Autowired
 constructor(private val reservationRepository: ReservationRepository) {
-
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd")
 
     @Test
     fun findByStartDateBeforeAndEndDateAfter_returnsOverlaps() {
@@ -67,5 +64,5 @@ constructor(private val reservationRepository: ReservationRepository) {
         assertThat(results[0].customerId).isEqualTo(2)
     }
 
-    private fun date(value: String): Date = dateFormat.parse(value)
+    private fun date(value: String): LocalDate = LocalDate.parse(value)
 }

@@ -36,7 +36,19 @@ export interface ReservationInfo {
      * @type {number}
      * @memberof ReservationInfo
      */
+    guestCount?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ReservationInfo
+     */
     id?: number | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof ReservationInfo
+     */
+    nights?: number;
     /**
      * 
      * @type {number}
@@ -49,7 +61,30 @@ export interface ReservationInfo {
      * @memberof ReservationInfo
      */
     startDate?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof ReservationInfo
+     */
+    status?: ReservationInfoStatusEnum;
+    /**
+     * 
+     * @type {number}
+     * @memberof ReservationInfo
+     */
+    version?: number;
 }
+
+
+/**
+ * @export
+ */
+export const ReservationInfoStatusEnum = {
+    Active: 'ACTIVE',
+    Cancelled: 'CANCELLED'
+} as const;
+export type ReservationInfoStatusEnum = typeof ReservationInfoStatusEnum[keyof typeof ReservationInfoStatusEnum];
+
 
 /**
  * Check if a given object implements the ReservationInfo interface.
@@ -70,9 +105,13 @@ export function ReservationInfoFromJSONTyped(json: any, ignoreDiscriminator: boo
         
         'customerId': json['customerId'] == null ? undefined : json['customerId'],
         'endDate': json['endDate'] == null ? undefined : json['endDate'],
+        'guestCount': json['guestCount'] == null ? undefined : json['guestCount'],
         'id': json['id'] == null ? undefined : json['id'],
+        'nights': json['nights'] == null ? undefined : json['nights'],
         'roomId': json['roomId'] == null ? undefined : json['roomId'],
         'startDate': json['startDate'] == null ? undefined : json['startDate'],
+        'status': json['status'] == null ? undefined : json['status'],
+        'version': json['version'] == null ? undefined : json['version'],
     };
 }
 
@@ -89,9 +128,13 @@ export function ReservationInfoToJSONTyped(value?: ReservationInfo | null, ignor
         
         'customerId': value['customerId'],
         'endDate': value['endDate'],
+        'guestCount': value['guestCount'],
         'id': value['id'],
+        'nights': value['nights'],
         'roomId': value['roomId'],
         'startDate': value['startDate'],
+        'status': value['status'],
+        'version': value['version'],
     };
 }
 

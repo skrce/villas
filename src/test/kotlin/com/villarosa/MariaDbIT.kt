@@ -1,8 +1,5 @@
 package com.villarosa
 
-import com.github.dockerjava.api.model.ExposedPort
-import com.github.dockerjava.api.model.PortBinding
-import com.github.dockerjava.api.model.Ports
 import com.villarosa.repository.ApartmentRepository
 import com.villarosa.repository.CustomerRepository
 import com.villarosa.repository.ReservationRepository
@@ -27,8 +24,6 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
-import org.testcontainers.mariadb.MariaDBContainer
-import org.testcontainers.utility.DockerImageName
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -163,6 +158,7 @@ constructor(
         @JvmStatic
         @BeforeAll
         fun captureUntouchedBootstrapRows() {
+            DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
             DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
                 .use { connection ->
                     connection.createStatement().use { statement ->
@@ -179,26 +175,7 @@ constructor(
                 }
         }
 
-        @Container
-        @JvmField
-        val database =
-            MariaDBContainer(
-                    DockerImageName.parse(
-                            checkNotNull(MariaDbIT::class.java.getResource("/mariadb-image.txt"))
-                                .readText()
-                                .trim()
-                        )
-                        .asCompatibleSubstituteFor("mariadb")
-                )
-                .withDatabaseName("villarosa")
-                .withUsername("villas_test")
-                .withPassword("synthetic-test-password")
-                .withInitScript("db/schema.sql")
-                .withCreateContainerCmdModifier { command ->
-                    command.hostConfig?.withPortBindings(
-                        PortBinding(Ports.Binding.bindIp("127.0.0.1"), ExposedPort(3306))
-                    )
-                }
+        @Container @JvmField val database = TestDatabases.mariaDb()
 
         @JvmStatic
         @DynamicPropertySource

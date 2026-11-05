@@ -1,0 +1,40 @@
+package com.villarosa
+
+import org.flywaydb.core.Flyway
+import org.flywaydb.core.api.output.MigrateResult
+
+object DatabaseMigrations {
+    fun configured(
+        url: String,
+        username: String,
+        password: String,
+        target: String = "latest",
+    ): Flyway =
+        Flyway.configure()
+            .dataSource(url, username, password)
+            .locations("classpath:db/migration")
+            .target(target)
+            .cleanDisabled(true)
+            .baselineOnMigrate(false)
+            .outOfOrder(false)
+            .validateMigrationNaming(true)
+            .load()
+
+    fun migrate(url: String, username: String, password: String): MigrateResult =
+        configured(url, username, password).migrate()
+
+    fun fromEnvironment() {
+        fun required(name: String) =
+            System.getenv(name)?.takeIf { it.isNotBlank() }
+                ?: error("Migration setting $name is required.")
+        val result =
+            migrate(
+                required("VILLAS_DB_URL"),
+                required("VILLAS_DB_USERNAME"),
+                required("VILLAS_DB_PASSWORD"),
+            )
+        println(
+            "Villas schema migration completed: ${result.migrationsExecuted} migrations applied."
+        )
+    }
+}

@@ -26,6 +26,7 @@ const probe = async (t, { mode = 'ok', signal, failCleanup = false, realPlaywrig
   });
   for (const path of ['scripts', 'bin', 'dev', 'frontend']) mkdirSync(join(directory, path), { recursive: true });
   for (const file of ['e2e.mjs', 'local-db.mjs', 'dev-db.mjs']) cpSync(join(root, 'scripts', file), join(directory, 'scripts', file));
+  writeFileSync(join(directory, 'scripts/run-api.mjs'), 'process.exit(0);');
   cpSync(join(root, 'mariadb-image.txt'), join(directory, 'mariadb-image.txt'));
   cpSync(join(root, 'dev/fixtures.sql'), join(directory, 'dev/fixtures.sql'));
   const dockerLog = join(directory, 'docker.log');

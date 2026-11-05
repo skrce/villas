@@ -45,6 +45,7 @@ const run = (args, cwd = root) => new Promise((resolve, reject) => {
 });
 try {
   await run(['scripts/dev-db.mjs', 'start']);
+  await run(['scripts/run-api.mjs', '--migrate']);
   await run(['scripts/dev-db.mjs', 'fixtures']);
   await run(['node_modules/@playwright/test/cli.js', 'test'], `${root}/frontend`);
 } catch (error) {
