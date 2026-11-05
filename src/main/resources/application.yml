@@ -17,6 +17,8 @@ spring:
   sql:
     init:
       mode: never
+  flyway:
+    enabled: false
   jackson:
     time-zone: UTC
 

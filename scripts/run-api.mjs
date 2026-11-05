@@ -5,7 +5,8 @@ import { localDatabase, root } from './local-db.mjs';
 
 if (existsSync(`${root}/.env.local`)) loadEnvFile(`${root}/.env.local`);
 const password = process.env.VILLAS_LOCAL_PASSWORD;
-if (!password || password === 'replace-with-a-local-only-value') {
+const migrate = process.argv.includes('--migrate');
+if (!migrate && (!password || password === 'replace-with-a-local-only-value')) {
   throw new Error('Set a unique VILLAS_LOCAL_PASSWORD in .env.local for the local console.');
 }
 const database = localDatabase();
@@ -20,11 +21,11 @@ Object.assign(environment, {
   VILLAS_DB_USERNAME: 'villas_local',
   VILLAS_DB_PASSWORD: database.password,
 });
-const packaged = process.argv.includes('--packaged');
+const packaged = migrate || process.argv.includes('--packaged');
 const jars = packaged ? readdirSync(`${root}/target`).filter((name) => name.endsWith('.jar')) : [];
 if (packaged && jars.length !== 1) throw new Error('Run ./mvnw verify before starting the packaged API.');
 const executable = packaged ? (process.env.JAVA_HOME ? `${process.env.JAVA_HOME}/bin/java` : 'java') : './mvnw';
-const args = packaged ? ['-jar', `${root}/target/${jars[0]}`, '--spring.profiles.active=local'] : ['--batch-mode', 'spring-boot:run', '-Dspring-boot.run.profiles=local'];
+const args = packaged ? ['-jar', `${root}/target/${jars[0]}`, ...(migrate ? ['migrate'] : ['--spring.profiles.active=local'])] : ['--batch-mode', 'spring-boot:run', '-Dspring-boot.run.profiles=local'];
 const child = spawn(executable, args, {
   cwd: root,
   env: environment,

@@ -21,6 +21,12 @@ import { mapValues } from '../runtime';
 export interface Apartment {
     /**
      * 
+     * @type {boolean}
+     * @memberof Apartment
+     */
+    active?: boolean;
+    /**
+     * 
      * @type {number}
      * @memberof Apartment
      */
@@ -51,6 +57,12 @@ export interface Apartment {
     topSeasonPrice?: number | null;
     /**
      * 
+     * @type {number}
+     * @memberof Apartment
+     */
+    version?: number;
+    /**
+     * 
      * @type {string}
      * @memberof Apartment
      */
@@ -74,11 +86,13 @@ export function ApartmentFromJSONTyped(json: any, ignoreDiscriminator: boolean):
     }
     return {
         
+        'active': json['active'] == null ? undefined : json['active'],
         'capacity': json['capacity'] == null ? undefined : json['capacity'],
         'id': json['id'] == null ? undefined : json['id'],
         'orientation': json['orientation'] == null ? undefined : json['orientation'],
         'regularPrice': json['regularPrice'] == null ? undefined : json['regularPrice'],
         'topSeasonPrice': json['topSeasonPrice'] == null ? undefined : json['topSeasonPrice'],
+        'version': json['version'] == null ? undefined : json['version'],
         'view': json['view'] == null ? undefined : json['view'],
     };
 }
@@ -94,11 +108,13 @@ export function ApartmentToJSONTyped(value?: Apartment | null, ignoreDiscriminat
 
     return {
         
+        'active': value['active'],
         'capacity': value['capacity'],
         'id': value['id'],
         'orientation': value['orientation'],
         'regularPrice': value['regularPrice'],
         'topSeasonPrice': value['topSeasonPrice'],
+        'version': value['version'],
         'view': value['view'],
     };
 }

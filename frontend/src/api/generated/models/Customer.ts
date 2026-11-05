@@ -49,6 +49,12 @@ export interface Customer {
      * @memberof Customer
      */
     phone?: string | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof Customer
+     */
+    version?: number;
 }
 
 /**
@@ -73,6 +79,7 @@ export function CustomerFromJSONTyped(json: any, ignoreDiscriminator: boolean): 
         'id': json['id'] == null ? undefined : json['id'],
         'lastName': json['lastName'] == null ? undefined : json['lastName'],
         'phone': json['phone'] == null ? undefined : json['phone'],
+        'version': json['version'] == null ? undefined : json['version'],
     };
 }
 
@@ -92,6 +99,7 @@ export function CustomerToJSONTyped(value?: Customer | null, ignoreDiscriminator
         'id': value['id'],
         'lastName': value['lastName'],
         'phone': value['phone'],
+        'version': value['version'],
     };
 }
 

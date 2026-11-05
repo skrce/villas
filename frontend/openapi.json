@@ -3,6 +3,9 @@
     "schemas": {
       "Apartment": {
         "properties": {
+          "active": {
+            "type": "boolean"
+          },
           "capacity": {
             "format": "int32",
             "nullable": true,
@@ -25,6 +28,10 @@
           "topSeasonPrice": {
             "format": "int32",
             "nullable": true,
+            "type": "integer"
+          },
+          "version": {
+            "format": "int64",
             "type": "integer"
           },
           "view": {
@@ -56,6 +63,10 @@
           "phone": {
             "nullable": true,
             "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
           }
         },
         "type": "object"
@@ -86,9 +97,17 @@
             "nullable": true,
             "type": "string"
           },
+          "guestCount": {
+            "format": "int32",
+            "type": "integer"
+          },
           "id": {
             "format": "int32",
             "nullable": true,
+            "type": "integer"
+          },
+          "nights": {
+            "format": "int64",
             "type": "integer"
           },
           "roomId": {
@@ -99,6 +118,17 @@
           "startDate": {
             "nullable": true,
             "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
           }
         },
         "type": "object"

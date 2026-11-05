@@ -9,7 +9,7 @@ start are recorded in [decisions](decisions.md).
 | Step | Issue | Dependencies | Implementation state |
 | --- | --- | --- | --- |
 | 1 | [Modernize the foundation and establish regression checks](https://github.com/skrce/villas/issues/2) | None | Implemented and verified; review/merge evidence is in the linked issue |
-| 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Planned |
+| 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | In progress: schema/date PR, then transactional inventory and shared queries |
 | 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Planned |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | Planned |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Planned |
@@ -104,8 +104,9 @@ percentage alone is not a release gate.
 
 ## Known limitations
 
-The frontend remains a single basic console until milestone 4. The schema has no
-versioned migrations, reference constraints, booking locks, or strict date model yet.
+The frontend remains a single basic console until milestone 4. The schema now has
+versioned migrations, reference constraints, and strict calendar dates. Booking locks,
+retry guarantees, and inventory operations are in progress.
 Legacy cancellation deletes a record. Price integers are fixture values, not the
 implemented EUR-cent model. Roles, sessions, rates, a ledger, and a calendar remain
 planned. These limitations are not relaxed by the new test setup.

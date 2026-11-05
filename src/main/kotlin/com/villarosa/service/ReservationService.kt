@@ -5,9 +5,7 @@ import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.Apartment
 import com.villarosa.repository.model.Reservation
 import com.villarosa.repository.model.ReservationInfo
-import java.text.ParseException
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalDate
 import org.springframework.stereotype.Service
 
 @Service
@@ -23,22 +21,17 @@ class ReservationService(
         startDateString: String,
         endDateString: String,
     ): Int {
-        if (listOf(startDateString, endDateString).any { it.isEmpty() }) {
-            throw IllegalArgumentException("Dates should not be empty")
-        }
-
-        val startDate = parseDate(startDateString)
-
-        val endDate = parseDate(endDateString)
-
-        if (startDate > endDate) {
-            throw ExceptionHandler.ClientException("StartDate can't be after EndDate")
-        }
+        val dates = StayDates.parse(startDateString, endDateString)
+        val startDate = dates.start
+        val endDate = dates.end
 
         val customer = customerService.findCustomerById(customerId)
         if (customer.isPresent.not()) {
             throw ExceptionHandler.ClientException("Customer does not exist!")
         }
+
+        apartmentService.findApartmentById(roomId)
+            ?: throw ExceptionHandler.ClientException("Room does not exist.")
 
         val existingReservationsForRoom = reservationRepository.findByRoomId(roomId)
 
@@ -58,12 +51,9 @@ class ReservationService(
     }
 
     fun findAvailableApartments(startDateString: String, endDateString: String): List<Apartment> {
-        val startDate = parseDate(startDateString)
-        val endDate = parseDate(endDateString)
-
-        if (startDate > endDate) {
-            throw ExceptionHandler.ClientException("StartDate can't be after EndDate")
-        }
+        val dates = StayDates.parse(startDateString, endDateString)
+        val startDate = dates.start
+        val endDate = dates.end
 
         val allApartments = apartmentService.getAllApartments()
         val potentialOverlappingReservations =
@@ -127,22 +117,9 @@ class ReservationService(
             .sortedBy { it.startDate }
             .reversed()
 
-    // Checkout is exclusive so adjacent stays can share a turnover date.
     private fun findOverlappingReservations(
         reservations: List<Reservation>,
-        startDate: Date,
-        endDate: Date,
-    ) = reservations.filter {
-        (startDate < it.startDate && endDate > it.startDate) ||
-            (startDate < it.endDate && endDate > it.endDate) ||
-            (startDate < it.endDate && endDate > it.startDate) ||
-            (startDate < it.startDate && endDate > it.endDate)
-    }
-
-    private fun parseDate(startDateString: String) =
-        try {
-            SimpleDateFormat("yyyy-MM-dd").parse(startDateString)
-        } catch (e: ParseException) {
-            throw ExceptionHandler.ClientException("Date should have format: yyyy-MM-dd")
-        }
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ) = reservations.filter { StayDates(startDate, endDate).overlaps(it.startDate!!, it.endDate!!) }
 }

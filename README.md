@@ -36,6 +36,8 @@ personal password. Then start an empty database and the API:
 
 ```sh
 node scripts/dev-db.mjs start
+./mvnw --batch-mode verify
+node scripts/run-api.mjs --migrate
 node scripts/run-api.mjs
 ```
 
@@ -44,6 +46,8 @@ absolute path. MariaDB binds to a random port on `127.0.0.1`. Generated local da
 credentials stay in ignored `.local-state/` files with owner-only permissions.
 The API launcher uses this database and ignores inherited Spring/database overrides.
 It binds to `127.0.0.1:9098` and validates the existing schema without changing it.
+The explicit `--migrate` command applies packaged Flyway migrations before the API
+starts. It starts no web server. See [migration operations](docs/migrations.md).
 
 In another terminal:
 
@@ -77,8 +81,10 @@ node scripts/dev-db.mjs stop
 Stop the API/frontend with Ctrl+C in their terminals. Stopping the database retains
 its volume and credentials. The launcher never prunes Docker resources. Keep
 `.local-state/` while retaining the volume, and do not copy it to another checkout.
-Use another checkout for a separate empty database. Schema migrations arrive in
-milestone 2. Existing volumes are not upgraded by editing the bootstrap SQL.
+Use another checkout for a separate empty database. Flyway refuses an existing
+unversioned database, including a Milestone 1 bootstrap volume. It does not adopt or
+erase its records. Keep that volume and use a fresh checkout for the new empty start,
+or plan an explicit adoption separately.
 
 If the default API port is occupied, set `VILLAS_PORT` in `.env.local` and start Vite
 with `VILLAS_API_TARGET=http://127.0.0.1:<port> npm run dev -- --port <ui-port>`.
@@ -157,12 +163,15 @@ server-side sessions. Development Basic Auth is available only in explicit local
 modes. Villas will not collect staff passwords in production.
 
 A new production database starts empty. Application startup neither creates tables
-nor loads demo records. `src/main/resources/db/schema.sql` is the empty MariaDB
-baseline used by local setup/tests, not an incremental production migration runner.
+nor loads demo records. Immutable SQL versions in `src/main/resources/db/migration`
+are applied by the explicit migration command using a DDL-capable account. Runtime
+credentials should have only application permissions. Production role provisioning
+and deployment sequencing remain milestone 10 work.
 Do not expose the local launcher publicly. Hosting, Google client registration,
 backups, and live-provider verification remain later setup work.
 
-Booking concurrency, strict calendar-date validation, and database constraints remain
-milestone 2 work. This console is for synthetic local checks until those rules and
+Booking concurrency, retries, and inventory operations are in progress in milestone 2.
+Strict calendar dates and the versioned schema are implemented in its first PR.
+This console is for synthetic local checks until those rules and
 staff permissions are complete. See [decisions](docs/decisions.md) and
 [proposed permissions](docs/contracts/permissions.md).

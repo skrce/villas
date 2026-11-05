@@ -11,6 +11,7 @@ Name | Type
 `id` | number
 `lastName` | string
 `phone` | string
+`version` | number
 
 ## Example
 
@@ -24,6 +25,7 @@ const example = {
   "id": null,
   "lastName": null,
   "phone": null,
+  "version": null,
 } satisfies Customer
 
 console.log(example)
