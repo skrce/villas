@@ -8,7 +8,7 @@ start are recorded in [decisions](decisions.md).
 
 | Step | Issue | Dependencies | Implementation state |
 | --- | --- | --- | --- |
-| 1 | [Modernize the foundation and establish regression checks](https://github.com/skrce/villas/issues/2) | None | Implementing; PRs open, final verification in progress |
+| 1 | [Modernize the foundation and establish regression checks](https://github.com/skrce/villas/issues/2) | None | Locally verified; PR review and final CI acceptance pending |
 | 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Planned |
 | 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Planned |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | Planned |
@@ -34,10 +34,12 @@ The work is stacked in review order:
    to 4.1, adopts springdoc/SecurityFilterChain, adds canonical `/api/v1` routes and
    production restrictions, and pins/verifies the Maven wrapper. Its 48 backend
    tests and frontend lint/build passed locally and in GitHub Actions.
-3. The tooling branch adds isolated MariaDB bootstrap/fixtures, four native database
+3. The tooling branch adds isolated MariaDB bootstrap/fixtures, five native database
    checks, Vitest interactions, a full browser workflow, generated-contract/client
    drift checks, coverage artifacts, and shared contracts/setup instructions.
-   Final local/CI evidence is recorded when this PR is published.
+   The complete local command passed at `72206de`; final GitHub Actions evidence
+   follows publication. Later documentation/attribute-only commits do not change
+   the verified application or test behavior.
 
 PRs are not merged. Keep the milestone issue open until merge/review acceptance is
 recorded. Cloud deployment and real Google verification are later milestone gates,
@@ -53,9 +55,20 @@ See the README for one-time setup and individual commands.
 
 The audit at `521411b` had 31 backend tests, 87.9% line coverage, 69.4% branch
 coverage, and 61.9% reservation-service branch coverage. There were no frontend/browser
-tests. Final reports establish a new baseline without claiming full workflow coverage.
+tests. The clean `node scripts/check.mjs` run at `72206de` passed 48 unit/HTTP/configuration
+tests, five MariaDB cases, six frontend interactions, and one Chromium workflow.
+The measured backend baseline is 93.09% line and 69.00% branch coverage. Reservation
+service branch coverage remains 61.90%. Frontend application coverage is 44.53% line
+and 35.59% branch coverage. These figures do not imply full workflow coverage.
 Generated frontend code is excluded from coverage; regeneration and real API/browser
 interactions check it separately.
+
+The November 5 dependency audit reports no high/critical npm findings. One moderate
+Minimatch resource-consumption advisory affects seven packages in the development-only
+TypeScript lint dependency chain. The latest pinned typescript-eslint still pulls
+that dependency. No forced incompatible override or suppression is applied. Recheck
+it with the frontend tooling work in milestone 4. Local checks and CI fail on new
+high/critical npm findings via `npm audit --audit-level=high`.
 
 Milestone 2 must add adversarial MariaDB tests for overlapping/concurrent bookings,
 invalid dates, missing room/guest references, and migration/retry behavior. Milestone 6
@@ -69,11 +82,11 @@ percentage alone is not a release gate.
 
 | Evidence | Milestone 1 state | Release gate |
 | --- | --- | --- |
-| Unit/HTTP/configuration checks | First two PRs pass; combined final run pending | Required for each change |
-| Real MariaDB checks | Four local cases pass, including empty production startup | CI required, never silently skip Docker |
+| Unit/HTTP/configuration checks | All 48 pass in the clean combined run | Required for each change |
+| Real MariaDB checks | Five pass, including empty production startup and authentication failures | CI required, never silently skip Docker |
 | Frontend interactions | Six local cases pass | CI required |
-| Browser with real API/database | Added, final local/CI run pending | Extend through later workflows |
-| Generated snapshot/client | Updated; final fresh drift check pending | CI required |
+| Browser with real API/database | Chromium guest creation, room move, cancellation, and persistence checks pass locally | CI confirmation pending; extend through later workflows |
+| Generated snapshot/client | Fresh generation and drift checks pass locally | CI confirmation pending |
 | Real Google identity | Not implemented | Milestone 3 |
 | Cloud deployment and recovery | Not performed; D04 remains open | Milestone 10 |
 | Staff pilot | Not performed | Milestone 10 |
