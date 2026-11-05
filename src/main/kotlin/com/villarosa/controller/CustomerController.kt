@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 class CustomerController(private val customerService: CustomerService) {
     @PostMapping(
-        value = ["/customer", "/api/v1/customers"],
+        value = ["/customer", "/customer/", "/api/v1/customers"],
         produces = [MediaType.APPLICATION_JSON_VALUE],
     )
     @Operation(summary = "Creates a customer.", operationId = "createCustomer")
@@ -31,7 +31,7 @@ class CustomerController(private val customerService: CustomerService) {
     }
 
     @GetMapping(
-        value = ["/customer", "/api/v1/customers"],
+        value = ["/customer", "/customer/", "/api/v1/customers"],
         produces = [MediaType.APPLICATION_JSON_VALUE],
     )
     @Operation(

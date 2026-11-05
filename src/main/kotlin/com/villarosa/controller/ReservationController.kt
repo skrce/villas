@@ -23,7 +23,7 @@ class ReservationController(private val reservationService: ReservationService) 
     }
 
     @PostMapping(
-        value = ["/reservation", "/api/v1/reservations"],
+        value = ["/reservation", "/reservation/", "/api/v1/reservations"],
         produces = [MediaType.APPLICATION_JSON_VALUE],
     )
     @Operation(
@@ -56,7 +56,12 @@ class ReservationController(private val reservationService: ReservationService) 
     }
 
     @GetMapping(
-        value = ["/reservation/available-apartments", "/api/v1/reservations/available-apartments"],
+        value =
+            [
+                "/reservation/available-apartments",
+                "/reservation/available-apartments/",
+                "/api/v1/reservations/available-apartments",
+            ],
         produces = [MediaType.APPLICATION_JSON_VALUE],
     )
     @Operation(
@@ -80,7 +85,8 @@ class ReservationController(private val reservationService: ReservationService) 
     }
 
     @GetMapping(
-        value = ["/reservation/customer", "/api/v1/reservations/customer"],
+        value =
+            ["/reservation/customer", "/reservation/customer/", "/api/v1/reservations/customer"],
         produces = [MediaType.APPLICATION_JSON_VALUE],
     )
     @Operation(

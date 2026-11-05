@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delet
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.transaction.annotation.Transactional
@@ -120,9 +121,17 @@ constructor(
             .andExpect(status().isBadRequest)
     }
 
-    @Test
-    fun businessRoutesRequireAuthentication() {
-        mvc.perform(get("/apartment")).andExpect(status().isUnauthorized)
+    @ParameterizedTest
+    @ValueSource(strings = ["", "Basic dGVzdDp3cm9uZw==", "Basic invalid"])
+    fun businessRoutesRequireAuthentication(authorization: String) {
+        mvc.perform(
+                get("/apartment").apply {
+                    if (authorization.isNotEmpty()) header(HttpHeaders.AUTHORIZATION, authorization)
+                }
+            )
+            .andExpect(status().isUnauthorized)
+            .andExpect(content().contentTypeCompatibleWith("application/json"))
+            .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
     }
 
     @Test
@@ -137,17 +146,104 @@ constructor(
             .andExpect(jsonPath("$.message").value("Bad Request"))
     }
 
-    @Test
-    fun canonicalCustomerSearchAllowsOneOptionalFilter() {
+    @ParameterizedTest
+    @ValueSource(strings = ["/customer", "/customer/", "/api/v1/customers"])
+    fun customerSearchAllowsOneOptionalFilterOnEverySupportedPath(path: String) {
         customers.save(Customer.buildCustomer("Unicode", "Гостин", "000", "Synthetic address"))
 
         mvc.perform(
-                get("/api/v1/customers")
+                get(path)
                     .header(HttpHeaders.AUTHORIZATION, authorization)
                     .param("firstName", "Unicode")
             )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].lastName").value("Гостин"))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["/apartment", "/apartment/", "/api/v1/apartments"])
+    fun apartmentListingSupportsLegacyAndCanonicalPaths(path: String) {
+        val room = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
+
+        mvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, authorization))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].id").value(room.id))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["/customer", "/customer/", "/api/v1/customers"])
+    fun customerCreationSupportsLegacyAndCanonicalPaths(path: String) {
+        val result =
+            mvc.perform(
+                    post(path)
+                        .header(HttpHeaders.AUTHORIZATION, authorization)
+                        .param("firstName", "Test")
+                        .param("lastName", "Guest")
+                        .param("phone", "000")
+                        .param("address", "Synthetic address")
+                )
+                .andExpect(status().isOk)
+                .andReturn()
+
+        assertThat(customers.findById(result.response.contentAsString.toInt())).isPresent
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["/reservation", "/reservation/", "/api/v1/reservations"])
+    fun reservationCreationSupportsLegacyAndCanonicalPaths(path: String) {
+        val existing = saveReservation()
+        val result =
+            mvc.perform(
+                    post(path)
+                        .header(HttpHeaders.AUTHORIZATION, authorization)
+                        .param("customerId", existing.customerId.toString())
+                        .param("roomId", existing.roomId.toString())
+                        .param("startDate", "2026-11-10")
+                        .param("endDate", "2026-11-13")
+                )
+                .andExpect(status().isOk)
+                .andReturn()
+
+        assertThat(reservations.findById(result.response.contentAsString.toInt())).isPresent
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings =
+            [
+                "/reservation/available-apartments",
+                "/reservation/available-apartments/",
+                "/api/v1/reservations/available-apartments",
+            ]
+    )
+    fun availabilitySupportsLegacyAndCanonicalPaths(path: String) {
+        val booking = saveReservation()
+
+        mvc.perform(
+                get(path)
+                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .param("startDate", "2026-11-10")
+                    .param("endDate", "2026-11-13")
+            )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].id").value(booking.roomId))
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings =
+            ["/reservation/customer", "/reservation/customer/", "/api/v1/reservations/customer"]
+    )
+    fun reservationListingSupportsLegacyAndCanonicalPaths(path: String) {
+        val booking = saveReservation()
+
+        mvc.perform(
+                get(path)
+                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .param("customerId", booking.customerId.toString())
+            )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].id").value(booking.id))
     }
 
     private fun saveReservation(): Reservation {
