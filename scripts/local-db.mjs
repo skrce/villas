@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from
 import { fileURLToPath } from 'node:url';
 
 export const root = realpathSync(fileURLToPath(new URL('../', import.meta.url)));
+if (process.platform === 'win32') throw new Error('Villas development scripts require Linux, macOS, or WSL with Docker integration.');
 const instance = process.env.VILLAS_LOCAL_INSTANCE ?? 'local';
 if (instance !== 'local' && !/^e2e-[a-f0-9]{12}$/.test(instance)) throw new Error('Invalid Villas local database instance.');
 const stateDirectory = `${root}/.local-state/${instance}`;

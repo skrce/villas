@@ -77,6 +77,8 @@ jobs:
       - run: npm run lint
       - run: npm run test:coverage
       - run: npm run build
+      - run: node --test scripts/e2e.test.mjs
+        working-directory: .
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

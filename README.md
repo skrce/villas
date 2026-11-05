@@ -11,6 +11,8 @@ rates, payments, and production deployment follow the
 
 ## Requirements
 
+- Linux, macOS, or WSL with Docker integration. Run the scripts inside WSL on Windows;
+  native Windows batch execution is not supported by these Node launchers.
 - Java from `.java-version`, with `JAVA_HOME` set to that installation.
 - Node from `.node-version` and npm 11.6.2. Use `npm install --global npm@11.6.2` if needed.
 - Docker Engine or Docker Desktop with Docker Compose v2 running locally.
@@ -105,12 +107,15 @@ not silently skipped.
 
 The browser check uses a separate randomly named database, generated test credentials,
 the packaged API on port 19098, and the production frontend build on port 15073. It
-removes its own database volume on completion. It refuses to reuse running servers.
+removes its own database volume on completion or SIGINT/SIGTERM interruption. If Docker
+cleanup fails, it retains local state for recovery and returns a failure. It refuses
+to reuse running servers.
 
 Individual checks are also available:
 
 ```sh
 ./mvnw --batch-mode --no-transfer-progress clean verify
+node --test scripts/e2e.test.mjs
 node scripts/sync-openapi.mjs
 cd frontend
 npm ci

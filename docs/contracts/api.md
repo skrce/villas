@@ -14,7 +14,7 @@ including scalar IDs on creation and empty successful mutation responses.
 
 | Operation | Canonical request | Temporary legacy alias | Domain owner |
 | --- | --- | --- | --- |
-| `getAllApartments` | `GET /api/v1/apartments` | `GET /apartment` | Rooms, milestone 5 |
+| `listApartments` | `GET /api/v1/apartments` | `GET /apartment` | Rooms, milestone 5 |
 | `createCustomer` | `POST /api/v1/customers` | `POST /customer` | Guests, milestone 5 |
 | `searchCustomer` | `GET /api/v1/customers` | `GET /customer` | Guests, milestone 5 |
 | `createReservation` | `POST /api/v1/reservations` | `POST /reservation` | Bookings, milestones 2 and 7 |
@@ -25,6 +25,7 @@ including scalar IDs on creation and empty successful mutation responses.
 
 The generated contract contains only canonical routes. The frontend uses them.
 Legacy aliases remain because callers outside the console have not been inventoried.
+Every legacy URL above accepts both forms with and without its trailing slash.
 Remove an alias only with its own compatibility review and tests.
 
 Create-customer query parameters are `firstName`, `lastName`, `phone`, and `address`,

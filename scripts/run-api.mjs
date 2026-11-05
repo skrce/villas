@@ -23,7 +23,7 @@ Object.assign(environment, {
 const packaged = process.argv.includes('--packaged');
 const jars = packaged ? readdirSync(`${root}/target`).filter((name) => name.endsWith('.jar')) : [];
 if (packaged && jars.length !== 1) throw new Error('Run ./mvnw verify before starting the packaged API.');
-const executable = packaged ? (process.env.JAVA_HOME ? `${process.env.JAVA_HOME}/bin/java` : 'java') : (process.platform === 'win32' ? 'mvnw.cmd' : './mvnw');
+const executable = packaged ? (process.env.JAVA_HOME ? `${process.env.JAVA_HOME}/bin/java` : 'java') : './mvnw';
 const args = packaged ? ['-jar', `${root}/target/${jars[0]}`, '--spring.profiles.active=local'] : ['--batch-mode', 'spring-boot:run', '-Dspring-boot.run.profiles=local'];
 const child = spawn(executable, args, {
   cwd: root,

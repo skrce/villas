@@ -12,8 +12,10 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
+import java.sql.DriverManager
 import java.util.Base64
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -50,9 +52,10 @@ constructor(
 
     @Test
     fun schemaStartsWithoutBusinessRecords() {
-        assertThat(apartments.count()).isZero()
-        assertThat(customers.count()).isZero()
-        assertThat(reservations.count()).isZero()
+        assertThat(bootstrapRows)
+            .containsExactlyInAnyOrderEntriesOf(
+                mapOf("apartments" to 0L, "customers" to 0L, "reservations" to 0L)
+            )
     }
 
     @Test
@@ -155,6 +158,27 @@ constructor(
     }
 
     companion object {
+        private lateinit var bootstrapRows: Map<String, Long>
+
+        @JvmStatic
+        @BeforeAll
+        fun captureUntouchedBootstrapRows() {
+            DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
+                .use { connection ->
+                    connection.createStatement().use { statement ->
+                        bootstrapRows =
+                            listOf("apartments", "customers", "reservations").associateWith { table
+                                ->
+                                statement.executeQuery("SELECT COUNT(*) FROM $table").use { result
+                                    ->
+                                    check(result.next())
+                                    result.getLong(1)
+                                }
+                            }
+                    }
+                }
+        }
+
         @Container
         @JvmField
         val database =
