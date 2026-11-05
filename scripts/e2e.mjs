@@ -22,7 +22,8 @@ const signalChild = (signal) => {
 };
 const interrupt = (signal) => {
   interruptedBy ??= signal;
-  signalChild(signal);
+  // Playwright tears down its detached web servers on SIGINT.
+  signalChild('SIGINT');
   shutdownTimer ??= setTimeout(() => signalChild('SIGKILL'), 30_000).unref();
 };
 const onInterrupt = () => interrupt('SIGINT');
