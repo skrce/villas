@@ -1,0 +1,539 @@
+{
+  "components": {
+    "schemas": {
+      "Apartment": {
+        "properties": {
+          "capacity": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "id": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "orientation": {
+            "nullable": true,
+            "type": "string"
+          },
+          "regularPrice": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "topSeasonPrice": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "view": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Customer": {
+        "properties": {
+          "address": {
+            "nullable": true,
+            "type": "string"
+          },
+          "firstName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "lastName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ReservationInfo": {
+        "properties": {
+          "customerId": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "endDate": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "roomId": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "startDate": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "basicAuth": {
+        "description": "Local/test compatibility only. Production access is disabled pending staff Google login.",
+        "scheme": "basic",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Staff API. Basic Auth is available only for local development and tests.",
+    "title": "Villarosa API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.1",
+  "paths": {
+    "/apartments": {
+      "get": {
+        "operationId": "listApartments",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Apartment"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Lists all apartments.",
+        "tags": [
+          "Apartment"
+        ]
+      }
+    },
+    "/customers": {
+      "get": {
+        "operationId": "searchCustomer",
+        "parameters": [
+          {
+            "description": "First name",
+            "in": "query",
+            "name": "firstName",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Phone number",
+            "in": "query",
+            "name": "phone",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Customer"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Search customer by part of firstName or phone.",
+        "tags": [
+          "Customer"
+        ]
+      },
+      "post": {
+        "operationId": "createCustomer",
+        "parameters": [
+          {
+            "description": "First name",
+            "in": "query",
+            "name": "firstName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Last name",
+            "in": "query",
+            "name": "lastName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Phone number",
+            "in": "query",
+            "name": "phone",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Address (Country, City, Street, Number)",
+            "in": "query",
+            "name": "address",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "format": "int32",
+                  "type": "integer"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Creates a customer.",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/reservations": {
+      "delete": {
+        "operationId": "cancelReservation",
+        "parameters": [
+          {
+            "description": "Reservation ID",
+            "in": "query",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Deletes a reservation.",
+        "tags": [
+          "Reservation"
+        ]
+      },
+      "patch": {
+        "operationId": "updateReservationRoom",
+        "parameters": [
+          {
+            "description": "Reservation ID",
+            "in": "query",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "New Room ID",
+            "in": "query",
+            "name": "newRoomId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Updates a reservation's room.",
+        "tags": [
+          "Reservation"
+        ]
+      },
+      "post": {
+        "operationId": "createReservation",
+        "parameters": [
+          {
+            "description": "Customer ID",
+            "in": "query",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Room ID",
+            "in": "query",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Start Date, format: YYYY-MM-DD",
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "End Date, format: YYYY-MM-DD",
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "format": "int32",
+                  "type": "integer"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Creates a reservation (for room and customer).",
+        "tags": [
+          "Reservation"
+        ]
+      }
+    },
+    "/reservations/available-apartments": {
+      "get": {
+        "operationId": "findAvailableApartments",
+        "parameters": [
+          {
+            "description": "Start Date, format: YYYY-MM-DD",
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "End Date, format: YYYY-MM-DD",
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Apartment"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Find all available apartments available for a date range.",
+        "tags": [
+          "Reservation"
+        ]
+      }
+    },
+    "/reservations/customer": {
+      "get": {
+        "operationId": "findReservationsByCustomer",
+        "parameters": [
+          {
+            "description": "Customer ID",
+            "in": "query",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReservationInfo"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Find all reservations for a given customer.",
+        "tags": [
+          "Reservation"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "basicAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ]
+}

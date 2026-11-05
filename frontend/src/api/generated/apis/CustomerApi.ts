@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Villarosa API
- * Local API for managing apartments, customers, and reservations.
+ * Staff API. Basic Auth is available only for local development and tests.
  *
  * The version of the OpenAPI document: 1.0.0
  * 
@@ -16,10 +16,13 @@
 import * as runtime from '../runtime';
 import type {
   Customer,
+  ErrorResponse,
 } from '../models/index';
 import {
     CustomerFromJSON,
     CustomerToJSON,
+    ErrorResponseFromJSON,
+    ErrorResponseToJSON,
 } from '../models/index';
 
 export interface CreateCustomerRequest {
@@ -40,7 +43,7 @@ export interface SearchCustomerRequest {
 export class CustomerApi extends runtime.BaseAPI {
 
     /**
-     * Create a customer
+     * Creates a customer.
      */
     async createCustomerRaw(requestParameters: CreateCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<number>> {
         if (requestParameters['firstName'] == null) {
@@ -95,7 +98,7 @@ export class CustomerApi extends runtime.BaseAPI {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
         }
 
-        let urlPath = `/customer`;
+        let urlPath = `/customers`;
 
         const response = await this.request({
             path: urlPath,
@@ -112,7 +115,7 @@ export class CustomerApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a customer
+     * Creates a customer.
      */
     async createCustomer(requestParameters: CreateCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<number> {
         const response = await this.createCustomerRaw(requestParameters, initOverrides);
@@ -120,7 +123,7 @@ export class CustomerApi extends runtime.BaseAPI {
     }
 
     /**
-     * Search customers by first name or phone
+     * Search customer by part of firstName or phone.
      */
     async searchCustomerRaw(requestParameters: SearchCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<Customer>>> {
         const queryParameters: any = {};
@@ -139,7 +142,7 @@ export class CustomerApi extends runtime.BaseAPI {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
         }
 
-        let urlPath = `/customer`;
+        let urlPath = `/customers`;
 
         const response = await this.request({
             path: urlPath,
@@ -152,7 +155,7 @@ export class CustomerApi extends runtime.BaseAPI {
     }
 
     /**
-     * Search customers by first name or phone
+     * Search customer by part of firstName or phone.
      */
     async searchCustomer(requestParameters: SearchCustomerRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<Customer>> {
         const response = await this.searchCustomerRaw(requestParameters, initOverrides);

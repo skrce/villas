@@ -6,11 +6,11 @@
 
 Name | Type
 ------------ | -------------
-`id` | number
+`address` | string
 `firstName` | string
+`id` | number
 `lastName` | string
 `phone` | string
-`address` | string
 
 ## Example
 
@@ -19,11 +19,11 @@ import type { Customer } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "id": null,
+  "address": null,
   "firstName": null,
+  "id": null,
   "lastName": null,
   "phone": null,
-  "address": null,
 } satisfies Customer
 
 console.log(example)

@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Villarosa API
- * Local API for managing apartments, customers, and reservations.
+ * Staff API. Basic Auth is available only for local development and tests.
  *
  * The version of the OpenAPI document: 1.0.0
  * 
@@ -16,11 +16,14 @@
 import * as runtime from '../runtime';
 import type {
   Apartment,
+  ErrorResponse,
   ReservationInfo,
 } from '../models/index';
 import {
     ApartmentFromJSON,
     ApartmentToJSON,
+    ErrorResponseFromJSON,
+    ErrorResponseToJSON,
     ReservationInfoFromJSON,
     ReservationInfoToJSON,
 } from '../models/index';
@@ -56,7 +59,7 @@ export interface UpdateReservationRoomRequest {
 export class ReservationApi extends runtime.BaseAPI {
 
     /**
-     * Cancel a reservation
+     * Deletes a reservation.
      */
     async cancelReservationRaw(requestParameters: CancelReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
         if (requestParameters['reservationId'] == null) {
@@ -78,7 +81,7 @@ export class ReservationApi extends runtime.BaseAPI {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
         }
 
-        let urlPath = `/reservation`;
+        let urlPath = `/reservations`;
 
         const response = await this.request({
             path: urlPath,
@@ -91,14 +94,14 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Cancel a reservation
+     * Deletes a reservation.
      */
     async cancelReservation(requestParameters: CancelReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
         await this.cancelReservationRaw(requestParameters, initOverrides);
     }
 
     /**
-     * Create a reservation
+     * Creates a reservation (for room and customer).
      */
     async createReservationRaw(requestParameters: CreateReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<number>> {
         if (requestParameters['customerId'] == null) {
@@ -153,7 +156,7 @@ export class ReservationApi extends runtime.BaseAPI {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
         }
 
-        let urlPath = `/reservation`;
+        let urlPath = `/reservations`;
 
         const response = await this.request({
             path: urlPath,
@@ -170,7 +173,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a reservation
+     * Creates a reservation (for room and customer).
      */
     async createReservation(requestParameters: CreateReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<number> {
         const response = await this.createReservationRaw(requestParameters, initOverrides);
@@ -178,7 +181,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find available apartments for a date range
+     * Find all available apartments available for a date range.
      */
     async findAvailableApartmentsRaw(requestParameters: FindAvailableApartmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<Apartment>>> {
         if (requestParameters['startDate'] == null) {
@@ -211,7 +214,7 @@ export class ReservationApi extends runtime.BaseAPI {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
         }
 
-        let urlPath = `/reservation/available-apartments`;
+        let urlPath = `/reservations/available-apartments`;
 
         const response = await this.request({
             path: urlPath,
@@ -224,7 +227,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find available apartments for a date range
+     * Find all available apartments available for a date range.
      */
     async findAvailableApartments(requestParameters: FindAvailableApartmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<Apartment>> {
         const response = await this.findAvailableApartmentsRaw(requestParameters, initOverrides);
@@ -232,7 +235,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find reservations by customer
+     * Find all reservations for a given customer.
      */
     async findReservationsByCustomerRaw(requestParameters: FindReservationsByCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<ReservationInfo>>> {
         if (requestParameters['customerId'] == null) {
@@ -254,7 +257,7 @@ export class ReservationApi extends runtime.BaseAPI {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
         }
 
-        let urlPath = `/reservation/customer`;
+        let urlPath = `/reservations/customer`;
 
         const response = await this.request({
             path: urlPath,
@@ -267,7 +270,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find reservations by customer
+     * Find all reservations for a given customer.
      */
     async findReservationsByCustomer(requestParameters: FindReservationsByCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<ReservationInfo>> {
         const response = await this.findReservationsByCustomerRaw(requestParameters, initOverrides);
@@ -275,7 +278,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a reservation\'s room
+     * Updates a reservation\'s room.
      */
     async updateReservationRoomRaw(requestParameters: UpdateReservationRoomRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
         if (requestParameters['reservationId'] == null) {
@@ -308,7 +311,7 @@ export class ReservationApi extends runtime.BaseAPI {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
         }
 
-        let urlPath = `/reservation`;
+        let urlPath = `/reservations`;
 
         const response = await this.request({
             path: urlPath,
@@ -321,7 +324,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a reservation\'s room
+     * Updates a reservation\'s room.
      */
     async updateReservationRoom(requestParameters: UpdateReservationRoomRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
         await this.updateReservationRoomRaw(requestParameters, initOverrides);

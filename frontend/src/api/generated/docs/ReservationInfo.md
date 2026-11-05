@@ -6,11 +6,11 @@
 
 Name | Type
 ------------ | -------------
-`id` | number
 `customerId` | number
+`endDate` | string
+`id` | number
 `roomId` | number
 `startDate` | string
-`endDate` | string
 
 ## Example
 
@@ -19,11 +19,11 @@ import type { ReservationInfo } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "id": null,
   "customerId": null,
+  "endDate": null,
+  "id": null,
   "roomId": null,
   "startDate": null,
-  "endDate": null,
 } satisfies ReservationInfo
 
 console.log(example)

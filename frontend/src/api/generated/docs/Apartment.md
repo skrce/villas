@@ -6,12 +6,12 @@
 
 Name | Type
 ------------ | -------------
-`id` | number
 `capacity` | number
+`id` | number
 `orientation` | string
-`view` | string
 `regularPrice` | number
 `topSeasonPrice` | number
+`view` | string
 
 ## Example
 
@@ -20,12 +20,12 @@ import type { Apartment } from ''
 
 // TODO: Update the object below with actual values
 const example = {
-  "id": null,
   "capacity": null,
+  "id": null,
   "orientation": null,
-  "view": null,
   "regularPrice": null,
   "topSeasonPrice": null,
+  "view": null,
 } satisfies Apartment
 
 console.log(example)
