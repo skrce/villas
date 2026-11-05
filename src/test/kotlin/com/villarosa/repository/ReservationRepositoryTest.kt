@@ -3,9 +3,11 @@ package com.villarosa.repository
 import com.villarosa.repository.model.Reservation
 import java.time.LocalDate
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 
@@ -14,7 +16,14 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional
 class ReservationRepositoryTest
 @Autowired
-constructor(private val reservationRepository: ReservationRepository) {
+constructor(
+    private val reservationRepository: ReservationRepository,
+    private val jdbc: JdbcTemplate,
+) {
+    @BeforeEach
+    fun resetData() {
+        com.villarosa.TestData.reset(jdbc)
+    }
 
     @Test
     fun findByStartDateBeforeAndEndDateAfter_returnsOverlaps() {

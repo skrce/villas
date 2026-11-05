@@ -26,7 +26,7 @@ test('staff can create a guest and move and cancel a persisted booking', async (
   expect(roomsResponse.ok()).toBeTruthy();
   const rooms: { id: number }[] = await roomsResponse.json();
   const create = await request.post('/api/v1/reservations', {
-    headers,
+    headers: { ...headers, 'Idempotency-Key': crypto.randomUUID() },
     params: { customerId, roomId: rooms[0].id, startDate: '2026-11-06', endDate: '2026-11-09' },
   });
   expect(create.ok()).toBeTruthy();

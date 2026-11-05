@@ -17,6 +17,7 @@ import * as runtime from '../runtime';
 import type {
   Apartment,
   ErrorResponse,
+  OperationResult,
   ReservationInfo,
 } from '../models/index';
 import {
@@ -24,12 +25,25 @@ import {
     ApartmentToJSON,
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
+    OperationResultFromJSON,
+    OperationResultToJSON,
     ReservationInfoFromJSON,
     ReservationInfoToJSON,
 } from '../models/index';
 
 export interface CancelReservationRequest {
     reservationId: number;
+    expectedVersion: number;
+    idempotencyKey: string;
+}
+
+export interface ChangeReservationDatesRequest {
+    reservationId: number;
+    startDate: string;
+    endDate: string;
+    guestCount: number;
+    expectedVersion: number;
+    idempotencyKey: string;
 }
 
 export interface CreateReservationRequest {
@@ -37,20 +51,34 @@ export interface CreateReservationRequest {
     roomId: number;
     startDate: string;
     endDate: string;
+    idempotencyKey: string;
+    guestCount?: number;
 }
 
 export interface FindAvailableApartmentsRequest {
     startDate: string;
     endDate: string;
+    guestCount?: number;
 }
 
 export interface FindReservationsByCustomerRequest {
     customerId: number;
 }
 
+export interface GetOperationRequest {
+    operationKey: string;
+    kind: GetOperationKindEnum;
+}
+
+export interface GetReservationRequest {
+    reservationId: number;
+}
+
 export interface UpdateReservationRoomRequest {
     reservationId: number;
     newRoomId: number;
+    expectedVersion: number;
+    idempotencyKey: string;
 }
 
 /**
@@ -59,7 +87,7 @@ export interface UpdateReservationRoomRequest {
 export class ReservationApi extends runtime.BaseAPI {
 
     /**
-     * Deletes a reservation.
+     * Retain a cancellation and release inventory
      */
     async cancelReservationRaw(requestParameters: CancelReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
         if (requestParameters['reservationId'] == null) {
@@ -69,13 +97,35 @@ export class ReservationApi extends runtime.BaseAPI {
             );
         }
 
+        if (requestParameters['expectedVersion'] == null) {
+            throw new runtime.RequiredError(
+                'expectedVersion',
+                'Required parameter "expectedVersion" was null or undefined when calling cancelReservation().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling cancelReservation().'
+            );
+        }
+
         const queryParameters: any = {};
 
         if (requestParameters['reservationId'] != null) {
             queryParameters['reservationId'] = requestParameters['reservationId'];
         }
 
+        if (requestParameters['expectedVersion'] != null) {
+            queryParameters['expectedVersion'] = requestParameters['expectedVersion'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
 
         if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
@@ -94,14 +144,109 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Deletes a reservation.
+     * Retain a cancellation and release inventory
      */
     async cancelReservation(requestParameters: CancelReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
         await this.cancelReservationRaw(requestParameters, initOverrides);
     }
 
     /**
-     * Creates a reservation (for room and customer).
+     * Change stay dates and guest count
+     */
+    async changeReservationDatesRaw(requestParameters: ChangeReservationDatesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ReservationInfo>> {
+        if (requestParameters['reservationId'] == null) {
+            throw new runtime.RequiredError(
+                'reservationId',
+                'Required parameter "reservationId" was null or undefined when calling changeReservationDates().'
+            );
+        }
+
+        if (requestParameters['startDate'] == null) {
+            throw new runtime.RequiredError(
+                'startDate',
+                'Required parameter "startDate" was null or undefined when calling changeReservationDates().'
+            );
+        }
+
+        if (requestParameters['endDate'] == null) {
+            throw new runtime.RequiredError(
+                'endDate',
+                'Required parameter "endDate" was null or undefined when calling changeReservationDates().'
+            );
+        }
+
+        if (requestParameters['guestCount'] == null) {
+            throw new runtime.RequiredError(
+                'guestCount',
+                'Required parameter "guestCount" was null or undefined when calling changeReservationDates().'
+            );
+        }
+
+        if (requestParameters['expectedVersion'] == null) {
+            throw new runtime.RequiredError(
+                'expectedVersion',
+                'Required parameter "expectedVersion" was null or undefined when calling changeReservationDates().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling changeReservationDates().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['startDate'] != null) {
+            queryParameters['startDate'] = requestParameters['startDate'];
+        }
+
+        if (requestParameters['endDate'] != null) {
+            queryParameters['endDate'] = requestParameters['endDate'];
+        }
+
+        if (requestParameters['guestCount'] != null) {
+            queryParameters['guestCount'] = requestParameters['guestCount'];
+        }
+
+        if (requestParameters['expectedVersion'] != null) {
+            queryParameters['expectedVersion'] = requestParameters['expectedVersion'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+        if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
+            headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
+        }
+
+        let urlPath = `/reservations/{reservationId}/dates`;
+        urlPath = urlPath.replace(`{${"reservationId"}}`, encodeURIComponent(String(requestParameters['reservationId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ReservationInfoFromJSON(jsonValue));
+    }
+
+    /**
+     * Change stay dates and guest count
+     */
+    async changeReservationDates(requestParameters: ChangeReservationDatesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ReservationInfo> {
+        const response = await this.changeReservationDatesRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Create a reservation with a stable operation key
      */
     async createReservationRaw(requestParameters: CreateReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<number>> {
         if (requestParameters['customerId'] == null) {
@@ -132,6 +277,13 @@ export class ReservationApi extends runtime.BaseAPI {
             );
         }
 
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling createReservation().'
+            );
+        }
+
         const queryParameters: any = {};
 
         if (requestParameters['customerId'] != null) {
@@ -150,7 +302,15 @@ export class ReservationApi extends runtime.BaseAPI {
             queryParameters['endDate'] = requestParameters['endDate'];
         }
 
+        if (requestParameters['guestCount'] != null) {
+            queryParameters['guestCount'] = requestParameters['guestCount'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
 
         if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
@@ -173,7 +333,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Creates a reservation (for room and customer).
+     * Create a reservation with a stable operation key
      */
     async createReservation(requestParameters: CreateReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<number> {
         const response = await this.createReservationRaw(requestParameters, initOverrides);
@@ -181,7 +341,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find all available apartments available for a date range.
+     * Read advisory availability using the write-side overlap rules
      */
     async findAvailableApartmentsRaw(requestParameters: FindAvailableApartmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<Apartment>>> {
         if (requestParameters['startDate'] == null) {
@@ -208,6 +368,10 @@ export class ReservationApi extends runtime.BaseAPI {
             queryParameters['endDate'] = requestParameters['endDate'];
         }
 
+        if (requestParameters['guestCount'] != null) {
+            queryParameters['guestCount'] = requestParameters['guestCount'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
         if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
@@ -227,7 +391,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find all available apartments available for a date range.
+     * Read advisory availability using the write-side overlap rules
      */
     async findAvailableApartments(requestParameters: FindAvailableApartmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<Apartment>> {
         const response = await this.findAvailableApartmentsRaw(requestParameters, initOverrides);
@@ -235,7 +399,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find all reservations for a given customer.
+     * Read active reservations for a guest
      */
     async findReservationsByCustomerRaw(requestParameters: FindReservationsByCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<ReservationInfo>>> {
         if (requestParameters['customerId'] == null) {
@@ -270,7 +434,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find all reservations for a given customer.
+     * Read active reservations for a guest
      */
     async findReservationsByCustomer(requestParameters: FindReservationsByCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<ReservationInfo>> {
         const response = await this.findReservationsByCustomerRaw(requestParameters, initOverrides);
@@ -278,7 +442,98 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Updates a reservation\'s room.
+     * Reconcile a write using its stable operation key
+     */
+    async getOperationRaw(requestParameters: GetOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OperationResult>> {
+        if (requestParameters['operationKey'] == null) {
+            throw new runtime.RequiredError(
+                'operationKey',
+                'Required parameter "operationKey" was null or undefined when calling getOperation().'
+            );
+        }
+
+        if (requestParameters['kind'] == null) {
+            throw new runtime.RequiredError(
+                'kind',
+                'Required parameter "kind" was null or undefined when calling getOperation().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['kind'] != null) {
+            queryParameters['kind'] = requestParameters['kind'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
+            headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
+        }
+
+        let urlPath = `/operations/{operationKey}`;
+        urlPath = urlPath.replace(`{${"operationKey"}}`, encodeURIComponent(String(requestParameters['operationKey'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => OperationResultFromJSON(jsonValue));
+    }
+
+    /**
+     * Reconcile a write using its stable operation key
+     */
+    async getOperation(requestParameters: GetOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
+        const response = await this.getOperationRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read the current reservation, including its version
+     */
+    async getReservationRaw(requestParameters: GetReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ReservationInfo>> {
+        if (requestParameters['reservationId'] == null) {
+            throw new runtime.RequiredError(
+                'reservationId',
+                'Required parameter "reservationId" was null or undefined when calling getReservation().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
+            headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
+        }
+
+        let urlPath = `/reservations/{reservationId}`;
+        urlPath = urlPath.replace(`{${"reservationId"}}`, encodeURIComponent(String(requestParameters['reservationId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ReservationInfoFromJSON(jsonValue));
+    }
+
+    /**
+     * Read the current reservation, including its version
+     */
+    async getReservation(requestParameters: GetReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ReservationInfo> {
+        const response = await this.getReservationRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Move a reservation using its expected version
      */
     async updateReservationRoomRaw(requestParameters: UpdateReservationRoomRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<void>> {
         if (requestParameters['reservationId'] == null) {
@@ -295,6 +550,20 @@ export class ReservationApi extends runtime.BaseAPI {
             );
         }
 
+        if (requestParameters['expectedVersion'] == null) {
+            throw new runtime.RequiredError(
+                'expectedVersion',
+                'Required parameter "expectedVersion" was null or undefined when calling updateReservationRoom().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling updateReservationRoom().'
+            );
+        }
+
         const queryParameters: any = {};
 
         if (requestParameters['reservationId'] != null) {
@@ -305,7 +574,15 @@ export class ReservationApi extends runtime.BaseAPI {
             queryParameters['newRoomId'] = requestParameters['newRoomId'];
         }
 
+        if (requestParameters['expectedVersion'] != null) {
+            queryParameters['expectedVersion'] = requestParameters['expectedVersion'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
 
         if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
@@ -324,10 +601,23 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Updates a reservation\'s room.
+     * Move a reservation using its expected version
      */
     async updateReservationRoom(requestParameters: UpdateReservationRoomRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
         await this.updateReservationRoomRaw(requestParameters, initOverrides);
     }
 
 }
+
+/**
+ * @export
+ */
+export const GetOperationKindEnum = {
+    Create: 'CREATE',
+    Move: 'MOVE',
+    Change: 'CHANGE',
+    Cancel: 'CANCEL',
+    Block: 'BLOCK',
+    Unblock: 'UNBLOCK'
+} as const;
+export type GetOperationKindEnum = typeof GetOperationKindEnum[keyof typeof GetOperationKindEnum];

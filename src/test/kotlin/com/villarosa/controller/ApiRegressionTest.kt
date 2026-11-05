@@ -7,7 +7,9 @@ import com.villarosa.repository.model.Apartment
 import com.villarosa.repository.model.Customer
 import com.villarosa.repository.model.Reservation
 import java.time.LocalDate
+import java.util.UUID
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -24,12 +27,10 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import org.springframework.transaction.annotation.Transactional
 
 @ActiveProfiles("test")
 @SpringBootTest
 @AutoConfigureMockMvc
-@Transactional
 class ApiRegressionTest
 @Autowired
 constructor(
@@ -37,7 +38,13 @@ constructor(
     private val reservations: ReservationRepository,
     private val apartments: ApartmentRepository,
     private val customers: CustomerRepository,
+    private val jdbc: JdbcTemplate,
 ) {
+    @BeforeEach
+    fun resetData() {
+        com.villarosa.TestData.reset(jdbc)
+    }
+
     private val authorization = "Basic dGVzdDp0ZXN0"
 
     @ParameterizedTest
@@ -48,11 +55,14 @@ constructor(
         mvc.perform(
                 delete(path)
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("reservationId", booking.id.toString())
             )
             .andExpect(status().isOk)
 
-        assertThat(reservations.findById(booking.id!!)).isEmpty
+        assertThat(reservations.findById(booking.id!!).get().status)
+            .isEqualTo(com.villarosa.repository.model.ReservationStatus.CANCELLED)
     }
 
     @ParameterizedTest
@@ -64,6 +74,8 @@ constructor(
         mvc.perform(
                 patch(path)
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("reservationId", booking.id.toString())
                     .param("newRoomId", destination.id.toString())
             )
@@ -77,6 +89,8 @@ constructor(
         mvc.perform(
                 post("/customer")
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("firstName", "")
                     .param("lastName", "Example")
                     .param("phone", "000")
@@ -91,6 +105,8 @@ constructor(
         mvc.perform(
                 post("/reservation")
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("customerId", "1")
                     .param("roomId", "1")
                     .param("startDate", "")
@@ -105,9 +121,11 @@ constructor(
         mvc.perform(
                 delete("/reservation/")
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("reservationId", Int.MAX_VALUE.toString())
             )
-            .andExpect(status().isBadRequest)
+            .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.message").value("Reservation does not exist."))
     }
 
@@ -116,6 +134,8 @@ constructor(
         mvc.perform(
                 delete("/reservation/")
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("reservationId", "not-an-integer")
             )
             .andExpect(status().isBadRequest)
@@ -139,6 +159,8 @@ constructor(
         mvc.perform(
                 delete("/api/v1/reservations")
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("reservationId", "sensitive-invalid-value")
             )
             .andExpect(status().isBadRequest)
@@ -154,6 +176,8 @@ constructor(
         mvc.perform(
                 get(path)
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("firstName", "Unicode")
             )
             .andExpect(status().isOk)
@@ -165,7 +189,12 @@ constructor(
     fun apartmentListingSupportsLegacyAndCanonicalPaths(path: String) {
         val room = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
 
-        mvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, authorization))
+        mvc.perform(
+                get(path)
+                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
+            )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].id").value(room.id))
     }
@@ -177,6 +206,8 @@ constructor(
             mvc.perform(
                     post(path)
                         .header(HttpHeaders.AUTHORIZATION, authorization)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .param("expectedVersion", "0")
                         .param("firstName", "Test")
                         .param("lastName", "Guest")
                         .param("phone", "000")
@@ -196,6 +227,8 @@ constructor(
             mvc.perform(
                     post(path)
                         .header(HttpHeaders.AUTHORIZATION, authorization)
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .param("expectedVersion", "0")
                         .param("customerId", existing.customerId.toString())
                         .param("roomId", existing.roomId.toString())
                         .param("startDate", "2026-11-10")
@@ -222,6 +255,8 @@ constructor(
         mvc.perform(
                 get(path)
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("startDate", "2026-11-10")
                     .param("endDate", "2026-11-13")
             )
@@ -240,6 +275,8 @@ constructor(
         mvc.perform(
                 get(path)
                     .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .param("expectedVersion", "0")
                     .param("customerId", booking.customerId.toString())
             )
             .andExpect(status().isOk)

@@ -86,6 +86,86 @@
         ],
         "type": "object"
       },
+      "MaintenanceBlock": {
+        "properties": {
+          "endDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "id": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "startDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "OperationResult": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "CREATE",
+              "MOVE",
+              "CHANGE",
+              "CANCEL",
+              "BLOCK",
+              "UNBLOCK"
+            ],
+            "type": "string"
+          },
+          "maintenance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaintenanceBlock"
+              }
+            ],
+            "nullable": true
+          },
+          "reservation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReservationInfo"
+              }
+            ],
+            "nullable": true
+          },
+          "resourceId": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "resourceId"
+        ],
+        "type": "object"
+      },
       "ReservationInfo": {
         "properties": {
           "customerId": {
@@ -305,100 +385,11 @@
         ]
       }
     },
-    "/reservations": {
-      "delete": {
-        "operationId": "cancelReservation",
-        "parameters": [
-          {
-            "description": "Reservation ID",
-            "in": "query",
-            "name": "reservationId",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request"
-          }
-        },
-        "summary": "Deletes a reservation.",
-        "tags": [
-          "Reservation"
-        ]
-      },
-      "patch": {
-        "operationId": "updateReservationRoom",
-        "parameters": [
-          {
-            "description": "Reservation ID",
-            "in": "query",
-            "name": "reservationId",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "New Room ID",
-            "in": "query",
-            "name": "newRoomId",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "*/*": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request"
-          }
-        },
-        "summary": "Updates a reservation's room.",
-        "tags": [
-          "Reservation"
-        ]
-      },
+    "/maintenance-blocks": {
       "post": {
-        "operationId": "createReservation",
+        "operationId": "createMaintenanceBlock",
         "parameters": [
           {
-            "description": "Customer ID",
-            "in": "query",
-            "name": "customerId",
-            "required": true,
-            "schema": {
-              "format": "int32",
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Room ID",
             "in": "query",
             "name": "roomId",
             "required": true,
@@ -408,7 +399,6 @@
             }
           },
           {
-            "description": "Start Date, format: YYYY-MM-DD",
             "in": "query",
             "name": "startDate",
             "required": true,
@@ -417,9 +407,25 @@
             }
           },
           {
-            "description": "End Date, format: YYYY-MM-DD",
             "in": "query",
             "name": "endDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "default": "Maintenance",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
             "required": true,
             "schema": {
               "type": "string"
@@ -429,7 +435,317 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceBlock"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Block a room only if no active inventory overlaps",
+        "tags": [
+          "Maintenance"
+        ]
+      }
+    },
+    "/maintenance-blocks/{blockId}": {
+      "delete": {
+        "operationId": "cancelMaintenanceBlock",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "blockId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedVersion",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceBlock"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Retain a block cancellation and release inventory",
+        "tags": [
+          "Maintenance"
+        ]
+      }
+    },
+    "/operations/{operationKey}": {
+      "get": {
+        "operationId": "getOperation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operationKey",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "CREATE",
+                "MOVE",
+                "CHANGE",
+                "CANCEL",
+                "BLOCK",
+                "UNBLOCK"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Reconcile a write using its stable operation key",
+        "tags": [
+          "Reservation"
+        ]
+      }
+    },
+    "/reservations": {
+      "delete": {
+        "operationId": "cancelReservation",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedVersion",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Retain a cancellation and release inventory",
+        "tags": [
+          "Reservation"
+        ]
+      },
+      "patch": {
+        "operationId": "updateReservationRoom",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "newRoomId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedVersion",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Move a reservation using its expected version",
+        "tags": [
+          "Reservation"
+        ]
+      },
+      "post": {
+        "operationId": "createReservation",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "guestCount",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
                 "schema": {
                   "format": "int32",
                   "type": "integer"
@@ -449,7 +765,7 @@
             "description": "Bad Request"
           }
         },
-        "summary": "Creates a reservation (for room and customer).",
+        "summary": "Create a reservation with a stable operation key",
         "tags": [
           "Reservation"
         ]
@@ -460,7 +776,6 @@
         "operationId": "findAvailableApartments",
         "parameters": [
           {
-            "description": "Start Date, format: YYYY-MM-DD",
             "in": "query",
             "name": "startDate",
             "required": true,
@@ -469,19 +784,28 @@
             }
           },
           {
-            "description": "End Date, format: YYYY-MM-DD",
             "in": "query",
             "name": "endDate",
             "required": true,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "guestCount",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "format": "int32",
+              "type": "integer"
+            }
           }
         ],
         "responses": {
           "200": {
             "content": {
-              "application/json": {
+              "*/*": {
                 "schema": {
                   "items": {
                     "$ref": "#/components/schemas/Apartment"
@@ -503,7 +827,7 @@
             "description": "Bad Request"
           }
         },
-        "summary": "Find all available apartments available for a date range.",
+        "summary": "Read advisory availability using the write-side overlap rules",
         "tags": [
           "Reservation"
         ]
@@ -514,7 +838,6 @@
         "operationId": "findReservationsByCustomer",
         "parameters": [
           {
-            "description": "Customer ID",
             "in": "query",
             "name": "customerId",
             "required": true,
@@ -527,7 +850,7 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
+              "*/*": {
                 "schema": {
                   "items": {
                     "$ref": "#/components/schemas/ReservationInfo"
@@ -549,7 +872,133 @@
             "description": "Bad Request"
           }
         },
-        "summary": "Find all reservations for a given customer.",
+        "summary": "Read active reservations for a guest",
+        "tags": [
+          "Reservation"
+        ]
+      }
+    },
+    "/reservations/{reservationId}": {
+      "get": {
+        "operationId": "getReservation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read the current reservation, including its version",
+        "tags": [
+          "Reservation"
+        ]
+      }
+    },
+    "/reservations/{reservationId}/dates": {
+      "patch": {
+        "operationId": "changeReservationDates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "guestCount",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedVersion",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Change stay dates and guest count",
         "tags": [
           "Reservation"
         ]

@@ -9,16 +9,16 @@ import com.villarosa.repository.model.Customer
 import com.villarosa.repository.model.Reservation
 import java.time.LocalDate
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
-import org.springframework.transaction.annotation.Transactional
 
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@Transactional
 class ReservationServiceIntegrationTest
 @Autowired
 constructor(
@@ -26,7 +26,12 @@ constructor(
     private val reservationRepository: ReservationRepository,
     private val apartmentRepository: ApartmentRepository,
     private val customerRepository: CustomerRepository,
+    private val jdbc: JdbcTemplate,
 ) {
+    @BeforeEach
+    fun resetData() {
+        com.villarosa.TestData.reset(jdbc)
+    }
 
     @Test
     fun createReservation_persistsAndReturnsId() {
@@ -100,7 +105,7 @@ constructor(
         val apartment = saveApartment()
 
         val exception =
-            assertThrows<ExceptionHandler.ClientException> {
+            assertThrows<com.villarosa.exception.DomainException> {
                 reservationService.createReservation(
                     9999,
                     apartment.id!!,
@@ -109,7 +114,7 @@ constructor(
                 )
             }
 
-        assertThat(exception.message).isEqualTo("Customer does not exist!")
+        assertThat(exception.message).isEqualTo("Guest does not exist.")
     }
 
     @Test
@@ -121,7 +126,7 @@ constructor(
         )
 
         val exception =
-            assertThrows<ExceptionHandler.ClientException> {
+            assertThrows<com.villarosa.exception.DomainException> {
                 reservationService.createReservation(
                     customer.id!!,
                     apartment.id!!,
@@ -130,7 +135,7 @@ constructor(
                 )
             }
 
-        assertThat(exception.message).contains("Existing overlapping reservations exists:")
+        assertThat(exception.message).contains("The room is unavailable for those dates.")
     }
 
     @Test
@@ -174,7 +179,7 @@ constructor(
     }
 
     @Test
-    fun cancelReservation_deletesReservation() {
+    fun cancelReservation_retainsTheCancelledReservation() {
         val customer = saveCustomer()
         val apartment = saveApartment()
         val reservation =
@@ -184,13 +189,14 @@ constructor(
 
         reservationService.cancelReservation(reservation.id!!)
 
-        assertThat(reservationRepository.findById(reservation.id!!)).isEmpty
+        assertThat(reservationRepository.findById(reservation.id!!).get().status)
+            .isEqualTo(com.villarosa.repository.model.ReservationStatus.CANCELLED)
     }
 
     @Test
     fun cancelReservation_throwsWhenMissing() {
         val exception =
-            assertThrows<ExceptionHandler.ClientException> {
+            assertThrows<com.villarosa.exception.DomainException> {
                 reservationService.cancelReservation(9999)
             }
 
@@ -240,11 +246,11 @@ constructor(
         )
 
         val exception =
-            assertThrows<ExceptionHandler.ClientException> {
+            assertThrows<com.villarosa.exception.DomainException> {
                 reservationService.updateReservationRoom(reservation.id!!, apartment2.id!!)
             }
 
-        assertThat(exception.message).contains("New room has overlapping reservation:")
+        assertThat(exception.message).contains("The room is unavailable for those dates.")
     }
 
     @Test

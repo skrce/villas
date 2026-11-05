@@ -9,8 +9,9 @@ Backend mappings and annotations own the API description. `ApiContractTest` expo
 The old hand-maintained YAML specification is removed.
 
 The canonical base is `/api/v1`. Operation identifiers are explicit and stable.
-Existing request parameters and response shapes are retained during migration,
-including scalar IDs on creation and empty successful mutation responses.
+Scalar IDs on booking/guest creation and empty successful move/cancel responses are
+retained. Canonical inventory writes now require stable operation keys and canonical
+edits require expected versions. The generated client and console send both.
 
 | Operation | Canonical request | Temporary legacy alias | Domain owner |
 | --- | --- | --- | --- |
@@ -22,6 +23,11 @@ including scalar IDs on creation and empty successful mutation responses.
 | `findReservationsByCustomer` | `GET /api/v1/reservations/customer` | `GET /reservation/customer` | Bookings, milestone 7 |
 | `cancelReservation` | `DELETE /api/v1/reservations` | `DELETE /reservation` and `/reservation/` | Cancellation, milestone 7 |
 | `updateReservationRoom` | `PATCH /api/v1/reservations` | `PATCH /reservation` and `/reservation/` | Booking moves, milestones 2 and 7 |
+| `getReservation` | `GET /api/v1/reservations/{reservationId}` | None | Bookings, milestone 2 |
+| `changeReservationDates` | `PATCH /api/v1/reservations/{reservationId}/dates` | None | Bookings, milestones 2 and 7 |
+| `createMaintenanceBlock` | `POST /api/v1/maintenance-blocks` | None | Maintenance, milestone 2 |
+| `cancelMaintenanceBlock` | `DELETE /api/v1/maintenance-blocks/{blockId}` | None | Maintenance, milestone 2 |
+| `getOperation` | `GET /api/v1/operations/{operationKey}?kind=...` | None | Write reconciliation, milestone 2 |
 
 The generated contract contains only canonical routes. The frontend uses them.
 Legacy aliases remain because callers outside the console have not been inventoried.
@@ -29,11 +35,17 @@ Every legacy URL above accepts both forms with and without its trailing slash.
 Remove an alias only with its own compatibility review and tests.
 
 Create-customer query parameters are `firstName`, `lastName`, `phone`, and `address`,
-all nonblank. Guest search accepts either `firstName` or `phone` and combines both
-with AND when both are supplied. Create-booking parameters are `customerId`, `roomId`,
-`startDate`, and `endDate`. Cancellation takes `reservationId`; a room change also
-takes `newRoomId`. JSON request DTOs and safer guest-data transport belong to the
-owning milestone. Avoid query logging in the meantime.
+all nonblank. Guest search prioritizes a nonblank `firstName`, otherwise `phone`;
+it does not combine both filters. Create-booking parameters are `customerId`,
+`roomId`, `startDate`, `endDate`, and integral `guestCount` (default 1). Availability
+also accepts `guestCount`. All canonical inventory mutations require the
+`Idempotency-Key` header. Move/cancel take `reservationId` and `expectedVersion`;
+move also takes `newRoomId`. Date/count changes take the path ID, dates, count, and
+version. Maintenance creation takes room, dates, and an optional reason (default
+`Maintenance`); cancellation takes the path block ID and expected version.
+JSON request DTOs and safer guest-data transport belong to the owning milestone.
+Avoid query logging in the meantime. See [reservation semantics](reservations.md)
+for transaction, replay, legacy compatibility, and unknown-outcome behavior.
 
 ## Errors and access
 
@@ -42,11 +54,17 @@ messages to make frontend decisions. Current codes are `INVALID_REQUEST` for dom
 input failures, `HTTP_<status>` for handled framework failures,
 `AUTHENTICATION_REQUIRED`, and `ACCESS_DENIED`.
 
-Current domain failures, including a missing reservation, retain HTTP 400 for
-compatibility. Later domain milestones will introduce specific codes and reviewed
-404/409 responses. Unexpected server failures are not yet a complete domain error
-catalogue. Server configuration suppresses stack traces, binding details, and internal
-exception messages in default error responses.
+Inventory input errors use HTTP 400, including `INVALID_OPERATION_KEY`,
+`INVALID_GUEST_COUNT`, `CAPACITY_EXCEEDED`, `INVALID_VERSION`, and `INVALID_REASON`.
+Missing property-scoped references use 404 `NOT_FOUND`. A missing committed operation
+uses 404 `OPERATION_NOT_COMMITTED`, which is distinct from an unrelated route failure.
+Inventory conflicts, stale edits, cancelled resources, and key reuse use 409 with
+`INVENTORY_CONFLICT`, `STALE_VERSION`, `RESERVATION_CANCELLED`, and
+`IDEMPOTENCY_KEY_REUSED`. `ROOM_INACTIVE`, `RESERVATION_CHANGED`, `DATA_CONFLICT`, and
+`INVENTORY_RETRYABLE` are also 409. Retry the last one with the same key after
+reconciliation. Unexpected server failures are not yet a complete domain error
+catalogue. Default error responses suppress stack traces, binding details, and
+internal exception messages.
 
 Local/test business requests use temporary Basic Auth. Production denies business
 access until milestone 3 implements Google sessions, CSRF protection, and permission
@@ -55,8 +73,7 @@ already available.
 
 ## Shared contracts for subsequent milestones
 
-These conventions guide new implementations. They are not capabilities of the legacy
-schema/endpoints above.
+These conventions guide later domains as well as the implemented booking contract.
 
 | Concern | New contract | Implementation owner |
 | --- | --- | --- |
@@ -65,11 +82,12 @@ schema/endpoints above.
 | Event time | Store UTC instants and return ISO 8601 timestamps with an explicit offset, preferably `Z`. Convert for property-local display. | Audit, milestone 3; operations, milestone 8 |
 | IDs and ownership | Opaque IDs in the UI, verified references on the server, and a property scope on new staff/business records. A client-supplied ID never grants access. | Database, milestone 2; permissions, milestone 3 |
 | Versions | A persisted version changes with each edit. Mutations carry the expected version. A stale edit returns HTTP 409 and `STALE_VERSION`; the UI reloads and asks the user to resolve it. Constraints/transactions still enforce availability. | Database, milestone 2; editing screens, milestones 5 and 7 |
-| Idempotency | Booking creation and ledger writes accept `Idempotency-Key`. Persist the property, actor, operation, key, normalized request hash, and result transactionally. The same request returns its recorded result. Reusing a key for different input returns HTTP 409 `IDEMPOTENCY_KEY_REUSED`. Check/retry an unconfirmed write with the same key. Proposed minimum retention is seven days, to be finalized with each workflow. | Bookings, milestone 7; ledger, milestone 8 |
+| Idempotency | Canonical booking/maintenance mutations accept `Idempotency-Key`. Persist property, actor, operation, key, normalized request hash, and result transactionally. Reuse with different input returns 409 `IDEMPOTENCY_KEY_REUSED`. Lookup/retry an unconfirmed write with the same key and prepared version. Successful booking keys currently have no expiry. Future financial retention remains a separate decision. | Inventory, milestone 2; ledger, milestone 8 |
 
-The current API has no idempotency or optimistic-version implementation. Disabling
-a pending button reduces duplicate clicks; it does not make retries safe. The frontend
-reports unconfirmed network results without claiming the write failed.
+Canonical inventory operations implement versions and persisted idempotency. Legacy
+callers that omit these inputs do not get their corresponding guarantees. Guest
+creation has no idempotency contract yet. The frontend reports unconfirmed network
+results without claiming the write failed.
 
 ## Planned endpoint ownership
 

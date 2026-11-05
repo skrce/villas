@@ -15,7 +15,12 @@ class CustomerService(private val customerRepository: CustomerRepository) {
         }
 
         val existingCustomers =
-            customerRepository.findByFirstNameAndLastNameAndPhone(firstName, lastName, phone)
+            customerRepository.findByPropertyIdAndFirstNameAndLastNameAndPhone(
+                PropertyScope.ID,
+                firstName,
+                lastName,
+                phone,
+            )
         if (existingCustomers.isNotEmpty()) {
             throw ExceptionHandler.ClientException("Customer already exists!")
         }
@@ -25,7 +30,10 @@ class CustomerService(private val customerRepository: CustomerRepository) {
             .id!!
     }
 
-    fun findCustomerById(id: Int) = customerRepository.findById(id)
+    fun findCustomerById(id: Int) =
+        java.util.Optional.ofNullable(
+            customerRepository.findByPropertyIdAndId(PropertyScope.ID, id)
+        )
 
     fun searchCustomer(firstName: String?, phone: String?): List<Customer> {
 
@@ -34,14 +42,19 @@ class CustomerService(private val customerRepository: CustomerRepository) {
         }
 
         if (firstName != null) {
-            val matchedCustomers = customerRepository.findByFirstNameContaining(firstName)
+            val matchedCustomers =
+                customerRepository.findByPropertyIdAndFirstNameContaining(
+                    PropertyScope.ID,
+                    firstName,
+                )
             if (matchedCustomers.isNotEmpty()) {
                 return matchedCustomers
             }
         }
 
         if (phone != null) {
-            val matchedCustomers = customerRepository.findByPhoneContaining(phone)
+            val matchedCustomers =
+                customerRepository.findByPropertyIdAndPhoneContaining(PropertyScope.ID, phone)
             if (matchedCustomers.isNotEmpty()) {
                 return matchedCustomers
             }

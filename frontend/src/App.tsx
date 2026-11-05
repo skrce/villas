@@ -2,6 +2,7 @@ import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 import './App.css';
 import { buildApis, type ApiConfig } from './api/client';
+import { buildBookingActions } from './api/bookingActions';
 import type { Apartment, Customer, ReservationInfo } from './api/generated';
 import { FetchError, ResponseError } from './api/generated';
 import DatePicker from 'react-datepicker';
@@ -151,6 +152,8 @@ function App() {
 
   const [reservationsCustomerId, setReservationsCustomerId] = useState('');
 
+  const bookingActions = useMemo(() => buildBookingActions(apis.reservationApi, JSON.stringify([apiConfig.basePath, apiConfig.username])), [apis, apiConfig.basePath, apiConfig.username]);
+
   const [cancelReservationId, setCancelReservationId] = useState('');
   const [updateReservationId, setUpdateReservationId] = useState('');
   const [updateRoomId, setUpdateRoomId] = useState('');
@@ -258,7 +261,7 @@ function App() {
 
     setIsLoading(true);
     try {
-      const id = await apis.reservationApi.createReservation({
+      const id = await bookingActions.create({
         customerId,
         roomId,
         startDate: reservationStartDate,
@@ -341,7 +344,7 @@ function App() {
 
     setIsLoading(true);
     try {
-      await apis.reservationApi.cancelReservation({ reservationId });
+      await bookingActions.cancel(reservationId);
       setCancelStatus(`Cancelled reservation ${reservationId}.`);
       setAlert({ type: 'success', message: 'Reservation cancelled.' });
     } catch (error) {
@@ -369,7 +372,7 @@ function App() {
 
     setIsLoading(true);
     try {
-      await apis.reservationApi.updateReservationRoom({ reservationId, newRoomId });
+      await bookingActions.move(reservationId, newRoomId);
       setUpdateStatus(`Moved reservation ${reservationId} to room ${newRoomId}.`);
       setAlert({ type: 'success', message: 'Reservation updated.' });
     } catch (error) {

@@ -1,6 +1,6 @@
 # Implementation tracker
 
-The owner approved execution of milestone 1 on November 5, 2026. The plan is a
+The owner approved execution through milestone 2 on November 5, 2026. The plan is a
 staff-only application. Google sign-in, EUR, `Europe/Skopje`, and an empty production
 start are recorded in [decisions](decisions.md).
 
@@ -9,7 +9,7 @@ start are recorded in [decisions](decisions.md).
 | Step | Issue | Dependencies | Implementation state |
 | --- | --- | --- | --- |
 | 1 | [Modernize the foundation and establish regression checks](https://github.com/skrce/villas/issues/2) | None | Implemented and verified; review/merge evidence is in the linked issue |
-| 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | In progress: schema/date PR, then transactional inventory and shared queries |
+| 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | In progress: schema/date PR merged; transactional inventory and shared queries follow |
 | 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Planned |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | Planned |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Planned |
@@ -88,6 +88,23 @@ least 90% branch coverage for critical booking, authorization, and money modules
 those modules are implemented, with explicit tests for these failure cases. A global
 percentage alone is not a release gate.
 
+## Milestone 2 delivery
+
+[PR #15](https://github.com/skrce/villas/pull/15) adds explicit ordered migrations,
+strict calendar stays, reference constraints, and empty/upgrade/rerun checks. It is
+merged after independent review. The review fixes reject zero date components even
+under permissive SQL modes, enforce exact stored status values, and validate missing
+room references before a foreign-key write. Backend verification passed 79
+unit/HTTP/configuration cases and 10 MariaDB cases. Its complete check also passed
+six frontend interactions, six launcher tests, and the browser workflow.
+
+The next PR implements shared apartment locks, expected versions, retained
+cancellation, maintenance, operation reconciliation, and atomic events. Native
+tests exercise competing writes and injected audit failure. The console integrates
+the required keys/versions and preserves pending intents across reloads. Bounded
+date-filtered queries, final coverage evidence, and operating checks remain in the
+last milestone 2 PR. Google identity and production recovery remain their own gates.
+
 ## Acceptance states
 
 | Evidence | Milestone 1 state | Release gate |
@@ -104,9 +121,10 @@ percentage alone is not a release gate.
 
 ## Known limitations
 
-The frontend remains a single basic console until milestone 4. The schema now has
-versioned migrations, reference constraints, and strict calendar dates. Booking locks,
-retry guarantees, and inventory operations are in progress.
-Legacy cancellation deletes a record. Price integers are fixture values, not the
+The frontend remains a single basic console until milestone 4. The schema has
+versioned migrations, reference constraints, and strict calendar dates. Inventory
+transactions, version checks, and retry reconciliation are implemented in the
+current inventory PR, while bounded queries are still in progress.
+Cancellation retains the record and events. Price integers are fixture values, not the
 implemented EUR-cent model. Roles, sessions, rates, a ledger, and a calendar remain
 planned. These limitations are not relaxed by the new test setup.

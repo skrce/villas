@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -31,6 +32,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 class MariaDbIT
 @Autowired
 constructor(
+    private val jdbc: JdbcTemplate,
     private val apartments: ApartmentRepository,
     private val customers: CustomerRepository,
     private val reservations: ReservationRepository,
@@ -40,16 +42,21 @@ constructor(
 
     @BeforeEach
     fun clearPrivateContainerFixtures() {
-        reservations.deleteAllInBatch()
-        customers.deleteAllInBatch()
-        apartments.deleteAllInBatch()
+        TestData.reset(jdbc, database.jdbcUrl)
     }
 
     @Test
     fun schemaStartsWithoutBusinessRecords() {
         assertThat(bootstrapRows)
             .containsExactlyInAnyOrderEntriesOf(
-                mapOf("apartments" to 0L, "customers" to 0L, "reservations" to 0L)
+                mapOf(
+                    "apartments" to 0L,
+                    "customers" to 0L,
+                    "reservations" to 0L,
+                    "maintenance_blocks" to 0L,
+                    "inventory_operations" to 0L,
+                    "inventory_events" to 0L,
+                )
             )
     }
 
@@ -105,12 +112,19 @@ constructor(
         assertThat(request("GET", "/api/v1/customers?firstName=Test").body()).contains("Гостин")
         assertThat(request("GET", "/api/v1/apartments").body()).contains("Езеро")
         val moved =
-            request("PATCH", "/api/v1/reservations?reservationId=$id&newRoomId=${second.id}")
+            request(
+                "PATCH",
+                "/api/v1/reservations?reservationId=$id&newRoomId=${second.id}&expectedVersion=0",
+            )
         assertThat(moved.statusCode()).isEqualTo(200)
         assertThat(reservations.findById(id).get().roomId).isEqualTo(second.id)
-        assertThat(request("DELETE", "/api/v1/reservations?reservationId=$id").statusCode())
+        assertThat(
+                request("DELETE", "/api/v1/reservations?reservationId=$id&expectedVersion=1")
+                    .statusCode()
+            )
             .isEqualTo(200)
-        assertThat(reservations.findById(id)).isEmpty
+        assertThat(reservations.findById(id).get().status)
+            .isEqualTo(com.villarosa.repository.model.ReservationStatus.CANCELLED)
     }
 
     @Test
@@ -149,15 +163,110 @@ constructor(
                 "POST",
                 "/api/v1/reservations?customerId=${guest.id}&roomId=999999&startDate=2026-11-06&endDate=2026-11-09",
             )
-        assertThat(response.statusCode()).isEqualTo(400)
-        assertThat(response.body()).contains("INVALID_REQUEST").contains("Room does not exist.")
+        assertThat(response.statusCode()).isEqualTo(404)
+        assertThat(response.body()).contains("NOT_FOUND").contains("Room does not exist.")
         assertThat(reservations.count()).isZero()
+    }
+
+    @Test
+    fun canonicalWritesRequireKeysAndVersionsAndReplayTheOriginalOutcome() {
+        val guest =
+            customers.save(
+                com.villarosa.repository.model.Customer.buildCustomer(
+                    "Test",
+                    "Guest",
+                    "000",
+                    "Synthetic",
+                )
+            )
+        val first = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
+        val second = apartments.save(Apartment(null, 2, "East", "Garden", 100, 150))
+        val path =
+            "/api/v1/reservations?customerId=${guest.id}&roomId=${first.id}&startDate=2026-11-06&endDate=2026-11-09"
+        val noKey = request("POST", path, operationKey = null)
+        assertThat(noKey.statusCode()).isEqualTo(400)
+        assertThat(noKey.body()).contains("HTTP_400")
+        val invalidKey = request("POST", path, operationKey = "bad")
+        assertThat(invalidKey.statusCode()).isEqualTo(400)
+        assertThat(invalidKey.body()).contains("INVALID_OPERATION_KEY")
+        val capacity = request("POST", "$path&guestCount=3")
+        assertThat(capacity.statusCode()).isEqualTo(400)
+        assertThat(capacity.body()).contains("CAPACITY_EXCEEDED")
+
+        val key = java.util.UUID.randomUUID().toString()
+        val created = request("POST", "$path&guestCount=2", operationKey = key)
+        assertThat(created.statusCode()).isEqualTo(200)
+        assertThat(created.headers().firstValue("X-Operation-Key")).hasValue(key)
+        assertThat(created.headers().firstValue("X-Resource-Version")).hasValue("0")
+        val id = created.body().toInt()
+        assertThat(
+                request("PATCH", "/api/v1/reservations?reservationId=$id&newRoomId=${second.id}")
+                    .statusCode()
+            )
+            .isEqualTo(400)
+        assertThat(
+                request(
+                        "PATCH",
+                        "/api/v1/reservations?reservationId=$id&newRoomId=${second.id}&expectedVersion=0",
+                    )
+                    .statusCode()
+            )
+            .isEqualTo(200)
+        val stale = request("DELETE", "/api/v1/reservations?reservationId=$id&expectedVersion=0")
+        assertThat(stale.statusCode()).isEqualTo(409)
+        assertThat(stale.body()).contains("STALE_VERSION")
+        val replay = request("POST", "$path&guestCount=2", operationKey = key)
+        assertThat(replay.body()).isEqualTo(created.body())
+        assertThat(replay.headers().firstValue("X-Resource-Version")).hasValue("0")
+        val outcome = request("GET", "/api/v1/operations/$key?kind=CREATE")
+        assertThat(outcome.statusCode()).isEqualTo(200)
+        assertThat(outcome.body()).contains("\"roomId\":${first.id}").contains("\"version\":0")
+        assertThat(request("GET", "/api/v1/reservations/$id").body())
+            .contains("\"roomId\":${second.id}")
+            .contains("\"version\":1")
+        val reused = request("POST", "$path&guestCount=1", operationKey = key)
+        assertThat(reused.statusCode()).isEqualTo(409)
+        assertThat(reused.body()).contains("IDEMPOTENCY_KEY_REUSED")
+        val unknown = request("GET", "/api/v1/operations/$key?kind=MOVE")
+        assertThat(unknown.statusCode()).isEqualTo(404)
+        assertThat(unknown.body()).contains("OPERATION_NOT_COMMITTED")
+        assertThat(reservations.count()).isEqualTo(1)
+    }
+
+    @Test
+    fun maintenanceSharesBookingConflictsAndRequiresItsCurrentVersion() {
+        val room = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
+        val path =
+            "/api/v1/maintenance-blocks?roomId=${room.id}&startDate=2026-11-06&endDate=2026-11-09"
+        val invalid = request("POST", "$path&reason=%20")
+        assertThat(invalid.statusCode()).isEqualTo(400)
+        assertThat(invalid.body()).contains("INVALID_REASON")
+        val created = request("POST", path)
+        assertThat(created.statusCode()).isEqualTo(200)
+        val id =
+            tools.jackson.databind.json.JsonMapper.builder()
+                .build()
+                .readTree(created.body())
+                .get("id")
+                .asInt()
+        val conflict = request("POST", path)
+        assertThat(conflict.statusCode()).isEqualTo(409)
+        assertThat(conflict.body()).contains("INVENTORY_CONFLICT")
+        assertThat(
+                request("DELETE", "/api/v1/maintenance-blocks/$id?expectedVersion=1").statusCode()
+            )
+            .isEqualTo(409)
+        val cancelled = request("DELETE", "/api/v1/maintenance-blocks/$id?expectedVersion=0")
+        assertThat(cancelled.statusCode()).isEqualTo(200)
+        assertThat(cancelled.body()).contains("CANCELLED").contains("\"version\":1")
+        assertThat(request("POST", path).statusCode()).isEqualTo(200)
     }
 
     private fun request(
         method: String,
         path: String,
         credentials: String? = "test:test",
+        operationKey: String? = java.util.UUID.randomUUID().toString(),
     ): HttpResponse<String> {
         val request =
             HttpRequest.newBuilder(URI("http://127.0.0.1:$port$path"))
@@ -167,6 +276,10 @@ constructor(
                             "Authorization",
                             "Basic ${Base64.getEncoder().encodeToString(credentials.toByteArray(StandardCharsets.UTF_8))}",
                         )
+                }
+                .apply {
+                    if (method in listOf("POST", "PATCH", "DELETE") && operationKey != null)
+                        header("Idempotency-Key", operationKey)
                 }
                 .method(method, HttpRequest.BodyPublishers.noBody())
                 .build()
@@ -184,14 +297,21 @@ constructor(
                 .use { connection ->
                     connection.createStatement().use { statement ->
                         bootstrapRows =
-                            listOf("apartments", "customers", "reservations").associateWith { table
-                                ->
-                                statement.executeQuery("SELECT COUNT(*) FROM $table").use { result
-                                    ->
-                                    check(result.next())
-                                    result.getLong(1)
+                            listOf(
+                                    "apartments",
+                                    "customers",
+                                    "reservations",
+                                    "maintenance_blocks",
+                                    "inventory_operations",
+                                    "inventory_events",
+                                )
+                                .associateWith { table ->
+                                    statement.executeQuery("SELECT COUNT(*) FROM $table").use {
+                                        result ->
+                                        check(result.next())
+                                        result.getLong(1)
+                                    }
                                 }
-                            }
                     }
                 }
         }
