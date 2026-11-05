@@ -27,7 +27,13 @@ CREATE TABLE IF NOT EXISTS reservations (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    CONSTRAINT valid_stay CHECK (start_date >= '1000-01-01' AND end_date > start_date),
+    CONSTRAINT valid_stay CHECK (
+        YEAR(start_date) BETWEEN 1000 AND 9999 AND MONTH(start_date) BETWEEN 1 AND 12
+        AND LAST_DAY(start_date) IS NOT NULL AND DAY(start_date) BETWEEN 1 AND DAY(LAST_DAY(start_date))
+        AND YEAR(end_date) BETWEEN 1000 AND 9999 AND MONTH(end_date) BETWEEN 1 AND 12
+        AND LAST_DAY(end_date) IS NOT NULL AND DAY(end_date) BETWEEN 1 AND DAY(LAST_DAY(end_date))
+        AND end_date > start_date
+    ),
     CONSTRAINT reservation_customer FOREIGN KEY (property_id, customer_id) REFERENCES customers (property_id, id),
     CONSTRAINT reservation_room FOREIGN KEY (property_id, room_id) REFERENCES apartments (property_id, id),
     UNIQUE KEY reservation_property_id (property_id, id),

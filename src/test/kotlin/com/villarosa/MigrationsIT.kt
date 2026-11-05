@@ -78,6 +78,9 @@ class MigrationsIT {
                     listOf(
                         "INSERT INTO apartments (capacity) VALUES (0)",
                         "INSERT INTO apartments (capacity, regular_price) VALUES (2, -1)",
+                        "UPDATE reservations SET status='active' WHERE id=1",
+                        "UPDATE reservations SET status='Cancelled' WHERE id=1",
+                        "UPDATE reservations SET status='ACTIVE ' WHERE id=1",
                         "INSERT INTO reservations (customer_id, room_id, start_date, end_date) VALUES (999, 1, '2026-04-01', '2026-04-03')",
                         "INSERT INTO reservations (customer_id, room_id, start_date, end_date) VALUES (1, 999, '2026-04-01', '2026-04-03')",
                         "INSERT INTO reservations (customer_id, room_id, start_date, end_date) VALUES (1, 1, '2026-04-01', '2026-04-01')",
@@ -108,6 +111,35 @@ class MigrationsIT {
                 statement.executeQuery("SELECT COUNT(*) FROM retained_marker").use { result ->
                     result.next()
                     assertThat(result.getInt(1)).isEqualTo(1)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun zeroComponentsAndImpossibleDaysCannotBeStoredEvenWithPermissiveSqlMode() {
+        DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate("INSERT INTO apartments (id, capacity) VALUES (1, 2)")
+                statement.executeUpdate(
+                    "INSERT INTO customers (id, first_name, last_name, phone, address) VALUES (1, 'Test', 'Guest', '000', 'Synthetic')"
+                )
+                statement.execute("SET SESSION sql_mode='ALLOW_INVALID_DATES'")
+                for ((start, end) in
+                    listOf(
+                        "2026-00-01" to "2026-01-03",
+                        "2026-01-00" to "2026-01-03",
+                        "2026-01-01" to "2026-02-00",
+                        "2026-01-01" to "2027-00-01",
+                        "2026-02-30" to "2026-03-03",
+                        "2026-02-01" to "2026-02-30",
+                    )) {
+                    assertThrows<SQLException> {
+                        statement.executeUpdate(
+                            "INSERT INTO reservations (customer_id, room_id, start_date, end_date) VALUES (1, 1, '$start', '$end')"
+                        )
+                    }
                 }
             }
         }

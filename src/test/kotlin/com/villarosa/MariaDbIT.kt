@@ -133,6 +133,27 @@ constructor(
         }
     }
 
+    @Test
+    fun missingRoomIsAClientErrorBeforeTheForeignKeyWrite() {
+        val guest =
+            customers.save(
+                com.villarosa.repository.model.Customer.buildCustomer(
+                    "Test",
+                    "Guest",
+                    "000",
+                    "Synthetic",
+                )
+            )
+        val response =
+            request(
+                "POST",
+                "/api/v1/reservations?customerId=${guest.id}&roomId=999999&startDate=2026-11-06&endDate=2026-11-09",
+            )
+        assertThat(response.statusCode()).isEqualTo(400)
+        assertThat(response.body()).contains("INVALID_REQUEST").contains("Room does not exist.")
+        assertThat(reservations.count()).isZero()
+    }
+
     private fun request(
         method: String,
         path: String,

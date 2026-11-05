@@ -30,6 +30,9 @@ class ReservationService(
             throw ExceptionHandler.ClientException("Customer does not exist!")
         }
 
+        apartmentService.findApartmentById(roomId)
+            ?: throw ExceptionHandler.ClientException("Room does not exist.")
+
         val existingReservationsForRoom = reservationRepository.findByRoomId(roomId)
 
         val overlappingReservations =
