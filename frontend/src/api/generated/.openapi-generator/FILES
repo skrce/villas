@@ -1,3 +1,4 @@
+.openapi-generator-ignore
 apis/ApartmentApi.ts
 apis/CustomerApi.ts
 apis/ReservationApi.ts
@@ -6,11 +7,13 @@ docs/Apartment.md
 docs/ApartmentApi.md
 docs/Customer.md
 docs/CustomerApi.md
+docs/ErrorResponse.md
 docs/ReservationApi.md
 docs/ReservationInfo.md
 index.ts
 models/Apartment.ts
 models/Customer.ts
+models/ErrorResponse.ts
 models/ReservationInfo.ts
 models/index.ts
 runtime.ts

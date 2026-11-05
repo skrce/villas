@@ -1,0 +1,38 @@
+# Release decisions
+
+Confirmed with the owner on November 5, 2026.
+
+| Decision | State | Contract |
+| --- | --- | --- |
+| D01: Staff identity | Confirmed | Invited staff use Google OIDC and server-side sessions. No production staff passwords, public signup, or fallback password administrator. Milestone 3 owns implementation and real-provider verification. |
+| D02: Region and property settings | Confirmed | Start in North Macedonia. EUR in exact integer cents for new money contracts. Property calendar dates use `Europe/Skopje`, including daylight saving. Audit/event timestamps use UTC. |
+| D03: Initial business data | Confirmed | Start production with a new empty database. Staff add real rooms, rates, and bookings through the app. No historical booking import or price conversion is required. Demo fixtures are explicit local/test/staging data only. |
+| D04: Hosting | Open | Choose a personal hosting target, domain, secret storage, backups, recovery targets, and monitoring before milestone 10. Local implementation requires no cloud credentials. Retain MariaDB unless a separate decision changes it. |
+
+The first release serves staff at one property through a responsive online app.
+Public booking and guest accounts are outside the ten-step plan. The existing
+Kotlin/Spring, Java 21, React/TypeScript/Vite, and MariaDB stack remains in use.
+
+## Business policy gates
+
+These proposals are not owner-approved policies. Their dependent milestone must
+record an explicit decision before shipping the corresponding feature.
+
+| Gate | Current behavior or proposal | Required before |
+| --- | --- | --- |
+| D05: Guest fields | The legacy API requires nonblank first name, last name, phone, and address. Proposed staff form: require names, allow missing phone/address, and show missing contact information. Confirm the exact required fields before changing validation. | Guest management, milestone 5 |
+| D06: Cancellation and refunds | The legacy API deletes a booking. Proposed release behavior: retain a cancelled booking and its audit history, release availability, and never automatically refund a payment. Confirm deadlines, fees, and who may cancel/refund. | Booking workflow and settlement, milestones 7 and 8 |
+| D07: Rate overrides | Proposed: owners may override a saved quote with an explicit reason and audit entry. Front desk needs a separate permission. Confirm allowed discounts, rounding, taxes/fees, and minimum-stay rules. | Rates and quotes, milestone 6 |
+| D08: Manual settlement | Proposed v1 records payments/refunds collected outside Villas. Store no card data and initiate no financial transactions. Confirm permitted methods, refund permissions, reconciliation, and record correction policy. | Front-desk settlement, milestone 8 |
+| D09: Staff roles | Proposed owner, front desk, and housekeeping, with server-side permissions in the [permission matrix](contracts/permissions.md). Confirm final capabilities and bootstrap owner process. | Staff authentication, milestone 3 |
+
+## Development compatibility
+
+Milestone 1 preserves the basic console with Basic Auth only in explicit local/test
+modes. The default production mode denies business access and rejects development
+authentication properties. This adapter is temporary until D01 is implemented.
+Local docs are enabled for contract generation; production docs are disabled.
+
+The current schema and fixtures preserve legacy integer price fields. They do not
+establish a production price unit. Milestone 6 introduces the EUR-cent contract
+without converting historical records, consistent with D03.

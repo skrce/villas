@@ -2,3 +2,5 @@
 *.cmd text eol=crlf
 *.jar binary
 *.png binary
+# Preserve generator output for exact client drift comparisons.
+frontend/src/api/generated/** -whitespace

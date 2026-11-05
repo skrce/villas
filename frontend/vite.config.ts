@@ -1,25 +1,39 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: '127.0.0.1',
+    strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:9098',
+        target: process.env.VILLAS_API_TARGET ?? 'http://127.0.0.1:9098',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },
   preview: {
+    host: '127.0.0.1',
+    strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:9098',
+        target: process.env.VILLAS_API_TARGET ?? 'http://127.0.0.1:9098',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
       },
+    },
+  },
+  test: {
+    include: ['src/**/*.test.{ts,tsx}'],
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    clearMocks: true,
+    restoreMocks: true,
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/api/generated/**', 'src/main.tsx', 'src/test/**'],
+      reporter: ['text', 'lcov', 'json-summary'],
     },
   },
 })

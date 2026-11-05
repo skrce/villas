@@ -1,11 +1,11 @@
 # CustomerApi
 
-All URIs are relative to *http://localhost:9098*
+All URIs are relative to */api/v1*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
-| [**createCustomer**](CustomerApi.md#createcustomer) | **POST** /customer | Create a customer |
-| [**searchCustomer**](CustomerApi.md#searchcustomer) | **GET** /customer | Search customers by first name or phone |
+| [**createCustomer**](CustomerApi.md#createcustomer) | **POST** /customers | Creates a customer. |
+| [**searchCustomer**](CustomerApi.md#searchcustomer) | **GET** /customers | Search customer by part of firstName or phone. |
 
 
 
@@ -13,7 +13,7 @@ All URIs are relative to *http://localhost:9098*
 
 > number createCustomer(firstName, lastName, phone, address)
 
-Create a customer
+Creates a customer.
 
 ### Example
 
@@ -34,13 +34,13 @@ async function example() {
   const api = new CustomerApi(config);
 
   const body = {
-    // string
+    // string | First name
     firstName: firstName_example,
-    // string
+    // string | Last name
     lastName: lastName_example,
-    // string
+    // string | Phone number
     phone: phone_example,
-    // string
+    // string | Address (Country, City, Street, Number)
     address: address_example,
   } satisfies CreateCustomerRequest;
 
@@ -61,10 +61,10 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **firstName** | `string` |  | [Defaults to `undefined`] |
-| **lastName** | `string` |  | [Defaults to `undefined`] |
-| **phone** | `string` |  | [Defaults to `undefined`] |
-| **address** | `string` |  | [Defaults to `undefined`] |
+| **firstName** | `string` | First name | [Defaults to `undefined`] |
+| **lastName** | `string` | Last name | [Defaults to `undefined`] |
+| **phone** | `string` | Phone number | [Defaults to `undefined`] |
+| **address** | `string` | Address (Country, City, Street, Number) | [Defaults to `undefined`] |
 
 ### Return type
 
@@ -77,13 +77,14 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: `application/json`
+- **Accept**: `application/json`, `*/*`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** | The new customer ID |  -  |
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -92,7 +93,7 @@ example().catch(console.error);
 
 > Array&lt;Customer&gt; searchCustomer(firstName, phone)
 
-Search customers by first name or phone
+Search customer by part of firstName or phone.
 
 ### Example
 
@@ -113,9 +114,9 @@ async function example() {
   const api = new CustomerApi(config);
 
   const body = {
-    // string (optional)
+    // string | First name (optional)
     firstName: firstName_example,
-    // string (optional)
+    // string | Phone number (optional)
     phone: phone_example,
   } satisfies SearchCustomerRequest;
 
@@ -136,8 +137,8 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **firstName** | `string` |  | [Optional] [Defaults to `undefined`] |
-| **phone** | `string` |  | [Optional] [Defaults to `undefined`] |
+| **firstName** | `string` | First name | [Optional] [Defaults to `undefined`] |
+| **phone** | `string` | Phone number | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -150,13 +151,14 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: `application/json`
+- **Accept**: `application/json`, `*/*`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** | Matching customers |  -  |
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

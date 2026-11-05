@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Villarosa API
- * Local API for managing apartments, customers, and reservations.
+ * Staff API. Basic Auth is available only for local development and tests.
  *
  * The version of the OpenAPI document: 1.0.0
  * 
@@ -21,16 +21,22 @@ import { mapValues } from '../runtime';
 export interface Customer {
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof Customer
      */
-    id?: number | null;
+    address?: string | null;
     /**
      * 
      * @type {string}
      * @memberof Customer
      */
     firstName?: string | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof Customer
+     */
+    id?: number | null;
     /**
      * 
      * @type {string}
@@ -43,12 +49,6 @@ export interface Customer {
      * @memberof Customer
      */
     phone?: string | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof Customer
-     */
-    address?: string | null;
 }
 
 /**
@@ -68,11 +68,11 @@ export function CustomerFromJSONTyped(json: any, ignoreDiscriminator: boolean): 
     }
     return {
         
-        'id': json['id'] == null ? undefined : json['id'],
+        'address': json['address'] == null ? undefined : json['address'],
         'firstName': json['firstName'] == null ? undefined : json['firstName'],
+        'id': json['id'] == null ? undefined : json['id'],
         'lastName': json['lastName'] == null ? undefined : json['lastName'],
         'phone': json['phone'] == null ? undefined : json['phone'],
-        'address': json['address'] == null ? undefined : json['address'],
     };
 }
 
@@ -87,11 +87,11 @@ export function CustomerToJSONTyped(value?: Customer | null, ignoreDiscriminator
 
     return {
         
-        'id': value['id'],
+        'address': value['address'],
         'firstName': value['firstName'],
+        'id': value['id'],
         'lastName': value['lastName'],
         'phone': value['phone'],
-        'address': value['address'],
     };
 }
 

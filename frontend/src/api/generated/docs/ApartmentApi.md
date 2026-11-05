@@ -1,10 +1,10 @@
 # ApartmentApi
 
-All URIs are relative to *http://localhost:9098*
+All URIs are relative to */api/v1*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
-| [**listApartments**](ApartmentApi.md#listapartments) | **GET** /apartment | List all apartments |
+| [**listApartments**](ApartmentApi.md#listapartments) | **GET** /apartments | Lists all apartments. |
 
 
 
@@ -12,7 +12,7 @@ All URIs are relative to *http://localhost:9098*
 
 > Array&lt;Apartment&gt; listApartments()
 
-List all apartments
+Lists all apartments.
 
 ### Example
 
@@ -59,13 +59,14 @@ This endpoint does not need any parameter.
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: `application/json`
+- **Accept**: `application/json`, `*/*`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** | A list of apartments |  -  |
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

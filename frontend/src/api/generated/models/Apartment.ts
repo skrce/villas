@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Villarosa API
- * Local API for managing apartments, customers, and reservations.
+ * Staff API. Basic Auth is available only for local development and tests.
  *
  * The version of the OpenAPI document: 1.0.0
  * 
@@ -24,25 +24,19 @@ export interface Apartment {
      * @type {number}
      * @memberof Apartment
      */
-    id?: number | null;
+    capacity?: number | null;
     /**
      * 
      * @type {number}
      * @memberof Apartment
      */
-    capacity?: number | null;
+    id?: number | null;
     /**
      * 
      * @type {string}
      * @memberof Apartment
      */
     orientation?: string | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof Apartment
-     */
-    view?: string | null;
     /**
      * 
      * @type {number}
@@ -55,6 +49,12 @@ export interface Apartment {
      * @memberof Apartment
      */
     topSeasonPrice?: number | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof Apartment
+     */
+    view?: string | null;
 }
 
 /**
@@ -74,12 +74,12 @@ export function ApartmentFromJSONTyped(json: any, ignoreDiscriminator: boolean):
     }
     return {
         
-        'id': json['id'] == null ? undefined : json['id'],
         'capacity': json['capacity'] == null ? undefined : json['capacity'],
+        'id': json['id'] == null ? undefined : json['id'],
         'orientation': json['orientation'] == null ? undefined : json['orientation'],
-        'view': json['view'] == null ? undefined : json['view'],
         'regularPrice': json['regularPrice'] == null ? undefined : json['regularPrice'],
         'topSeasonPrice': json['topSeasonPrice'] == null ? undefined : json['topSeasonPrice'],
+        'view': json['view'] == null ? undefined : json['view'],
     };
 }
 
@@ -94,12 +94,12 @@ export function ApartmentToJSONTyped(value?: Apartment | null, ignoreDiscriminat
 
     return {
         
-        'id': value['id'],
         'capacity': value['capacity'],
+        'id': value['id'],
         'orientation': value['orientation'],
-        'view': value['view'],
         'regularPrice': value['regularPrice'],
         'topSeasonPrice': value['topSeasonPrice'],
+        'view': value['view'],
     };
 }
 

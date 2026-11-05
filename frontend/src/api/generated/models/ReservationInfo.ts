@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Villarosa API
- * Local API for managing apartments, customers, and reservations.
+ * Staff API. Basic Auth is available only for local development and tests.
  *
  * The version of the OpenAPI document: 1.0.0
  * 
@@ -24,13 +24,19 @@ export interface ReservationInfo {
      * @type {number}
      * @memberof ReservationInfo
      */
-    id?: number | null;
+    customerId?: number | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof ReservationInfo
+     */
+    endDate?: string | null;
     /**
      * 
      * @type {number}
      * @memberof ReservationInfo
      */
-    customerId?: number | null;
+    id?: number | null;
     /**
      * 
      * @type {number}
@@ -43,12 +49,6 @@ export interface ReservationInfo {
      * @memberof ReservationInfo
      */
     startDate?: string | null;
-    /**
-     * 
-     * @type {string}
-     * @memberof ReservationInfo
-     */
-    endDate?: string | null;
 }
 
 /**
@@ -68,11 +68,11 @@ export function ReservationInfoFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
-        'id': json['id'] == null ? undefined : json['id'],
         'customerId': json['customerId'] == null ? undefined : json['customerId'],
+        'endDate': json['endDate'] == null ? undefined : json['endDate'],
+        'id': json['id'] == null ? undefined : json['id'],
         'roomId': json['roomId'] == null ? undefined : json['roomId'],
         'startDate': json['startDate'] == null ? undefined : json['startDate'],
-        'endDate': json['endDate'] == null ? undefined : json['endDate'],
     };
 }
 
@@ -87,11 +87,11 @@ export function ReservationInfoToJSONTyped(value?: ReservationInfo | null, ignor
 
     return {
         
-        'id': value['id'],
         'customerId': value['customerId'],
+        'endDate': value['endDate'],
+        'id': value['id'],
         'roomId': value['roomId'],
         'startDate': value['startDate'],
-        'endDate': value['endDate'],
     };
 }
 

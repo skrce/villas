@@ -1,14 +1,14 @@
 # ReservationApi
 
-All URIs are relative to *http://localhost:9098*
+All URIs are relative to */api/v1*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
-| [**cancelReservation**](ReservationApi.md#cancelreservation) | **DELETE** /reservation | Cancel a reservation |
-| [**createReservation**](ReservationApi.md#createreservation) | **POST** /reservation | Create a reservation |
-| [**findAvailableApartments**](ReservationApi.md#findavailableapartments) | **GET** /reservation/available-apartments | Find available apartments for a date range |
-| [**findReservationsByCustomer**](ReservationApi.md#findreservationsbycustomer) | **GET** /reservation/customer | Find reservations by customer |
-| [**updateReservationRoom**](ReservationApi.md#updatereservationroom) | **PATCH** /reservation | Update a reservation\&#39;s room |
+| [**cancelReservation**](ReservationApi.md#cancelreservation) | **DELETE** /reservations | Deletes a reservation. |
+| [**createReservation**](ReservationApi.md#createreservation) | **POST** /reservations | Creates a reservation (for room and customer). |
+| [**findAvailableApartments**](ReservationApi.md#findavailableapartments) | **GET** /reservations/available-apartments | Find all available apartments available for a date range. |
+| [**findReservationsByCustomer**](ReservationApi.md#findreservationsbycustomer) | **GET** /reservations/customer | Find all reservations for a given customer. |
+| [**updateReservationRoom**](ReservationApi.md#updatereservationroom) | **PATCH** /reservations | Updates a reservation\&#39;s room. |
 
 
 
@@ -16,7 +16,7 @@ All URIs are relative to *http://localhost:9098*
 
 > cancelReservation(reservationId)
 
-Cancel a reservation
+Deletes a reservation.
 
 ### Example
 
@@ -37,7 +37,7 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // number
+    // number | Reservation ID
     reservationId: 56,
   } satisfies CancelReservationRequest;
 
@@ -58,7 +58,7 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **reservationId** | `number` |  | [Defaults to `undefined`] |
+| **reservationId** | `number` | Reservation ID | [Defaults to `undefined`] |
 
 ### Return type
 
@@ -71,13 +71,14 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: Not defined
+- **Accept**: `*/*`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** | Reservation cancelled |  -  |
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -86,7 +87,7 @@ example().catch(console.error);
 
 > number createReservation(customerId, roomId, startDate, endDate)
 
-Create a reservation
+Creates a reservation (for room and customer).
 
 ### Example
 
@@ -107,13 +108,13 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // number
+    // number | Customer ID
     customerId: 56,
-    // number
+    // number | Room ID
     roomId: 56,
-    // string
+    // string | Start Date, format: YYYY-MM-DD
     startDate: startDate_example,
-    // string
+    // string | End Date, format: YYYY-MM-DD
     endDate: endDate_example,
   } satisfies CreateReservationRequest;
 
@@ -134,10 +135,10 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **customerId** | `number` |  | [Defaults to `undefined`] |
-| **roomId** | `number` |  | [Defaults to `undefined`] |
-| **startDate** | `string` |  | [Defaults to `undefined`] |
-| **endDate** | `string` |  | [Defaults to `undefined`] |
+| **customerId** | `number` | Customer ID | [Defaults to `undefined`] |
+| **roomId** | `number` | Room ID | [Defaults to `undefined`] |
+| **startDate** | `string` | Start Date, format: YYYY-MM-DD | [Defaults to `undefined`] |
+| **endDate** | `string` | End Date, format: YYYY-MM-DD | [Defaults to `undefined`] |
 
 ### Return type
 
@@ -150,13 +151,14 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: `application/json`
+- **Accept**: `application/json`, `*/*`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** | The new reservation ID |  -  |
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -165,7 +167,7 @@ example().catch(console.error);
 
 > Array&lt;Apartment&gt; findAvailableApartments(startDate, endDate)
 
-Find available apartments for a date range
+Find all available apartments available for a date range.
 
 ### Example
 
@@ -186,9 +188,9 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // string
+    // string | Start Date, format: YYYY-MM-DD
     startDate: startDate_example,
-    // string
+    // string | End Date, format: YYYY-MM-DD
     endDate: endDate_example,
   } satisfies FindAvailableApartmentsRequest;
 
@@ -209,8 +211,8 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **startDate** | `string` |  | [Defaults to `undefined`] |
-| **endDate** | `string` |  | [Defaults to `undefined`] |
+| **startDate** | `string` | Start Date, format: YYYY-MM-DD | [Defaults to `undefined`] |
+| **endDate** | `string` | End Date, format: YYYY-MM-DD | [Defaults to `undefined`] |
 
 ### Return type
 
@@ -223,13 +225,14 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: `application/json`
+- **Accept**: `application/json`, `*/*`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** | Available apartments |  -  |
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -238,7 +241,7 @@ example().catch(console.error);
 
 > Array&lt;ReservationInfo&gt; findReservationsByCustomer(customerId)
 
-Find reservations by customer
+Find all reservations for a given customer.
 
 ### Example
 
@@ -259,7 +262,7 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // number
+    // number | Customer ID
     customerId: 56,
   } satisfies FindReservationsByCustomerRequest;
 
@@ -280,7 +283,7 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **customerId** | `number` |  | [Defaults to `undefined`] |
+| **customerId** | `number` | Customer ID | [Defaults to `undefined`] |
 
 ### Return type
 
@@ -293,13 +296,14 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: `application/json`
+- **Accept**: `application/json`, `*/*`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** | Customer reservations |  -  |
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
@@ -308,7 +312,7 @@ example().catch(console.error);
 
 > updateReservationRoom(reservationId, newRoomId)
 
-Update a reservation\&#39;s room
+Updates a reservation\&#39;s room.
 
 ### Example
 
@@ -329,9 +333,9 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // number
+    // number | Reservation ID
     reservationId: 56,
-    // number
+    // number | New Room ID
     newRoomId: 56,
   } satisfies UpdateReservationRoomRequest;
 
@@ -352,8 +356,8 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **reservationId** | `number` |  | [Defaults to `undefined`] |
-| **newRoomId** | `number` |  | [Defaults to `undefined`] |
+| **reservationId** | `number` | Reservation ID | [Defaults to `undefined`] |
+| **newRoomId** | `number` | New Room ID | [Defaults to `undefined`] |
 
 ### Return type
 
@@ -366,13 +370,14 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: Not defined
+- **Accept**: `*/*`
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-| **200** | Reservation updated |  -  |
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 

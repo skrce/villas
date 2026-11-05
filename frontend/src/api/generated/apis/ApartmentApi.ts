@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Villarosa API
- * Local API for managing apartments, customers, and reservations.
+ * Staff API. Basic Auth is available only for local development and tests.
  *
  * The version of the OpenAPI document: 1.0.0
  * 
@@ -16,10 +16,13 @@
 import * as runtime from '../runtime';
 import type {
   Apartment,
+  ErrorResponse,
 } from '../models/index';
 import {
     ApartmentFromJSON,
     ApartmentToJSON,
+    ErrorResponseFromJSON,
+    ErrorResponseToJSON,
 } from '../models/index';
 
 /**
@@ -28,7 +31,7 @@ import {
 export class ApartmentApi extends runtime.BaseAPI {
 
     /**
-     * List all apartments
+     * Lists all apartments.
      */
     async listApartmentsRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<Apartment>>> {
         const queryParameters: any = {};
@@ -39,7 +42,7 @@ export class ApartmentApi extends runtime.BaseAPI {
             headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
         }
 
-        let urlPath = `/apartment`;
+        let urlPath = `/apartments`;
 
         const response = await this.request({
             path: urlPath,
@@ -52,7 +55,7 @@ export class ApartmentApi extends runtime.BaseAPI {
     }
 
     /**
-     * List all apartments
+     * Lists all apartments.
      */
     async listApartments(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<Apartment>> {
         const response = await this.listApartmentsRaw(initOverrides);

@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import './App.css';
 import { buildApis, type ApiConfig } from './api/client';
 import type { Apartment, Customer, ReservationInfo } from './api/generated';
-import { ResponseError } from './api/generated';
+import { FetchError, ResponseError } from './api/generated';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
@@ -21,7 +21,7 @@ type CalendarInputProps = {
 
 const STORAGE_KEY = 'villarosa.apiConfig';
 const DEFAULT_CONFIG: ApiConfig = {
-  basePath: '/api',
+  basePath: '/api/v1',
   username: 'test',
   password: '',
 };
@@ -36,7 +36,7 @@ const normalizeConfig = (config: ApiConfig): ApiConfig => {
   const legacyBasePath = 'http://localhost:9098';
   return {
     basePath:
-      normalizedBasePath === legacyBasePath
+      (normalizedBasePath === legacyBasePath || normalizedBasePath === '/api')
         ? DEFAULT_CONFIG.basePath
         : normalizedBasePath,
     username: config.username ?? DEFAULT_CONFIG.username,
@@ -88,6 +88,9 @@ const parseDateString = (value: string): Date | null => {
 };
 
 const parseErrorMessage = async (error: unknown) => {
+  if (error instanceof FetchError) {
+    return 'The request could not be confirmed. Check the records before retrying.';
+  }
   if (error instanceof ResponseError) {
     const body = await error.response.text();
     const details = body ? ` - ${body}` : '';
@@ -535,7 +538,7 @@ function App() {
             Update the base URL and credentials used for all requests.
           </p>
         </div>
-        <form className="form-grid" onSubmit={handleApplyConfig}>
+        <form className="form-grid" aria-label="API settings" onSubmit={handleApplyConfig}>
           <label className="field">
             <span>Base URL</span>
             <input
@@ -547,7 +550,7 @@ function App() {
                   basePath: event.target.value,
                 }))
               }
-              placeholder="/api"
+              placeholder="/api/v1"
             />
           </label>
           <label className="field">
@@ -607,7 +610,7 @@ function App() {
         <div className="panel-grid two-col">
           <div className="subcard">
             <h3>Create customer</h3>
-            <form className="form-grid" onSubmit={handleCreateCustomer}>
+            <form className="form-grid" aria-label="Create customer" onSubmit={handleCreateCustomer}>
               <label className="field">
                 <span>First name</span>
                 <input
@@ -653,7 +656,7 @@ function App() {
 
           <div className="subcard">
             <h3>Search customers</h3>
-            <form className="form-grid" onSubmit={handleSearchCustomer}>
+            <form className="form-grid" aria-label="Search customers" onSubmit={handleSearchCustomer}>
               <label className="field">
                 <span>First name</span>
                 <input
@@ -689,7 +692,7 @@ function App() {
         <div className="panel-grid two-col">
           <div className="subcard">
             <h3>Create reservation</h3>
-            <form className="form-grid" onSubmit={handleCreateReservation}>
+            <form className="form-grid" aria-label="Create reservation" onSubmit={handleCreateReservation}>
               <label className="field">
                 <span>Customer ID</span>
                 <input
@@ -729,7 +732,7 @@ function App() {
 
           <div className="subcard">
             <h3>Availability</h3>
-            <form className="form-grid" onSubmit={handleFindAvailableApartments}>
+            <form className="form-grid" aria-label="Find availability" onSubmit={handleFindAvailableApartments}>
               <CalendarInput
                 label="Start date"
                 value={availabilityStartDate}
@@ -751,7 +754,7 @@ function App() {
 
           <div className="subcard">
             <h3>Reservations by customer</h3>
-            <form className="form-grid" onSubmit={handleFindReservationsByCustomer}>
+            <form className="form-grid" aria-label="Customer reservations" onSubmit={handleFindReservationsByCustomer}>
               <label className="field">
                 <span>Customer ID</span>
                 <input
@@ -771,7 +774,7 @@ function App() {
 
           <div className="subcard">
             <h3>Cancel reservation</h3>
-            <form className="form-grid" onSubmit={handleCancelReservation}>
+            <form className="form-grid" aria-label="Cancel reservation" onSubmit={handleCancelReservation}>
               <label className="field">
                 <span>Reservation ID</span>
                 <input
@@ -791,7 +794,7 @@ function App() {
 
           <div className="subcard">
             <h3>Update reservation room</h3>
-            <form className="form-grid" onSubmit={handleUpdateReservationRoom}>
+            <form className="form-grid" aria-label="Move reservation" onSubmit={handleUpdateReservationRoom}>
               <label className="field">
                 <span>Reservation ID</span>
                 <input
