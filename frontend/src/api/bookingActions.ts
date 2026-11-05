@@ -15,6 +15,12 @@ const DEFINITIVE_ERRORS = new Set([
 ]);
 type Intent = { key: string; expectedVersion?: number };
 type Intents = Record<string, Intent>;
+const pending = new Map<string, Promise<unknown>>();
+
+const stored = <T>(action: () => T): Promise<T> => {
+  if (!navigator.locks) return Promise.reject(new Error('Safe booking changes require HTTPS or localhost in a browser with Web Locks support.'));
+  return navigator.locks.request(STORAGE_KEY, () => action());
+};
 
 const read = (): Intents => {
   try {
@@ -33,57 +39,69 @@ const read = (): Intents => {
 };
 
 export const buildBookingActions = (api: ReservationApi, scope: string) => {
-  const pending = new Map<string, Promise<unknown>>();
   const execute = async <T>(
     kind: GetOperationKindEnum,
     identity: string,
     prepare: () => Promise<number | undefined>,
-    send: (intent: Intent) => Promise<T>,
+    send: (intent: Intent) => Promise<unknown>,
     recovered: (result: OperationResult) => T,
   ): Promise<T> => {
-    const intents = read();
-    let intent = intents[identity];
-    const clear = () => {
-      const current = read();
-      delete current[identity];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-    };
-    if (intent) {
-      try {
-        const result = await api.getOperation({ operationKey: intent.key, kind });
-        if (result.key !== intent.key || result.kind !== kind || !Number.isSafeInteger(result.resourceId) || (result.resourceId ?? 0) <= 0) {
-          throw new Error('The saved result could not be confirmed. Check the records before retrying.');
+    let intent = await stored(() => read()[identity]);
+    let existing = !!intent;
+    if (!intent) {
+      const prepared = { key: crypto.randomUUID(), expectedVersion: await prepare() };
+      intent = await stored(() => {
+        const current = read();
+        if (current[identity]) {
+          existing = true;
+          return current[identity];
         }
-        const value = recovered(result);
-        clear();
-        return value;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, [identity]: prepared }));
+        return prepared;
+      });
+    }
+    const clear = () => stored(() => {
+      const current = read();
+      if (current[identity]?.key === intent.key) {
+        delete current[identity];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+      }
+    });
+    const confirm = async () => {
+      const result = await api.getOperation({ operationKey: intent.key, kind });
+      if (result?.key !== intent.key || result.kind !== kind || !Number.isSafeInteger(result.resourceId) || result.resourceId <= 0) {
+        throw new Error('The saved result could not be confirmed. Check the records before retrying.');
+      }
+      const value = recovered(result);
+      await clear();
+      return value;
+    };
+    if (existing) {
+      try {
+        return await confirm();
       } catch (error) {
         if (!(error instanceof ResponseError) || error.response.status !== 404) throw error;
         const body = await error.response.clone().json().catch(() => null);
         if (body?.code !== 'OPERATION_NOT_COMMITTED') throw error;
       }
-    } else {
-      intent = { key: crypto.randomUUID(), expectedVersion: await prepare() };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...read(), [identity]: intent }));
     }
     try {
-      const value = await send(intent);
-      clear();
-      return value;
+      await send(intent);
     } catch (error) {
       if (error instanceof ResponseError && [400, 404, 409].includes(error.response.status)) {
         const body = await error.response.clone().json().catch(() => null);
-        if (DEFINITIVE_ERRORS.has(body?.code)) clear();
+        if (DEFINITIVE_ERRORS.has(body?.code)) await clear();
       }
       throw error;
     }
+    return confirm();
   };
 
   const run = <T>(
     kind: GetOperationKindEnum,
     input: unknown,
     prepare: () => Promise<number | undefined>,
-    send: (intent: Intent) => Promise<T>,
+    send: (intent: Intent) => Promise<unknown>,
     recovered: (result: OperationResult) => T,
   ): Promise<T> => {
     const identity = JSON.stringify([scope, kind, input]);

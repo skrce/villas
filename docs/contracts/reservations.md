@@ -69,8 +69,13 @@ After a timeout, connection loss, or unreadable successful response:
    `INVENTORY_RETRYABLE` and also retains the same intent.
 
 The basic console persists pending create/move/cancel keys and prepared versions
-across reloads, coalesces identical in-flight submissions, and reconciles before
-retrying. Its storage scope uses the local API and development username. Milestone 3
+across reloads. Web Locks serialize shared storage updates across tabs; a completion
+can clear only its own key. Identical submissions share an in-flight request in one
+page and a durable key across tabs. The console confirms the committed operation
+after a successful mutation response as well as before a retry, so an HTML page or
+malformed 200 cannot erase recovery state. A browser without Web Locks cannot submit
+booking changes; use a supported browser over HTTPS or localhost.
+Its storage scope uses the local API and development username. Milestone 3
 must replace the server's temporary `development` actor and this client scope with
 verified staff identity, and handle logout/account changes, before enabling
 production access. The current production mode denies all business requests.

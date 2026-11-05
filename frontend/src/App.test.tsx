@@ -87,6 +87,10 @@ describe('staff console API integration', () => {
   it('cancels through the generated client without a trailing-slash failure', async () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ id: 42, version: 0 }), { headers: { 'Content-Type': 'application/json' } }));
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    fetchMock.mockImplementationOnce(async () => new Response(JSON.stringify({
+      key: new Headers(fetchMock.mock.calls[1][1]?.headers).get('Idempotency-Key'),
+      kind: 'CANCEL', resourceId: 42,
+    }), { headers: { 'Content-Type': 'application/json' } }));
     render(<App />);
     const form = screen.getByRole('form', { name: 'Cancel reservation' });
 
