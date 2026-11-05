@@ -55,7 +55,7 @@ class ReservationController(private val reservationService: ReservationService) 
         return reservationService.findReservationsByCustomer(customerId)
     }
 
-    @DeleteMapping(value = ["/reservation/"],
+    @DeleteMapping(value = ["/reservation", "/reservation/"],
                    produces = [MediaType.APPLICATION_JSON_VALUE])
     @ApiOperation(value = "Deletes a reservation.")
     fun cancelReservation(@ApiParam(value = "Reservation ID")
@@ -64,7 +64,7 @@ class ReservationController(private val reservationService: ReservationService) 
         reservationService.cancelReservation(reservationId)
     }
 
-    @PatchMapping(value = ["/reservation/"],
+    @PatchMapping(value = ["/reservation", "/reservation/"],
                   produces = [MediaType.APPLICATION_JSON_VALUE])
     @ApiOperation(value = "Updates a reservation's room.")
     fun updateReservationRoom(@ApiParam(value = "Reservation ID")
