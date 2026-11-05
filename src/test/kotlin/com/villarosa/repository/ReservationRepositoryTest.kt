@@ -1,40 +1,47 @@
 package com.villarosa.repository
 
 import com.villarosa.repository.model.Reservation
+import java.text.SimpleDateFormat
+import java.util.Date
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
-import java.text.SimpleDateFormat
-import java.util.Date
 
+@ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Transactional
-class ReservationRepositoryTest @Autowired constructor(
-    private val reservationRepository: ReservationRepository
-) {
+class ReservationRepositoryTest
+@Autowired
+constructor(private val reservationRepository: ReservationRepository) {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd")
 
     @Test
     fun findByStartDateBeforeAndEndDateAfter_returnsOverlaps() {
-        val reservation1 = reservationRepository.save(
-            Reservation(null, 1, 1, date("2020-01-01"), date("2020-01-05"))
-        )
-        val reservation2 = reservationRepository.save(
-            Reservation(null, 1, 2, date("2020-01-05"), date("2020-01-15"))
-        )
-        val reservation3 = reservationRepository.save(
-            Reservation(null, 2, 3, date("2020-01-18"), date("2020-01-25"))
-        )
+        val reservation1 =
+            reservationRepository.save(
+                Reservation(null, 1, 1, date("2020-01-01"), date("2020-01-05"))
+            )
+        val reservation2 =
+            reservationRepository.save(
+                Reservation(null, 1, 2, date("2020-01-05"), date("2020-01-15"))
+            )
+        val reservation3 =
+            reservationRepository.save(
+                Reservation(null, 2, 3, date("2020-01-18"), date("2020-01-25"))
+            )
 
-        val results = reservationRepository.findByStartDateBeforeAndEndDateAfter(
-            date("2020-01-20"),
-            date("2020-01-10")
-        )
+        val results =
+            reservationRepository.findByStartDateBeforeAndEndDateAfter(
+                date("2020-01-20"),
+                date("2020-01-10"),
+            )
 
-        assertThat(results.map { it.id }).containsExactlyInAnyOrder(reservation2.id, reservation3.id)
+        assertThat(results.map { it.id })
+            .containsExactlyInAnyOrder(reservation2.id, reservation3.id)
         assertThat(results.map { it.id }).doesNotContain(reservation1.id)
     }
 

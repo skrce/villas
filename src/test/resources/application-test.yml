@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:villarosa;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_UPPER=false
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+villas:
+  mode: test
+  local-auth:
+    username: test
+    password: test
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

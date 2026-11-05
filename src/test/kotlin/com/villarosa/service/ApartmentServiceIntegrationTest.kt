@@ -6,13 +6,17 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 
+@ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Transactional
-class ApartmentServiceIntegrationTest @Autowired constructor(
+class ApartmentServiceIntegrationTest
+@Autowired
+constructor(
     private val apartmentService: ApartmentService,
-    private val apartmentRepository: ApartmentRepository
+    private val apartmentRepository: ApartmentRepository,
 ) {
 
     @Test

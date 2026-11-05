@@ -1,18 +1,43 @@
 spring:
   application:
     name: villarosa
-  security.user:
-    name: test
-    roles: USER
-  mvc:
-    pathmatch:
-      matching-strategy: ant_path_matcher
+  datasource:
+    url: ${VILLAS_DB_URL:}
+    username: ${VILLAS_DB_USERNAME:}
+    password: ${VILLAS_DB_PASSWORD:}
+    hikari:
+      minimum-idle: 1
+      maximum-pool-size: 5
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  sql:
+    init:
+      mode: never
+  jackson:
+    time-zone: UTC
 
 server:
-  port: 9098
+  address: ${VILLAS_BIND_ADDRESS:127.0.0.1}
+  port: ${VILLAS_PORT:9098}
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
 
+springdoc:
+  paths-to-match: /api/v1/**
+  api-docs:
+    enabled: false
+    version: OPENAPI_3_0
+  swagger-ui:
+    enabled: false
+  writer-with-order-by-keys: true
 
-datasource:
-  jdbcUrl: jdbc:mariadb://localhost/villarosa
-  minimumIdle: 1
-  maximumPoolSize: 5
+villas:
+  mode: ${VILLAS_MODE:production}
+  currency: EUR
+  property-timezone: Europe/Skopje

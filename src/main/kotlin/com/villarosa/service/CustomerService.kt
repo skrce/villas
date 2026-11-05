@@ -14,14 +14,15 @@ class CustomerService(private val customerRepository: CustomerRepository) {
             throw IllegalArgumentException("All params should have value")
         }
 
-        // check if customer is not already in db
-        val existingCustomers = customerRepository.findByFirstNameAndLastNameAndPhone(firstName, lastName, phone)
+        val existingCustomers =
+            customerRepository.findByFirstNameAndLastNameAndPhone(firstName, lastName, phone)
         if (existingCustomers.isNotEmpty()) {
             throw ExceptionHandler.ClientException("Customer already exists!")
         }
 
-        return customerRepository.save(Customer.buildCustomer(firstName, lastName, phone, address))
-                .id!!
+        return customerRepository
+            .save(Customer.buildCustomer(firstName, lastName, phone, address))
+            .id!!
     }
 
     fun findCustomerById(id: Int) = customerRepository.findById(id)

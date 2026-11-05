@@ -1,7 +1,0 @@
-spring:
-  security.user:
-    password: REPLACE-ME
-
-datasource:
-  username: REPLACE-ME
-  password: REPLACE-ME

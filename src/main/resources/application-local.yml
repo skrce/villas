@@ -1,0 +1,11 @@
+villas:
+  mode: local
+  local-auth:
+    username: ${VILLAS_LOCAL_USERNAME:test}
+    password: ${VILLAS_LOCAL_PASSWORD}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
