@@ -229,10 +229,11 @@ it("opens a maintenance block in its selected historical period with a real anch
   const links = await screen.findAllByRole("link", {
     name: /Historical repair/,
   });
-  expect(links[0]).toHaveAttribute(
-    "href",
-    "/rooms/7?from=2030-01-01&to=2030-01-08&history=1#maintenance",
-  );
+  for (const link of links)
+    expect(link).toHaveAttribute(
+      "href",
+      "/rooms/7?from=2030-01-01&to=2030-01-08&history=1#maintenance",
+    );
   await userEvent.click(links[0]);
   await screen.findByRole("heading", { name: "Availability & maintenance" });
   expect(document.getElementById("maintenance")).toBeInTheDocument();

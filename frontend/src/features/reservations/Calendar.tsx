@@ -287,6 +287,8 @@ export function BookingCalendar() {
                         <CalendarCard
                           key={`${event.kind}-${event.id}`}
                           event={event}
+                          from={data.startDate}
+                          to={data.endDate}
                         />
                       ))}
                       {room.active &&
