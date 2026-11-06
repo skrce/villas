@@ -386,3 +386,14 @@ The guided wizard and concurrent-Owner browser checkpoint remain the next slice.
 This work retains the existing Owner cancellation permission and D12's retained
 price/no-fee/no-refund behavior. It adds no deadline, financial action or daily
 operations lifecycle. Real Google and deployed acceptance remain separate gates.
+
+
+The calendar checkpoint passed the complete repository gate: 380 backend cases
+(204 unit/HTTP and 176 native MariaDB), 195 frontend cases, 13 launcher checks and
+13 Chromium workflows, with no skips. Independent backend review found no material
+defects. Frontend review found lost maintenance periods and missing room-filter
+labels, then caught one missed phone call site. All are corrected with regressions.
+The final frontend suite has 198 cases plus lint/build; a focused Chromium rerun
+checks both booking persistence and the actual historical phone maintenance target.
+An idle cached calendar now disables selection immediately on going offline.
+Final review, exact-head CI and merge evidence are recorded in PR #26 and #8.

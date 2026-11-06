@@ -108,7 +108,21 @@ test("calendar selection creates a quoted stay that persists on the desktop grid
     path: testInfo.outputPath("calendar-phone.png"),
     fullPage: true,
   });
-  await agenda.getByRole("link", { name: /Calendar Synthetic Guest/ }).click();
+  await agenda.getByRole("link", { name: /Synthetic inspection/ }).click();
+  await expect(page).toHaveURL(
+    /from=2037-04-01&to=2037-04-08&history=1#maintenance$/,
+  );
+  await expect(
+    page
+      .locator("#maintenance")
+      .locator("strong")
+      .filter({ hasText: /^Synthetic inspection$/ }),
+  ).toBeVisible();
+  await page.goto("/calendar?from=2037-04-01");
+  await page
+    .getByLabel("Room agenda")
+    .getByRole("link", { name: /Calendar Synthetic Guest/ })
+    .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     /^Reservation #\d+$/,
   );

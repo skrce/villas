@@ -256,7 +256,7 @@ export function RoomDetail() {
             </dl>
           </section>
           <RoomRatesPanel roomId={id} />
-          <section className="panel" id="maintenance">
+          <section className="panel">
             <div className="section-heading">
               <h2>Availability & maintenance</h2>
               <button
@@ -345,7 +345,7 @@ export function RoomDetail() {
                   </button>
                 )}
               </section>
-              <section className="panel">
+              <section className="panel" id="maintenance">
                 <h2>Maintenance blocks</h2>
                 {maintenance.isPending ? (
                   <Pending />

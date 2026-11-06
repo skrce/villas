@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useOnline } from "../../shared/useOnline";
 import { useWorkspace } from "../../app/context";
 import {
   addDays,
@@ -32,6 +33,7 @@ import {
 
 export function BookingCalendar() {
   const { apis } = useWorkspace();
+  const online = useOnline();
   const [params, setParams] = useSearchParams();
   const from = params.get("from") ?? propertyToday();
   const cursor = params.get("after");
@@ -79,7 +81,7 @@ export function BookingCalendar() {
   });
   const data = query.data;
   const ready =
-    !!data && !query.isFetching && !query.isError && !query.isPaused;
+    online && !!data && !query.isFetching && !query.isError && !query.isPaused;
   const selected = selection?.identity === identity ? selection : undefined;
   const stillFree =
     !!selected &&
@@ -163,7 +165,7 @@ export function BookingCalendar() {
           </button>
           <button
             className="button quiet"
-            disabled={!valid || query.isFetching || query.isPaused}
+            disabled={!valid || !online || query.isFetching || query.isPaused}
             onClick={() => void query.refetch()}
           >
             Refresh calendar
@@ -183,7 +185,7 @@ export function BookingCalendar() {
             Reset calendar
           </button>
         </Notice>
-      ) : query.isPaused ? (
+      ) : !online || query.isPaused ? (
         <Notice>
           You're offline. Reconnect to refresh the calendar and select a stay.
         </Notice>

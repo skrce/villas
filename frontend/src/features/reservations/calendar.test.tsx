@@ -181,6 +181,35 @@ it("keeps bounded reservation room filters in the request and URL", async () => 
   );
 });
 
+it("pauses free-period selection as soon as an idle cached calendar goes offline", async () => {
+  await open();
+  await screen.findByRole("button", {
+    name: "Select Lake room, night of 1 Jan 2030",
+  });
+  let online = false;
+  const getter = vi
+    .spyOn(navigator, "onLine", "get")
+    .mockImplementation(() => online);
+  try {
+    await act(async () => {
+      window.dispatchEvent(new Event("offline"));
+    });
+    await screen.findByText(/You're offline. Reconnect/);
+    expect(
+      screen.queryByRole("button", { name: /Select Lake room/ }),
+    ).not.toBeInTheDocument();
+    online = true;
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    await screen.findByRole("button", {
+      name: "Select Lake room, night of 1 Jan 2030",
+    });
+  } finally {
+    getter.mockRestore();
+  }
+});
+
 it("retains the selected room label when metadata fails instead of showing all rooms", async () => {
   api.mockImplementation((url) =>
     new URL(String(url), "http://localhost").pathname === "/api/v1/apartments"
