@@ -9,7 +9,9 @@ Property IDs are not client-controlled fields in the console.
 | --- | --- |
 | `apartments` | Named room with a property-unique uppercase reference, capacity, orientation/view/bed/features/floor, optional legacy test price integers, active/archive flag, optimistic version, and property scope |
 | `customers` | Required first/last names, optional phone/email/address/notes, active/archive flag, optimistic version, and property scope. No uniqueness claim on shared contacts. |
-| `reservations` | Guest/room references, SQL DATE check-in/out, positive guest count, status/version, UTC creation instant, and property scope |
+| `reservations` | Guest/room references, SQL DATE check-in/out, positive guest count, status/version, UTC creation instant, property scope and accepted quote reference. Historical records may have no price. |
+| `booking_quotes` | Immutable UUID quote, property/Owner, room/date/party, exact EUR price JSON/total, rate version, UTC creation/expiry and scoped room/Owner references |
+| `reservation_prices` | One-use quote UUID, property/reservation/version, accepting Owner, immutable complete quote JSON and UTC acceptance time. Unique reservation/version. |
 | `maintenance_blocks` | Room reference, strict SQL DATE interval, reason, status/version, and property scope |
 | `inventory_operations` | Unique property/actor/kind/UUID claim, request hash, original JSON result, and UTC creation instant |
 | `inventory_events` | Exactly one reservation or block subject, unique subject/version, operation/actor, room references, dates/count, and UTC event instant |
@@ -31,7 +33,7 @@ and event cursors without changing the inventory predicate. Event IDs are expose
 as decimal strings so BIGINT values preserve precision in browser clients.
 
 Legacy price integers have no production rate meaning. Exact EUR-cent rate and quote
-records belong to milestone 6; no historical conversion is performed. Business
+records are separate; no historical conversion is performed. Business
 initialization remains empty, and synthetic rooms require an explicit local fixture
 command.
 
@@ -51,3 +53,10 @@ base prices without converting old price fields. `seasonal_rates` stores year-sp
 half-open date periods, names and exact nightly cents with property/room foreign keys.
 Owner writes serialize on the existing room lock, reject overlaps/stale versions and
 commit the complete configuration with its audit event. See [pricing](contracts/pricing.md).
+
+V11 adds saved quotes and immutable accepted prices, with composite property/room
+and property/reservation references, one-use quote IDs, bounded amounts, valid dates
+and expiry constraints. Its DDL resumes after every committed prefix. Existing
+reservations keep a null accepted-quote reference. New booking admission requires
+an accepted quote; price, inventory, operation result and audit commit atomically.
+Later rate changes and cancellation do not rewrite accepted prices.

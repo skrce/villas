@@ -40,7 +40,12 @@ class RoomRateMigrationIT {
             }
         }
         val flyway =
-            DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
+            DatabaseMigrations.configured(
+                database.jdbcUrl,
+                database.username,
+                database.password,
+                "10",
+            )
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()

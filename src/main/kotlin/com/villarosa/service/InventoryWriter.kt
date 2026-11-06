@@ -20,6 +20,7 @@ class InventoryWriter(
     private val events: InventoryEventRepository,
     private val availability: InventoryAvailability,
     private val currentStaff: CurrentStaff,
+    private val quotes: QuoteService,
 ) {
     fun create(
         customerId: Int,
@@ -27,15 +28,36 @@ class InventoryWriter(
         dates: StayDates,
         guestCount: Int,
         key: String,
+        quoteId: String? = null,
     ): OperationResult {
         checkGuest(customerId)
         val room = lockRooms(listOf(roomId)).getValue(roomId)
         checkRoom(room, guestCount)
         checkAvailable(roomId, dates)
+        val price =
+            quotes.acceptable(
+                quoteId
+                    ?: conflict(
+                        "QUOTE_REQUIRED",
+                        "Review and accept a quote before saving a new booking.",
+                    ),
+                room,
+                dates,
+                guestCount,
+            )
         val booking =
             reservations.saveAndFlush(
-                Reservation(null, customerId, roomId, dates.start, dates.end, guestCount)
+                Reservation(
+                    null,
+                    customerId,
+                    roomId,
+                    dates.start,
+                    dates.end,
+                    guestCount,
+                    acceptedQuoteId = price.id,
+                )
             )
+        quotes.accept(price, booking)
         reservationEvent(booking, key, "CREATED")
         return OperationResult(
             key,
@@ -55,6 +77,11 @@ class InventoryWriter(
         val booking = current(id, expected, locked.keys)
         active(booking)
         if (booking.roomId != destination) {
+            if (booking.acceptedQuoteId != null)
+                conflict(
+                    "PRICE_REVIEW_REQUIRED",
+                    "A priced stay needs an accepted change quote before changing rooms.",
+                )
             checkRoom(locked.getValue(destination), booking.guestCount)
             checkAvailable(destination, StayDates(booking.startDate!!, booking.endDate!!), id)
             booking.roomId = destination
@@ -84,6 +111,16 @@ class InventoryWriter(
         val room = lockRooms(listOf(roomId)).getValue(roomId)
         val booking = current(id, expected, setOf(roomId))
         active(booking)
+        if (
+            booking.acceptedQuoteId != null &&
+                (booking.startDate != dates.start ||
+                    booking.endDate != dates.end ||
+                    booking.guestCount != guestCount)
+        )
+            conflict(
+                "PRICE_REVIEW_REQUIRED",
+                "A priced stay needs an accepted change quote before changing its dates or party size.",
+            )
         checkRoom(room, guestCount)
         checkAvailable(roomId, dates, id)
         if (

@@ -1,6 +1,8 @@
 /* tslint:disable */
 /* eslint-disable */
+export * from './AcceptedPrice';
 export * from './Apartment';
+export * from './BookingQuote';
 export * from './Customer';
 export * from './CustomerCreateRequest';
 export * from './CustomerSearchRequest';
@@ -15,12 +17,16 @@ export * from './InviteOwnerRequest';
 export * from './MaintenanceBlock';
 export * from './MaintenancePage';
 export * from './OperationResult';
+export * from './PriceHistory';
 export * from './PriceLine';
+export * from './QuoteConfirmationRequest';
+export * from './QuoteRequest';
 export * from './RatePreviewRequest';
 export * from './RateUpdateRequest';
 export * from './RecordStatusRequest';
 export * from './ReservationInfo';
 export * from './ReservationPage';
+export * from './ReservationPriceView';
 export * from './RoomBlockRequest';
 export * from './RoomCreateRequest';
 export * from './RoomPage';

@@ -1,7 +1,17 @@
 import { ResponseError } from "../api/generated";
 import { SessionChangedError } from "../api/session";
-import { MaintenanceRecoveryError } from "../api/bookingActions";
+import { OperationRecoveryError } from "../api/bookingActions";
 const messages: Record<string, string> = {
+  QUOTE_CHANGED:
+    "The price expired or rates changed. Review the refreshed quote before confirming again.",
+  QUOTE_MISMATCH:
+    "The saved quote does not match these stay details. Review a new price.",
+  QUOTE_ALREADY_ACCEPTED:
+    "This quote was already accepted. Review the saved reservation.",
+  QUOTE_REQUIRED:
+    "Review and accept an accommodation quote before confirming this reservation.",
+  PRICE_REVIEW_REQUIRED:
+    "This priced stay needs a reviewed change quote before its details can change.",
   RATES_REQUIRED: "Configure this room's nightly rates before quoting a stay.",
   SEASON_OVERLAP:
     "Seasonal price periods overlap. Adjust their start and end dates.",
@@ -40,7 +50,7 @@ const messages: Record<string, string> = {
 };
 export const errorMessage = async (error: unknown): Promise<string> => {
   if (error instanceof SessionChangedError) return error.message;
-  if (error instanceof MaintenanceRecoveryError) return error.message;
+  if (error instanceof OperationRecoveryError) return error.message;
   if (error instanceof ResponseError) {
     const body = await error.response
       .clone()

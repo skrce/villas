@@ -3,14 +3,29 @@ import {
   ReservationApi,
   MaintenanceApi,
   ApartmentApi,
+  QuotesApi,
   ResponseError,
   type CreateReservationRequest,
   type OperationResult,
   type MaintenanceBlock,
 } from './generated';
 import { validDate, validVersion } from '../shared/format';
+import { UUID_SHAPE } from '../shared/ids';
 
-export class MaintenanceRecoveryError extends Error {}
+export class OperationRecoveryError extends Error {}
+export class MaintenanceRecoveryError extends OperationRecoveryError {}
+class PendingIntentMissingError extends OperationRecoveryError {}
+type CreateInput = Omit<CreateReservationRequest, 'idempotencyKey'> & {quoteId?: string};
+const createIdentity = (input: CreateInput, priced: boolean) => ({customerId: input.customerId, roomId: input.roomId,
+  startDate: input.startDate, endDate: input.endDate, guestCount: input.guestCount ?? 1, ...(priced ? {priceContract: 'EUR-v1'} : {})});
+const recoverCreated = (input: CreateInput, result: OperationResult, intent: Intent) => {
+  const booking = result.reservation;
+  if (!intent.quoteId || !booking || booking.id !== result.resourceId || booking.customerId !== input.customerId || booking.roomId !== input.roomId
+    || booking.startDate !== input.startDate || booking.endDate !== input.endDate || booking.guestCount !== (input.guestCount ?? 1)
+    || booking.acceptedQuoteId !== intent.quoteId || booking.version !== 0 || booking.status !== 'ACTIVE')
+    throw new Error('The priced reservation result could not be confirmed.');
+  return result.resourceId;
+};
 
 const calendarDay = (value?: Date) => value instanceof Date && !Number.isNaN(value.getTime())
   && value.toISOString().endsWith('T00:00:00.000Z') && validDate(value.toISOString().slice(0, 10))
@@ -28,9 +43,9 @@ const DEFINITIVE_ERRORS = new Set([
   'INVALID_REQUEST', 'INVALID_OPERATION_KEY', 'INVALID_ID', 'INVALID_VERSION',
   'INVALID_GUEST_COUNT', 'CAPACITY_EXCEEDED', 'NOT_FOUND', 'STALE_VERSION',
   'RESERVATION_CHANGED', 'RESERVATION_CANCELLED', 'ROOM_INACTIVE',
-  'INVENTORY_CONFLICT', 'IDEMPOTENCY_KEY_REUSED', 'DATA_CONFLICT', 'GUEST_ARCHIVED', 'INVALID_REASON', 'HTTP_400',
+  'INVENTORY_CONFLICT', 'DATA_CONFLICT', 'GUEST_ARCHIVED', 'INVALID_REASON', 'HTTP_400', 'QUOTE_CHANGED', 'QUOTE_MISMATCH', 'QUOTE_ALREADY_ACCEPTED', 'QUOTE_REQUIRED', 'PRICE_REVIEW_REQUIRED',
 ]);
-type Intent = { key: string; expectedVersion?: number };
+type Intent = { key: string; expectedVersion?: number; quoteId?: string };
 type Intents = Record<string, Intent>;
 const pending = new Map<string, Promise<unknown>>();
 
@@ -48,6 +63,7 @@ const read = (storage: Storage = localStorage, key = STORAGE_KEY): Intents => {
         || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(item.key)) throw new Error();
       if ('expectedVersion' in item && (typeof item.expectedVersion !== 'number'
         || !Number.isSafeInteger(item.expectedVersion) || item.expectedVersion < 0)) throw new Error();
+      if ('quoteId' in item && (typeof item.quoteId !== 'string' || !UUID_SHAPE.test(item.quoteId))) throw new Error();
     }
     return parsed as Intents;
   } catch {
@@ -55,7 +71,7 @@ const read = (storage: Storage = localStorage, key = STORAGE_KEY): Intents => {
   }
 };
 
-export const buildBookingActions = (api: ReservationApi, scope: string, generation = scope, maintenance?: MaintenanceApi, apartments?: ApartmentApi) => {
+export const buildBookingActions = (api: ReservationApi, scope: string, generation = scope, maintenance?: MaintenanceApi, apartments?: ApartmentApi, quotes?: QuotesApi) => {
   const ownStorage = sessionStorage;
   const remember = (identity: string, intent: Intent) => ownStorage.setItem(OWN_STORAGE_KEY, JSON.stringify({ ...read(ownStorage, OWN_STORAGE_KEY), [identity]: intent }));
   const execute = async <T>(
@@ -65,6 +81,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
     send: (intent: Intent) => Promise<unknown>,
     recovered: (result: OperationResult, intent: Intent) => T,
     recoveryOnly: boolean,
+    quoteId?: string,
   ): Promise<T> => {
     let intent = await stored(() => {
       const saved = read(ownStorage, OWN_STORAGE_KEY)[identity] ?? read()[identity];
@@ -73,8 +90,8 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
     });
     let existing = !!intent;
     if (!intent) {
-      if (recoveryOnly) throw new MaintenanceRecoveryError('No pending maintenance request matches these details in this browser. Re-enter the original dates and reason to check it.');
-      const prepared = { key: crypto.randomUUID(), expectedVersion: await prepare() };
+      if (recoveryOnly) throw new PendingIntentMissingError(kind === GetOperationKindEnum.Create ? 'No previous booking save matches these details in this browser. Review a price before confirming a new reservation.' : 'No pending maintenance request matches these details in this browser. Re-enter the original dates and reason to check it.');
+      const prepared: Intent = { key: crypto.randomUUID(), expectedVersion: await prepare(), ...(quoteId ? {quoteId} : {}) };
       intent = await stored(() => {
         const current = read();
         if (current[identity]) {
@@ -114,7 +131,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
         if (!(error instanceof ResponseError) || error.response.status !== 404) throw error;
         const body = await error.response.clone().json().catch(() => null);
         if (body?.code !== 'OPERATION_NOT_COMMITTED') throw error;
-        if (recoveryOnly) throw new MaintenanceRecoveryError('No committed result was found for this request. Restore the room before saving new maintenance.');
+        if (recoveryOnly) throw new OperationRecoveryError(kind === GetOperationKindEnum.Create ? 'No confirmed booking result was found yet. Keep the original details and check again, or review the saved reservations.' : 'No committed result was found for this request. Restore the room before saving new maintenance.');
       }
     }
     try {
@@ -136,13 +153,14 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
     send: (intent: Intent) => Promise<unknown>,
     recovered: (result: OperationResult, intent: Intent) => T,
     recoveryOnly = false,
+    quoteId?: string,
   ): Promise<T> => {
     const fingerprint = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([scope, kind, input])));
     const identity = Array.from(new Uint8Array(fingerprint), (byte) => byte.toString(16).padStart(2, '0')).join('');
     const inFlightIdentity = JSON.stringify([generation, identity, recoveryOnly]);
     const existing = pending.get(inFlightIdentity);
     if (existing) return existing as Promise<T>;
-    const request = execute(kind, identity, prepare, send, recovered, recoveryOnly).finally(() => pending.delete(inFlightIdentity));
+    const request = execute(kind, identity, prepare, send, recovered, recoveryOnly, quoteId).finally(() => pending.delete(inFlightIdentity));
     pending.set(inFlightIdentity, request);
     return request;
   };
@@ -183,14 +201,28 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
         return undefined;
       },
     ),
-    create: (input: Omit<CreateReservationRequest, 'idempotencyKey'>) => run(
-      GetOperationKindEnum.Create, {
-        customerId: input.customerId, roomId: input.roomId,
-        startDate: input.startDate, endDate: input.endDate, guestCount: input.guestCount ?? 1,
-      }, async () => undefined,
-      (intent) => api.createReservation({ ...input, guestCount: input.guestCount ?? 1, idempotencyKey: intent.key }),
-      (result) => result.resourceId!,
+    create: (input: CreateInput) => run(
+      GetOperationKindEnum.Create, createIdentity(input, true), async () => {
+        if (!input.quoteId || !UUID_SHAPE.test(input.quoteId)) throw new OperationRecoveryError('Review and accept a current quote before confirming this reservation.');
+        return undefined;
+      },
+      (intent) => {
+        if (!quotes || !intent.quoteId) throw new OperationRecoveryError('This booking needs a saved quote. Check the saved reservations before trying again.');
+        return quotes.confirmReservationQuote({idempotencyKey: intent.key, quoteConfirmationRequest: {customerId: input.customerId, quoteId: intent.quoteId,
+          roomId: input.roomId, startDate: input.startDate, endDate: input.endDate, guestCount: input.guestCount ?? 1}});
+      },
+      (result, intent) => recoverCreated(input,result,intent), false, input.quoteId?.toLowerCase(),
     ),
+    recoverCreate: async (input: CreateInput) => {
+      try {
+        return await run(GetOperationKindEnum.Create, createIdentity(input,true), async () => undefined, async () => undefined,
+          (result,intent) => recoverCreated(input,result,intent),true);
+      } catch (error) {
+        if (!(error instanceof PendingIntentMissingError)) throw error;
+        return run(GetOperationKindEnum.Create, createIdentity(input,false), async () => undefined, async () => undefined,
+          result => result.resourceId,true);
+      }
+    },
     move: (reservationId: number, newRoomId: number, expectedVersion?: number) => run(
       GetOperationKindEnum.Move, { reservationId, newRoomId }, () => expectedVersion === undefined ? version(reservationId) : Promise.resolve(expectedVersion),
       (intent) => api.updateReservationRoom({ reservationId, newRoomId, expectedVersion: intent.expectedVersion!, idempotencyKey: intent.key }),

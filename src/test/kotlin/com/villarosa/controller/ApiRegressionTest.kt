@@ -42,6 +42,7 @@ constructor(
     private val customers: CustomerRepository,
     private val jdbc: JdbcTemplate,
     private val sessions: JdbcIndexedSessionRepository,
+    private val json: tools.jackson.databind.ObjectMapper,
 ) {
     @BeforeEach
     fun resetData() {
@@ -247,6 +248,23 @@ constructor(
     @ValueSource(strings = ["/reservation", "/reservation/", "/api/v1/reservations"])
     fun reservationCreationSupportsLegacyAndCanonicalPaths(path: String) {
         val existing = saveReservation()
+        com.villarosa.TestData.configureSyntheticRate(jdbc, existing.roomId!!)
+        val quote =
+            mvc.perform(
+                    post("/api/v1/booking-quotes")
+                        .cookie(browser.cookie)
+                        .header("X-CSRF-TOKEN", browser.csrf)
+                        .header("Origin", "http://localhost:5173")
+                        .contentType("application/json")
+                        .content(
+                            """{"roomId":${existing.roomId},"startDate":"2026-11-10","endDate":"2026-11-13","guestCount":1}"""
+                        )
+                )
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        val quoteId = json.readTree(quote).get("id").asText()
         val result =
             mvc.perform(
                     post(path)
@@ -259,6 +277,7 @@ constructor(
                         .param("roomId", existing.roomId.toString())
                         .param("startDate", "2026-11-10")
                         .param("endDate", "2026-11-13")
+                        .param("quoteId", quoteId)
                 )
                 .andExpect(status().isOk)
                 .andReturn()

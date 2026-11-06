@@ -40,6 +40,7 @@ constructor(
     private val rooms: ApartmentRepository,
     private val bookings: ReservationRepository,
     private val inventory: ReservationService,
+    private val quotes: QuoteService,
     private val queries: InventoryQueries,
     private val jdbc: JdbcTemplate,
 ) {
@@ -65,8 +66,19 @@ constructor(
 
     private fun key() = UUID.randomUUID().toString()
 
-    private fun createBooking(room: Apartment, count: Int = 3) =
-        inventory.create(guest().id!!, room.id!!, "2099-01-01", "2099-01-04", count, key())
+    private fun createBooking(room: Apartment, count: Int = 3): OperationResult {
+        TestData.configureSyntheticRate(jdbc, room.id!!)
+        val quote = quotes.create(room.id!!, "2099-01-01", "2099-01-04", count)
+        return inventory.create(
+            guest().id!!,
+            room.id!!,
+            "2099-01-01",
+            "2099-01-04",
+            count,
+            key(),
+            quote.id,
+        )
+    }
 
     private fun failure(action: () -> Unit) = assertThrows<DomainException> { action() }
 
@@ -250,6 +262,7 @@ constructor(
     @ValueSource(strings = ["CAPACITY", "ARCHIVE"])
     fun competingBookingAndRoomChangesCannotCommitAnInvalidStay(action: String) {
         val room = service.create(profile())
+        TestData.configureSyntheticRate(jdbc, room.id!!)
         val guest = guest()
         val start = CountDownLatch(1)
         val executor = Executors.newFixedThreadPool(2)
@@ -269,6 +282,7 @@ constructor(
                             "2099-03-03",
                             4,
                             key(),
+                            quotes.create(room.id!!, "2099-03-01", "2099-03-03", 4).id,
                         )
                     },
                 )

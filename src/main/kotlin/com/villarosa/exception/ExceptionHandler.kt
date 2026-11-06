@@ -23,6 +23,7 @@ class ExceptionHandler : ResponseEntityExceptionHandler() {
                     exception.code,
                     exception.relatedReservationIds,
                     exception.moreReservations,
+                    exception.replacementQuote,
                 )
             )
 
@@ -75,6 +76,7 @@ class ExceptionHandler : ResponseEntityExceptionHandler() {
         val code: String = "INVALID_REQUEST",
         val relatedReservationIds: List<Int>? = null,
         val moreReservations: Boolean? = null,
+        val replacementQuote: com.villarosa.service.BookingQuote? = null,
     )
 
     data class ClientException(override val message: String) : RuntimeException()

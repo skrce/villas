@@ -10,6 +10,7 @@ Name | Type
 `message` | string
 `moreReservations` | boolean
 `relatedReservationIds` | Array&lt;number&gt;
+`replacementQuote` | [BookingQuote](BookingQuote.md)
 
 ## Example
 
@@ -22,6 +23,7 @@ const example = {
   "message": null,
   "moreReservations": null,
   "relatedReservationIds": null,
+  "replacementQuote": null,
 } satisfies ErrorResponse
 
 console.log(example)

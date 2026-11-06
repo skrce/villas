@@ -3,6 +3,8 @@ package com.villarosa
 import com.villarosa.exception.DomainException
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
+import com.villarosa.service.BookingQuote
+import com.villarosa.service.QuoteService
 import com.villarosa.service.ReservationService
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
@@ -33,6 +35,7 @@ class InventoryIT
 @Autowired
 constructor(
     private val service: ReservationService,
+    private val quotes: QuoteService,
     private val rooms: ApartmentRepository,
     private val guests: CustomerRepository,
     private val reservations: ReservationRepository,
@@ -54,9 +57,36 @@ constructor(
         TestData.seedOwner(jdbc, index = 1)
         guest =
             guests.saveAndFlush(Customer.buildCustomer("Concurrent", "Test", "000", "Synthetic"))
-        first = rooms.saveAndFlush(Apartment(null, 2, "South", "Lake", 100, 150))
-        second = rooms.saveAndFlush(Apartment(null, 2, "East", "Garden", 100, 150))
-        third = rooms.saveAndFlush(Apartment(null, 4, "West", "Synthetic", 100, 150))
+        first =
+            rooms.saveAndFlush(
+                Apartment(null, 2, "South", "Lake", 100, 150, baseRateCents = 5001, rateVersion = 1)
+            )
+        second =
+            rooms.saveAndFlush(
+                Apartment(
+                    null,
+                    2,
+                    "East",
+                    "Garden",
+                    100,
+                    150,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                )
+            )
+        third =
+            rooms.saveAndFlush(
+                Apartment(
+                    null,
+                    4,
+                    "West",
+                    "Synthetic",
+                    100,
+                    150,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                )
+            )
     }
 
     private fun create(
@@ -65,7 +95,17 @@ constructor(
         end: String = "2026-11-09",
         count: Int = 1,
         operation: String = key(),
-    ) = service.create(guest.id!!, room.id!!, start, end, count, operation)
+        quote: BookingQuote? = null,
+    ) =
+        service.create(
+            guest.id!!,
+            room.id!!,
+            start,
+            end,
+            count,
+            operation,
+            quoteId = (quote ?: quotes.create(room.id!!, start, end, count)).id,
+        )
 
     private fun race(
         vararg actions: () -> OperationResult,
@@ -247,19 +287,21 @@ constructor(
     @Test
     fun duplicateKeysReturnOneSavedOutcomeEvenWhenRequestsRace() {
         val operation = key()
+        val quote = quotes.create(first.id!!, "2026-11-06", "2026-11-09", 1)
         assertThat(
                 race(
-                    { create(operation = operation) },
-                    { create(operation = operation) },
+                    { create(operation = operation, quote = quote) },
+                    { create(operation = operation, quote = quote) },
                     sameOwner = true,
                 )
             )
             .containsOnly("COMMITTED")
         val saved = service.operation(OperationKind.CREATE, operation)
-        assertThat(create(operation = operation)).isEqualTo(saved)
+        assertThat(create(operation = operation, quote = quote)).isEqualTo(saved)
         assertThat(reservations.count()).isEqualTo(1)
         assertThat(events.count()).isEqualTo(1)
-        val reused = assertThrows<DomainException> { create(second, operation = operation) }
+        val reused =
+            assertThrows<DomainException> { create(second, operation = operation, quote = quote) }
         assertThat(reused.code).isEqualTo("IDEMPOTENCY_KEY_REUSED")
         assertThat(reservations.count()).isEqualTo(1)
     }
@@ -282,11 +324,12 @@ constructor(
     @Test
     fun anAuditFailureAfterTheBookingInsertRollsBackTheWholeWrite() {
         val operation = key()
+        val quote = quotes.create(first.id!!, "2026-11-06", "2026-11-09", 1)
         jdbc.execute(
             "CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON inventory_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Synthetic audit failure'"
         )
         try {
-            assertThrows<RuntimeException> { create(operation = operation) }
+            assertThrows<RuntimeException> { create(operation = operation, quote = quote) }
             assertThat(reservations.count()).isZero()
             assertThat(events.count()).isZero()
             assertThat(
@@ -306,7 +349,7 @@ constructor(
         } finally {
             jdbc.execute("DROP TRIGGER IF EXISTS synthetic_audit_failure")
         }
-        create(operation = operation)
+        create(operation = operation, quote = quote)
         assertThat(reservations.count()).isEqualTo(1)
     }
 
@@ -376,7 +419,8 @@ constructor(
     @Test
     fun historicalResultsReplayAfterLaterMovesChangesAndCancellations() {
         val creationKey = key()
-        val original = create(operation = creationKey)
+        val quote = quotes.create(first.id!!, "2026-11-06", "2026-11-09", 1)
+        val original = create(operation = creationKey, quote = quote)
         val moveKey = key()
         val moved = service.move(original.resourceId, second.id!!, 0, moveKey)
         val changeKey = key()
@@ -384,7 +428,7 @@ constructor(
             service.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, changeKey)
         val cancelKey = key()
         val cancelled = service.cancel(original.resourceId, 2, cancelKey)
-        assertThat(create(operation = creationKey)).isEqualTo(original)
+        assertThat(create(operation = creationKey, quote = quote)).isEqualTo(original)
         assertThat(service.move(original.resourceId, second.id!!, 0, moveKey)).isEqualTo(moved)
         assertThat(service.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, changeKey))
             .isEqualTo(changed)

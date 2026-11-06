@@ -7,7 +7,7 @@ import { errorMessage } from "./errors";
 export function useSave<T>(
   action: (input: T) => Promise<unknown>,
   after?: (result: unknown) => void,
-  options: { invalidate?: boolean } = {},
+  options: { invalidate?: boolean; onError?: (body: unknown) => void } = {},
 ) {
   const { epoch } = useWorkspace();
   const cache = useQueryClient();
@@ -44,6 +44,7 @@ export function useSave<T>(
             .json()
             .catch(() => null);
           if (epoch === getSessionEpoch() && alive.current) {
+            options.onError?.(body);
             setCode(typeof body?.code === "string" ? body.code : undefined);
             setRelatedIds(
               Array.isArray(body?.relatedReservationIds)

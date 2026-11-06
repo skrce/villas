@@ -46,6 +46,7 @@ constructor(
     private val rooms: ApartmentRepository,
     private val bookings: ReservationRepository,
     private val inventory: ReservationService,
+    private val quotes: QuoteService,
     private val jdbc: JdbcTemplate,
 ) {
     @BeforeEach
@@ -206,7 +207,8 @@ constructor(
     @Test
     fun archivalProtectsCurrentAndFutureStaysAndRetainsCancelledAndPastHistory() {
         val id = guest()
-        val room = rooms.saveAndFlush(Apartment(capacity = 3))
+        val room =
+            rooms.saveAndFlush(Apartment(capacity = 3, baseRateCents = 5001, rateVersion = 1))
         val saved =
             inventory.create(
                 id,
@@ -215,6 +217,7 @@ constructor(
                 "2099-01-03",
                 2,
                 UUID.randomUUID().toString(),
+                quotes.create(room.id!!, "2099-01-01", "2099-01-03", 2).id,
             )
         assertThat(code { service.status(id, 0, false) }).isEqualTo("GUEST_HAS_BOOKINGS")
         inventory.cancel(saved.resourceId, 0, UUID.randomUUID().toString())
@@ -245,6 +248,7 @@ constructor(
                         "2099-02-03",
                         1,
                         UUID.randomUUID().toString(),
+                        quotes.create(room.id!!, "2099-02-01", "2099-02-03", 1).id,
                     )
                 }
             )
@@ -296,7 +300,8 @@ constructor(
     @Test
     fun competingArchivalAndBookingCannotCommitAnActiveStayForAnArchivedGuest() {
         val id = guest()
-        val room = rooms.saveAndFlush(Apartment(capacity = 3))
+        val room =
+            rooms.saveAndFlush(Apartment(capacity = 3, baseRateCents = 5001, rateVersion = 1))
         val start = CountDownLatch(1)
         val executor = Executors.newFixedThreadPool(2)
         try {
@@ -311,6 +316,7 @@ constructor(
                             "2099-03-03",
                             1,
                             UUID.randomUUID().toString(),
+                            quotes.create(room.id!!, "2099-03-01", "2099-03-03", 1).id,
                         )
                     },
                 )

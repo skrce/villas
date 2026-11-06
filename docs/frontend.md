@@ -59,7 +59,7 @@ details is available. No malformed write response is shown as a confirmed change
 Web Locks coordinate short updates to the shared booking/maintenance claim. Each tab also retains
 its own unresolved operation in sessionStorage, so another tab's successful confirmation
 cannot erase its recovery key. Both stores contain only a SHA-256 identity, random
-operation key and optional expected version. They contain no raw guest IDs, dates,
+operation key, optional expected version and opaque quote UUID. They contain no raw guest IDs, dates, prices,
 contacts, session cookies or CSRF/provider tokens. The fingerprint includes the canonical
 Owner and operation. In-flight promises also include the current login generation.
 Reconciliation runs before current availability checks. A retained room selection

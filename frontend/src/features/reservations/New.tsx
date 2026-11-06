@@ -6,12 +6,25 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { useWorkspace } from "../../app/context";
 import { bookingSchema, staySchema } from "../../shared/schemas";
-import { addDays, propertyToday, roomChoiceLabel } from "../../shared/format";
+import {
+  addDays,
+  propertyToday,
+  roomChoiceLabel,
+  euros,
+} from "../../shared/format";
 import { useDraft } from "../../shared/useDraft";
 import { useSave } from "../../shared/useSave";
 import { useRooms } from "../rooms/queries";
 import { GuestForm } from "../guests/Form";
 import { GuestPicker } from "../../shared/GuestPicker";
+import { QuoteSummary } from "./PriceSummary";
+import {
+  confirmedQuote,
+  refreshedQuote,
+  stayIdentity,
+  type QuoteData,
+  type StayInput,
+} from "./pricing";
 import {
   Empty,
   Dialog,
@@ -21,6 +34,7 @@ import {
   PageHead,
   Pending,
   QueryError,
+  MutationNotice,
 } from "../../shared/ui";
 export function NewReservation() {
   const { apis, booking } = useWorkspace();
@@ -119,20 +133,91 @@ export function NewReservation() {
       },
     );
   }
+  const inputFor = (value: Values): StayInput => ({
+    customerId: Number(value.customerId),
+    roomId: Number(value.roomId),
+    startDate: value.startDate,
+    endDate: value.endDate,
+    guestCount: value.guestCount,
+  });
+  const [quote, setQuote] = useState<{
+    value: QuoteData;
+    identity: string;
+    refreshed: boolean;
+  }>();
+  const visibleQuote =
+    quote?.identity === stayIdentity(inputFor(values)) ? quote : undefined;
+  const review = useSave<Values>(
+    async (value) => {
+      setQuote(undefined);
+      const input = inputFor(value);
+      return {
+        value: confirmedQuote(
+          await apis.quotesApi.createBookingQuote({
+            quoteRequest: {
+              roomId: input.roomId,
+              startDate: input.startDate,
+              endDate: input.endDate,
+              guestCount: input.guestCount,
+            },
+          }),
+          input,
+        ),
+        identity: stayIdentity(input),
+        refreshed: false,
+      };
+    },
+    (result) => {
+      const received = result as NonNullable<typeof quote>;
+      if (received.identity === stayIdentity(inputFor(form.getValues())))
+        setQuote(received);
+    },
+    { invalidate: false },
+  );
   const mutation = useSave<Values>(
-    (value) =>
-      booking.create({
-        customerId: Number(value.customerId),
-        roomId: Number(value.roomId),
-        startDate: value.startDate,
-        endDate: value.endDate,
-        guestCount: value.guestCount,
-      }),
+    async (value) => {
+      const input = inputFor(value);
+      if (!quote || quote.identity !== stayIdentity(input))
+        throw new Error(
+          "Review a price for these stay details before confirming.",
+        );
+      return booking.create({ ...input, quoteId: quote.value.id });
+    },
+    (result) => {
+      draft.clear();
+      navigate(`/reservations/${result}`);
+    },
+    {
+      onError: (body) => {
+        const input = inputFor(form.getValues());
+        const fresh = refreshedQuote(body, input);
+        if (
+          body &&
+          typeof body === "object" &&
+          "code" in body &&
+          [
+            "QUOTE_CHANGED",
+            "QUOTE_MISMATCH",
+            "QUOTE_ALREADY_ACCEPTED",
+          ].includes(String(body.code))
+        )
+          setQuote(
+            fresh
+              ? { value: fresh, identity: stayIdentity(input), refreshed: true }
+              : undefined,
+          );
+      },
+    },
+  );
+  const recovery = useSave<Values>(
+    (value) => booking.recoverCreate(inputFor(value)),
     (result) => {
       draft.clear();
       navigate(`/reservations/${result}`);
     },
   );
+  const saving = mutation.isPending || recovery.isPending;
+  const busy = saving || review.isPending;
   const errors = form.formState.errors;
   return (
     <>
@@ -146,133 +231,179 @@ export function NewReservation() {
         <form
           aria-label="New reservation"
           noValidate
-          onSubmit={form.handleSubmit(mutation.submit)}
+          onSubmit={form.handleSubmit(review.submit)}
         >
-          <h2>Stay details</h2>
-          <div className="form-grid">
-            <Field
-              label="Check-in"
-              type="date"
-              min="1000-01-01"
-              max="9999-12-31"
-              {...form.register("startDate")}
-              error={errors.startDate?.message}
+          <fieldset className="stay-fields" disabled={saving}>
+            <h2>Stay details</h2>
+            <div className="form-grid">
+              <Field
+                label="Check-in"
+                type="date"
+                min="1000-01-01"
+                max="9999-12-31"
+                {...form.register("startDate")}
+                error={errors.startDate?.message}
+              />
+              <Field
+                label="Check-out"
+                type="date"
+                min="1000-01-01"
+                max="9999-12-31"
+                {...form.register("endDate")}
+                error={errors.endDate?.message}
+              />
+              <Field
+                label="Guests"
+                type="number"
+                min={1}
+                max={1000}
+                {...form.register("guestCount", { valueAsNumber: true })}
+                error={errors.guestCount?.message}
+              />
+            </div>
+            <hr />
+            <h2>Guest & room</h2>
+            <GuestPicker
+              value={values.customerId}
+              label={values.guestLabel}
+              onChange={(id, label) => {
+                linkedGuestApplied.current = true;
+                form.setValue("customerId", id, { shouldValidate: true });
+                form.setValue("guestLabel", label);
+              }}
+              error={errors.customerId?.message}
             />
-            <Field
-              label="Check-out"
-              type="date"
-              min="1000-01-01"
-              max="9999-12-31"
-              {...form.register("endDate")}
-              error={errors.endDate?.message}
-            />
-            <Field
-              label="Guests"
-              type="number"
-              min={1}
-              max={1000}
-              {...form.register("guestCount", { valueAsNumber: true })}
-              error={errors.guestCount?.message}
-            />
-          </div>
-          <hr />
-          <h2>Guest & room</h2>
-          <GuestPicker
-            value={values.customerId}
-            label={values.guestLabel}
-            onChange={(id, label) => {
-              linkedGuestApplied.current = true;
-              form.setValue("customerId", id, { shouldValidate: true });
-              form.setValue("guestLabel", label);
-            }}
-            error={errors.customerId?.message}
-          />
-          {guest.isError && (
-            <Notice error>
-              The guest in this link could not be loaded. Search for a guest
-              above.
+            {guest.isError && (
+              <Notice error>
+                The guest in this link could not be loaded. Search for a guest
+                above.
+              </Notice>
+            )}
+            <button
+              className="button secondary inline-action"
+              type="button"
+              onClick={() => setCreatingGuest(true)}
+            >
+              Add guest
+            </button>
+            {guest.data?.active === false && (
+              <Notice error>
+                This guest is archived.{" "}
+                <Link to={`/guests/${guest.data.id}`}>Open their profile</Link>{" "}
+                to restore it before creating a new stay. You can still check an
+                interrupted save with its original details.
+              </Notice>
+            )}
+            {!valid ? (
+              <p className="hint">Enter valid stay dates to see rooms.</p>
+            ) : (
+              <>
+                {rooms.isPending ? (
+                  <Pending label="Checking room availability…" />
+                ) : rooms.isError ? (
+                  <QueryError retry={() => void rooms.refetch()} />
+                ) : (
+                  !available.length && (
+                    <Empty title="No rooms currently available">
+                      Change the dates or check an interrupted save.
+                    </Empty>
+                  )
+                )}
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={includeUnavailable}
+                    onChange={(event) =>
+                      setIncludeUnavailable(event.target.checked)
+                    }
+                  />
+                  Include unavailable rooms for an interrupted save
+                </label>
+                {includeUnavailable && inventory.isPending && (
+                  <Pending label="Loading room inventory…" />
+                )}
+                {includeUnavailable && inventory.isError && (
+                  <QueryError retry={() => void inventory.refetch()} />
+                )}
+                <SelectField
+                  label="Room"
+                  error={errors.roomId?.message}
+                  hint="For an interrupted save, use the same details to check for an existing result. Availability is checked again when you save."
+                  {...form.register("roomId")}
+                >
+                  <option value="">Choose a room</option>
+                  {choices.map((room) => (
+                    <option key={room.id} value={room.id!}>
+                      {roomChoiceLabel(room)}
+                      {room.capacity ? ` · up to ${room.capacity} guests` : ""}
+                      {room.active === false
+                        ? " (inactive)"
+                        : rooms.data
+                          ? !available.some((item) => item.id === room.id)
+                            ? " (not currently available)"
+                            : ""
+                          : " (availability not confirmed)"}
+                    </option>
+                  ))}
+                </SelectField>
+                {rooms.isFetching && !rooms.isPending && (
+                  <Pending label="Updating room availability…" />
+                )}
+              </>
+            )}
+          </fieldset>
+          {visibleQuote && <QuoteSummary quote={visibleQuote.value} />}
+          {visibleQuote?.refreshed && (
+            <Notice>
+              The quote was refreshed. Review the new total before confirming
+              again.
             </Notice>
           )}
+          <MutationNotice save={review} />
+          {review.code === "RATES_REQUIRED" && values.roomId && (
+            <p>
+              <Link to={`/rooms/${values.roomId}#rates`}>
+                Configure this room's rates
+              </Link>
+              , then return to review this stay.
+            </p>
+          )}
+          <MutationNotice save={mutation} />
+          <MutationNotice save={recovery} />
           <button
-            className="button secondary inline-action"
             type="button"
-            onClick={() => setCreatingGuest(true)}
+            className="button quiet"
+            disabled={busy}
+            onClick={() => void form.handleSubmit(recovery.submit)()}
           >
-            Add guest
+            Check previous save
           </button>
-          {guest.data?.active === false && (
-            <Notice error>
-              This guest is archived.{" "}
-              <Link to={`/guests/${guest.data.id}`}>Open their profile</Link> to
-              restore it before creating a new stay. You can still check an
-              interrupted save with its original details.
-            </Notice>
-          )}
-          {!valid ? (
-            <p className="hint">Enter valid stay dates to see rooms.</p>
-          ) : (
-            <>
-              {rooms.isPending ? (
-                <Pending label="Checking room availability…" />
-              ) : rooms.isError ? (
-                <QueryError retry={() => void rooms.refetch()} />
-              ) : (
-                !available.length && (
-                  <Empty title="No rooms currently available">
-                    Change the dates or check an interrupted save.
-                  </Empty>
-                )
-              )}
-              <label className="checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={includeUnavailable}
-                  onChange={(event) =>
-                    setIncludeUnavailable(event.target.checked)
-                  }
-                />
-                Include unavailable rooms for an interrupted save
-              </label>
-              {includeUnavailable && inventory.isPending && (
-                <Pending label="Loading room inventory…" />
-              )}
-              {includeUnavailable && inventory.isError && (
-                <QueryError retry={() => void inventory.refetch()} />
-              )}
-              <SelectField
-                label="Room"
-                error={errors.roomId?.message}
-                hint="For an interrupted save, use the same details to check for an existing result. Availability is checked again when you save."
-                {...form.register("roomId")}
-              >
-                <option value="">Choose a room</option>
-                {choices.map((room) => (
-                  <option key={room.id} value={room.id!}>
-                    {roomChoiceLabel(room)}
-                    {room.capacity ? ` · up to ${room.capacity} guests` : ""}
-                    {room.active === false
-                      ? " (inactive)"
-                      : rooms.data
-                        ? !available.some((item) => item.id === room.id)
-                          ? " (not currently available)"
-                          : ""
-                        : " (availability not confirmed)"}
-                  </option>
-                ))}
-              </SelectField>
-              {rooms.isFetching && !rooms.isPending && (
-                <Pending label="Updating room availability…" />
-              )}
-            </>
-          )}
-          {mutation.message && <Notice error>{mutation.message}</Notice>}
           <div className="form-actions">
             <Link className="button secondary" to="/reservations">
               Back to reservations
             </Link>
-            <button className="button" disabled={mutation.isPending}>
-              {mutation.isPending ? "Saving…" : "Create reservation"}
+            <button
+              className={visibleQuote ? "button secondary" : "button"}
+              disabled={busy}
+            >
+              {review.isPending
+                ? "Loading price…"
+                : visibleQuote
+                  ? "Refresh quote"
+                  : "Review price"}
             </button>
+            {visibleQuote && (
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() => void form.handleSubmit(mutation.submit)()}
+              >
+                {mutation.isPending
+                  ? "Confirming…"
+                  : `Confirm reservation · ${euros(visibleQuote.value.price.totalCents)}`}
+              </button>
+            )}
           </div>
         </form>
       </section>

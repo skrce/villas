@@ -25,8 +25,9 @@ shipping their dependent features.
 | --- | --- | --- |
 | D05: Guest fields | Confirmed by the owner on November 6, 2026. Require first and last names. Phone, email, operational address and notes are optional. Missing contacts remain visibly missing; never invent contact values or collect identity documents. | Guest management, milestone 5 |
 | D06: Cancellation and refunds | Milestone 2 retains cancelled bookings and events and releases inventory. It initiates no financial action. Confirm deadlines, fees, cancellation permissions, and refund rules before the complete staff workflow. | Booking workflow and settlement, milestones 7 and 8 |
-| D07: Rate overrides | Proposed: owners may override a saved quote with an explicit reason and audit entry. Front desk needs a separate permission. Confirm allowed discounts, rounding, taxes/fees, and minimum-stay rules. | Rates and quotes, milestone 6 |
+| D07: Rate overrides | Confirmed by the owner on November 6, 2026. Manual price overrides remain disabled initially. Owners configure room rates; the app does not accept a manually replaced quote total. Any later override feature requires a new decision and implementation. | Rates and quotes, milestone 6 |
 | D08: Manual settlement | Proposed v1 records payments/refunds collected outside Villas. Store no card data and initiate no financial transactions. Confirm permitted methods, refund permissions, reconciliation, and record correction policy. | Front-desk settlement, milestone 8 |
+| D12: Booking-change pricing | Open. Proposed: calculate the entire requested stay at current room rates, require explicit acceptance of a new quote, and retain prior agreed prices. Cancellation retains the price and initiates no fee or refund. Await owner approval before implementing this policy. | Priced room/date/party edits, milestone 6 |
 
 ## Development compatibility
 

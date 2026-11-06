@@ -11,7 +11,9 @@ requires an explicit capability decision, server enforcement, and denial tests.
 | Invite another Owner, revoke invitations, deactivate accounts, revoke sessions | Allowed, with current membership and last-owner protection |
 | Read operational and staff audit history | Allowed |
 | Read/configure room base and seasonal EUR rates and preview accommodation totals | Allowed |
-| Future price overrides, payments, refunds, reports | Only after their domain implementation and policy gates |
+| Create/read own saved quotes, accept a reviewed quote and read accepted property prices/history | Allowed |
+| Manual price overrides | Disabled by the initial pricing decision |
+| Future payments, refunds, reports | Only after their domain implementation and policy gates |
 
 The account foundation validates current active membership, property scope, and a
 security generation in services. Administrative mutations serialize on the property

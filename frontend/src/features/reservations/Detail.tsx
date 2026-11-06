@@ -8,6 +8,7 @@ import { dateLabel, eventLabel, roomChoiceLabel } from "../../shared/format";
 import { useSave } from "../../shared/useSave";
 import { useRooms } from "../rooms/queries";
 import { EditReservation } from "./Edit";
+import { ReservationPricePanel } from "./PricePanel";
 import {
   Dialog,
   Empty,
@@ -212,6 +213,7 @@ function ReservationDetailPage() {
           {query.isFetching && <Pending label="Refreshing reservation…" />}
         </section>
       )}
+      {valid && record && <ReservationPricePanel reservation={record} />}
       {valid && (
         <section className="panel">
           <h2>Reservation history</h2>

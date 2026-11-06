@@ -18,6 +18,7 @@ class LegacyReservationController(private val service: ReservationService) {
         @RequestParam endDate: String,
         @RequestParam(defaultValue = "1") guestCount: Int,
         @RequestHeader("Idempotency-Key", required = false) suppliedKey: String?,
+        @RequestParam(required = false) quoteId: String?,
     ): ResponseEntity<Int> {
         val result =
             service.create(
@@ -27,6 +28,7 @@ class LegacyReservationController(private val service: ReservationService) {
                 endDate,
                 guestCount,
                 suppliedKey ?: UUID.randomUUID().toString(),
+                quoteId,
             )
         return ResponseEntity.ok().header("X-Operation-Key", result.key).body(result.resourceId)
     }

@@ -1,6 +1,26 @@
 {
   "components": {
     "schemas": {
+      "AcceptedPrice": {
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/BookingQuote"
+          },
+          "reservationId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "reservationVersion": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "Apartment": {
         "properties": {
           "active": {
@@ -54,6 +74,39 @@
           },
           "view": {
             "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BookingQuote": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "guestCount": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "price": {
+            "$ref": "#/components/schemas/StayPrice"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "startDate": {
             "type": "string"
           }
         },
@@ -188,6 +241,14 @@
             },
             "nullable": true,
             "type": "array"
+          },
+          "replacementQuote": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BookingQuote"
+              }
+            ],
+            "nullable": true
           }
         },
         "required": [
@@ -505,6 +566,22 @@
         ],
         "type": "object"
       },
+      "PriceHistory": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptedPrice"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "PriceLine": {
         "properties": {
           "endDate": {
@@ -529,6 +606,81 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "QuoteConfirmationRequest": {
+        "properties": {
+          "customerId": {
+            "format": "int32",
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "endDate": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "guestCount": {
+            "format": "int32",
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "quoteId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "roomId": {
+            "format": "int32",
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "startDate": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "customerId",
+          "endDate",
+          "guestCount",
+          "quoteId",
+          "roomId",
+          "startDate"
+        ],
+        "type": "object"
+      },
+      "QuoteRequest": {
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "endDate": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "guestCount": {
+            "format": "int32",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "roomId": {
+            "format": "int32",
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "startDate": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endDate",
+          "roomId",
+          "startDate"
+        ],
         "type": "object"
       },
       "RatePreviewRequest": {
@@ -608,6 +760,10 @@
       },
       "ReservationInfo": {
         "properties": {
+          "acceptedQuoteId": {
+            "nullable": true,
+            "type": "string"
+          },
           "customerId": {
             "format": "int32",
             "nullable": true,
@@ -670,6 +826,22 @@
         "required": [
           "items"
         ],
+        "type": "object"
+      },
+      "ReservationPriceView": {
+        "properties": {
+          "price": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AcceptedPrice"
+              }
+            ],
+            "nullable": true
+          },
+          "recorded": {
+            "type": "boolean"
+          }
+        },
         "type": "object"
       },
       "RoomBlockRequest": {
@@ -1525,6 +1697,88 @@
         "summary": "Read the current server-side staff session",
         "tags": [
           "Staff"
+        ]
+      }
+    },
+    "/booking-quotes": {
+      "post": {
+        "operationId": "createBookingQuote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingQuote"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Save an Owner-scoped EUR accommodation quote without holding inventory",
+        "tags": [
+          "Quotes"
+        ]
+      }
+    },
+    "/booking-quotes/{quoteId}": {
+      "get": {
+        "operationId": "getBookingQuote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "quoteId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingQuote"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read this Owner's saved historical quote",
+        "tags": [
+          "Quotes"
         ]
       }
     },
@@ -2509,6 +2763,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "quoteId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2534,7 +2796,7 @@
             "description": "Bad Request"
           }
         },
-        "summary": "Create a reservation with a stable operation key",
+        "summary": "Create a reservation with an accepted quote and stable operation key",
         "tags": [
           "Reservation"
         ]
@@ -2644,6 +2906,58 @@
         "summary": "Read active reservations for a guest",
         "tags": [
           "Reservation"
+        ]
+      }
+    },
+    "/reservations/quoted": {
+      "post": {
+        "operationId": "confirmReservationQuote",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteConfirmationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "format": "int32",
+                  "type": "integer"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Accept a saved quote and atomically create its priced reservation with a stable operation key",
+        "tags": [
+          "Quotes"
         ]
       }
     },
@@ -2831,6 +3145,109 @@
         "summary": "Read a bounded reservation event page",
         "tags": [
           "Inventory"
+        ]
+      }
+    },
+    "/reservations/{reservationId}/price": {
+      "get": {
+        "operationId": "reservationPrice",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationPriceView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read the immutable accepted price, or explicit null for an unpriced historical reservation",
+        "tags": [
+          "Quotes"
+        ]
+      }
+    },
+    "/reservations/{reservationId}/prices": {
+      "get": {
+        "operationId": "reservationPriceHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "beforeVersion",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceHistory"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read bounded immutable accepted price history",
+        "tags": [
+          "Quotes"
         ]
       }
     },

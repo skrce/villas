@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { refreshSession } from "./api/session";
+import { testQuote, TEST_QUOTE_ID } from "./test/quotes";
 
 const api = vi.fn<typeof fetch>();
 const room = {
@@ -41,8 +42,14 @@ const session = () => ({
   permissions: ["staff:manage"],
   provider: "synthetic",
 });
-const responses = async (input: RequestInfo | URL) => {
+const responses = async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input);
+  if (url.endsWith("/booking-quotes"))
+    return json(testQuote(JSON.parse(String(init?.body))));
+  if (/\/reservations\/\d+\/price$/.test(url))
+    return json({ recorded: false, price: null });
+  if (/\/reservations\/\d+\/prices/.test(url))
+    return json({ items: [], nextCursor: null });
   if (url.includes("/apartments/directory"))
     return json({ items: [room], nextCursor: null });
   if (url.includes("/apartments")) return json([room]);
@@ -407,11 +414,16 @@ describe("routed staff workspace", () => {
   it("reconciles a lost create after same-Owner recovery makes the committed room unavailable", async () => {
     window.history.replaceState({}, "", "/reservations/new?guest=5");
     let committed = false;
+    let requested: Record<string, unknown> = {};
     api.mockImplementation(async (input, init) => {
       const url = new URL(String(input), "http://test");
       if (url.pathname === "/api/v1/reservations/available-apartments")
         return json(committed ? [] : [room]);
-      if (url.pathname === "/api/v1/reservations" && init?.method === "POST") {
+      if (
+        url.pathname === "/api/v1/reservations/quoted" &&
+        init?.method === "POST"
+      ) {
+        requested = JSON.parse(String(init.body));
         committed = true;
         throw new TypeError("Response lost after commit");
       }
@@ -420,8 +432,15 @@ describe("routed staff workspace", () => {
           key: url.pathname.split("/").pop(),
           kind: "CREATE",
           resourceId: 42,
+          reservation: {
+            ...requested,
+            id: 42,
+            version: 0,
+            status: "ACTIVE",
+            acceptedQuoteId: TEST_QUOTE_ID,
+          },
         });
-      return responses(input);
+      return responses(input, init);
     });
     await mount();
     await waitFor(() =>
@@ -430,8 +449,9 @@ describe("routed staff workspace", () => {
       ),
     );
     await userEvent.selectOptions(await screen.findByLabelText("Room"), "7");
+    await userEvent.click(screen.getByRole("button", { name: "Review price" }));
     await userEvent.click(
-      screen.getByRole("button", { name: "Create reservation" }),
+      await screen.findByRole("button", { name: /Confirm reservation/ }),
     );
     expect(
       await screen.findByText(/The result could not be confirmed/),
@@ -451,7 +471,7 @@ describe("routed staff workspace", () => {
       await screen.findByText("No rooms currently available"),
     ).toBeInTheDocument();
     await userEvent.click(
-      screen.getByRole("button", { name: "Create reservation" }),
+      screen.getByRole("button", { name: "Check previous save" }),
     );
     await waitFor(() =>
       expect(

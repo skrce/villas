@@ -882,3 +882,163 @@ test("maintenance recovery survives another tab's confirmation, room archival an
   ).not.toContain("Synthetic interrupted repair");
   await second.close();
 });
+
+test("saved quotes require explicit acceptance, retain exact seasonal prices and survive rate changes", async ({
+  page,
+}, testInfo) => {
+  await signIn(page);
+  const headers = await headersFor(page);
+  const created = await page.request.post("/api/v1/apartments", {
+    headers,
+    data: { name: "Synthetic quote studio", reference: "QUOTE-6", capacity: 4 },
+  });
+  expect(created.ok()).toBeTruthy();
+  const room = await created.json();
+  const guestResponse = await page.request.post("/api/v1/customers", {
+    headers,
+    data: { firstName: "Synthetic", lastName: "QuoteGuest" },
+  });
+  expect(guestResponse.ok()).toBeTruthy();
+  const guestId = await guestResponse.json();
+  await page.goto(`/reservations/new?guest=${guestId}`);
+  await expect(
+    page.getByRole("combobox", { name: "Guest", exact: true }),
+  ).not.toHaveValue("");
+  await page.getByLabel("Check-in", { exact: true }).fill("2028-02-28");
+  await page.getByLabel("Check-out", { exact: true }).fill("2028-03-02");
+  await page.getByLabel("Guests", { exact: true }).fill("4");
+  await page.getByLabel("Room", { exact: true }).selectOption(String(room.id));
+  await page.getByRole("button", { name: "Review price", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Configure this room's rates" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Confirm reservation/ }),
+  ).toHaveCount(0);
+  const ratesPath = `/api/v1/apartments/${room.id}/rates`;
+  const seasons = [
+    {
+      name: "Synthetic leap-day season",
+      startDate: "2028-02-29",
+      endDate: "2028-03-02",
+      nightlyCents: 7501,
+    },
+  ];
+  expect(
+    (
+      await page.request.put(ratesPath, {
+        headers,
+        data: {
+          expectedVersion: 0,
+          currency: "EUR",
+          baseNightlyCents: 5001,
+          seasons,
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.getByRole("button", { name: "Review price", exact: true }).click();
+  const review = page.getByRole("region", {
+    name: "Reviewed accommodation price",
+  });
+  await expect(review).toContainText("€200.03");
+  await expect(review).toContainText("1 night × €50.01");
+  await expect(review).toContainText("2 nights × €75.01");
+  let confirmations = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/v1/reservations/quoted"
+    )
+      confirmations++;
+  });
+  expect(confirmations).toBe(0);
+  expect(
+    (
+      await page.request.put(ratesPath, {
+        headers,
+        data: {
+          expectedVersion: 1,
+          currency: "EUR",
+          baseNightlyCents: 6001,
+          seasons,
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page
+    .getByRole("button", { name: "Confirm reservation · €200.03", exact: true })
+    .click();
+  await expect(review).toContainText("€210.03");
+  await expect(
+    page.getByText("The quote was refreshed.", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Check-in", { exact: true })).toHaveValue(
+    "2028-02-28",
+  );
+  expect(confirmations).toBe(1);
+  await page.setViewportSize({ width: 320, height: 800 });
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  const screenshot = testInfo.outputPath("quote-phone.png");
+  await page.screenshot({ path: screenshot, fullPage: true });
+  await testInfo.attach("Review a saved quote at 320px", {
+    path: screenshot,
+    contentType: "image/png",
+  });
+  await page
+    .getByRole("button", { name: "Confirm reservation · €210.03", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Reservation #\d+$/,
+  );
+  expect(confirmations).toBe(2);
+  const id = Number(new URL(page.url()).pathname.split("/").pop());
+  const accepted = await (
+    await page.request.get(`/api/v1/reservations/${id}/price`)
+  ).json();
+  expect(accepted).toMatchObject({
+    recorded: true,
+    price: {
+      reservationVersion: 0,
+      quote: { price: { totalCents: 21003, rateVersion: 2 } },
+    },
+  });
+  expect(
+    (
+      await page.request.put(ratesPath, {
+        headers,
+        data: {
+          expectedVersion: 2,
+          currency: "EUR",
+          baseNightlyCents: 9901,
+          seasons: [],
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Agreed accommodation price" }),
+  ).toBeVisible();
+  await expect(page.getByText("€210.03", { exact: true })).toBeVisible();
+  expect(
+    await (await page.request.get(`/api/v1/reservations/${id}/price`)).json(),
+  ).toEqual(accepted);
+  await page
+    .getByRole("button", { name: "Price history", exact: true })
+    .click();
+  await expect(
+    page.getByText("Current agreement", { exact: true }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});

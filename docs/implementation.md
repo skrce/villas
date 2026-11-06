@@ -296,7 +296,38 @@ rate validation has 97.14% line/95.45% branch and the editor has 94.33% line/90%
 branch. Current full frontend coverage is 84.05% line/78.08% branch. Complete-gate,
 browser, independent-review and merge evidence belong in the milestone issue/PR.
 
-Manual override and booking-change repricing decisions remain pending. Stable quotes,
-expiry and rate-change refresh, accepted immutable reservation prices and the stay
-summary are remaining milestone 6 work. This rates checkpoint does not close #7,
-enable unapproved overrides or claim a complete priced booking workflow.
+PR #24 is merged after independent backend/frontend review and exact-head CI.
+Its complete gate passed 181 unit/HTTP cases, 133 native MariaDB cases, 106 frontend
+cases, 13 launcher checks and ten Chromium workflows. No checks were skipped.
+
+The owner confirmed D07: manual overrides stay disabled. Booking-change repricing
+still awaits D12. This rates checkpoint does not close #7 or claim a complete priced
+booking workflow.
+
+## Milestone 6 quote integration in progress
+
+V11 adds immutable Owner-scoped quotes and accepted reservation-price snapshots.
+The new booking screen reviews the exact seasonal breakdown, then requires explicit
+acceptance. Expiry or a changed rate version returns a separately persisted replacement
+for another review. Price, inventory, audit and the operation result commit together.
+All creation adapters require a quote for new writes while retaining pre-pricing
+committed-operation recovery. Later rates/cancellation never rewrite accepted prices.
+
+The interrupted-save action performs read-only reconciliation without a new quote,
+including after availability changes. Durable intents retain an opaque quote UUID;
+raw guest, stay and price details remain out of browser storage. The detail page
+shows an explicit unrecorded historical price or the accepted breakdown/history.
+
+Scoped verification passes 200 unit/HTTP/configuration cases, 30 quote/migration
+and 21 guest MariaDB cases, 152 frontend cases and 13 launcher checks. A real Chromium quote workflow passes against
+synthetic OIDC/private MariaDB, including missing rates, seasonal leap-day arithmetic,
+rate changes requiring another click, immutable prices and 320px axe/overflow checks.
+These are scoped results, not a complete-gate pass. Existing date/room editing and
+the full browser suite await the approved booking-change pricing policy and remaining
+integration. Independent review and final exact-head checks must clear before merge.
+
+QuoteService's raw branch coverage is 95.45%, with 95.9% line coverage. The new
+financial response validator has 100% lines/95.34% branches; the accepted-price panel
+has 94.11% lines/96.66% branches. Frontend application coverage is 85.39% lines/80.76%
+branches. These scoped results do not substitute for the remaining full-suite and
+booking-change integration gates.

@@ -23,6 +23,7 @@ class ReservationServiceIntegrationTest
 @Autowired
 constructor(
     private val reservationService: ReservationService,
+    private val quotes: QuoteService,
     private val reservationRepository: ReservationRepository,
     private val apartmentRepository: ApartmentRepository,
     private val customerRepository: CustomerRepository,
@@ -44,6 +45,7 @@ constructor(
                 apartment.id!!,
                 "2020-01-01",
                 "2020-01-05",
+                quotes.create(apartment.id!!, "2020-01-01", "2020-01-05", 1).id,
             )
 
         val saved = reservationRepository.findById(reservationId).orElse(null)
@@ -289,7 +291,16 @@ constructor(
         topSeasonPrice: Int = 150,
     ): Apartment =
         apartmentRepository.save(
-            Apartment(null, capacity, orientation, view, regularPrice, topSeasonPrice)
+            Apartment(
+                null,
+                capacity,
+                orientation,
+                view,
+                regularPrice,
+                topSeasonPrice,
+                baseRateCents = 5001,
+                rateVersion = 1,
+            )
         )
 
     private fun date(value: String): LocalDate = LocalDate.parse(value)

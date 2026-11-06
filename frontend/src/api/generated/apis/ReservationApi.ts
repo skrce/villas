@@ -53,6 +53,7 @@ export interface CreateReservationRequest {
     endDate: string;
     idempotencyKey: string;
     guestCount?: number;
+    quoteId?: string;
 }
 
 export interface FindAvailableApartmentsRequest {
@@ -240,7 +241,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a reservation with a stable operation key
+     * Create a reservation with an accepted quote and stable operation key
      */
     async createReservationRaw(requestParameters: CreateReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<number>> {
         if (requestParameters['customerId'] == null) {
@@ -300,6 +301,10 @@ export class ReservationApi extends runtime.BaseAPI {
             queryParameters['guestCount'] = requestParameters['guestCount'];
         }
 
+        if (requestParameters['quoteId'] != null) {
+            queryParameters['quoteId'] = requestParameters['quoteId'];
+        }
+
         const headerParameters: runtime.HTTPHeaders = {};
 
         if (requestParameters['idempotencyKey'] != null) {
@@ -324,7 +329,7 @@ export class ReservationApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a reservation with a stable operation key
+     * Create a reservation with an accepted quote and stable operation key
      */
     async createReservation(requestParameters: CreateReservationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<number> {
         const response = await this.createReservationRaw(requestParameters, initOverrides);
