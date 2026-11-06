@@ -12,8 +12,8 @@ start are recorded in [decisions](decisions.md).
 | 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Implemented and locally verified; final review/merge evidence is in the linked issue |
 | 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Local implementation reviewed, verified and merged in PRs #18 and #19; live Google setup explicitly deferred |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | [Implemented and independently reviewed in PR #20](https://github.com/skrce/villas/pull/20); final merge/CI evidence is in the linked issue |
-| 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Backend PRs #21/#22 merged after review and CI; integrated UI verified locally, final review/merge evidence is in the linked issue |
-| 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Active: confirmed room-night pricing, exact-cent rates and administration; quote acceptance/booking repricing still in progress |
+| 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Implemented and independently reviewed in PRs #21, #22 and #23; merge/CI evidence is in the linked issue |
+| 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Implemented and independently reviewed in PRs #24 and #25; final merge/CI evidence is in the linked issue |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Planned |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Planned |
 | 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Planned |
@@ -344,3 +344,23 @@ through the session/route guarded completion callback and refuses to downgrade a
 cache version. Cancelled records expose read-only previous stay/room recovery. Permanent
 regressions cover Back/Forward with held reads, cancellation after a lost party or room
 edit, retained original quotes/keys, and the absence of new quotes or writes in recovery.
+
+The complete `node scripts/check.mjs` passed at `d36c509`: 371 backend cases
+(201 unit/HTTP/configuration and 170 native MariaDB), 176 frontend cases, 13 launcher
+checks and twelve Chromium workflows, with no skips. This includes generated-client
+consistency, dependency audit, production build, native DDL-prefix recovery, financial
+races/rollback, and desktop/320px axe/overflow checks. The priced-edit browser case
+accepts a refreshed offer, loses its committed response, cancels the booking and then
+reconciles read-only after reload without another quote or edit write. Two independent
+reviewers cleared the backend and corrected frontend. Exact-head CI and merge evidence
+are retained in PR #25 and issue #7.
+
+Raw frontend coverage is 86.8% lines/83.25% branches. Quote response validation is
+100%/95.34%, new booking 90.12%/90.42%, the priced edit form 95.18%/92.41%, and accepted
+prices 94.59%/93.75%. The retry adapter has 93.3% branch coverage. Backend PriceCalculator
+has 100% branch coverage and QuoteService 95.45%. Older critical modules remain below
+the 90% branch target: EuroCents 89.29%, InventoryWriter 72.73% and RateService 60%.
+Required overflow, malformed money, expiry, stale version, admission, concurrency and
+rollback scenarios pass; those cases do not erase the unsuppressed measured gaps.
+Broader boundary coverage and live/deployed qualification remain explicit work before
+the production pilot.

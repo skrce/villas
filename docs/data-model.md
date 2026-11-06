@@ -27,7 +27,7 @@ Apartment locks serialize inventory checks and writes. An optimistic version alo
 does not prevent competing creates. Cancelled reservations and maintenance blocks
 remain stored but no longer occupy inventory. Events and successful operation results
 are retained; no purge job is installed. See the [reservation contract](contracts/reservations.md)
-for lock ordering, replay, and the temporary development actor. Date-filtered bounded
+for lock ordering and replay. Date-filtered bounded
 read models use database pagination. Indexes support calendar windows, guest lists,
 and event cursors without changing the inventory predicate. Event IDs are exposed
 as decimal strings so BIGINT values preserve precision in browser clients.
