@@ -245,8 +245,12 @@ async function responses(
     return json({
       items: blocks.filter(
         (block) =>
-          !url.searchParams.get("status") ||
-          block.status === url.searchParams.get("status"),
+          (!url.searchParams.get("status") ||
+            block.status === url.searchParams.get("status")) &&
+          (!url.searchParams.get("roomId") ||
+            block.roomId === Number(url.searchParams.get("roomId"))) &&
+          block.startDate < url.searchParams.get("endDate")! &&
+          block.endDate > url.searchParams.get("startDate")!,
       ),
       nextCursor: null,
     });
@@ -1007,14 +1011,15 @@ describe("guest and room workflows", () => {
       within(dialog).getByRole("button", { name: "Save maintenance" }),
     );
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
-    await screen.findByRole("button", {
+    await waitFor(() =>
+      expect(window.location.search).toContain("from=2030-01-10"),
+    );
+    const cancelBlock = await screen.findByRole("button", {
       name: /Cancel block for Synthetic repair/,
     });
     expect(window.location.search).not.toContain("Synthetic");
     expect(JSON.stringify(localStorage)).not.toContain("Synthetic repair");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Cancel block for Synthetic repair/ }),
-    );
+    await userEvent.click(cancelBlock);
     const cancel = screen.getByRole("dialog", { name: "Cancel maintenance?" });
     await userEvent.click(
       within(cancel).getByRole("button", {
