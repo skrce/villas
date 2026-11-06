@@ -1,133 +1,112 @@
 package com.villarosa.controller
 
-import com.villarosa.repository.model.Apartment
-import com.villarosa.repository.model.ReservationInfo
+import com.villarosa.repository.model.*
 import com.villarosa.service.ReservationService
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.slf4j.LoggerFactory
-import org.springframework.http.MediaType
-import org.springframework.web.bind.annotation.DeleteMapping
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PatchMapping
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.*
 
 @Tag(name = "Reservation")
 @RestController
-class ReservationController(private val reservationService: ReservationService) {
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(ReservationController::class.java)
-    }
-
-    @PostMapping(
-        value = ["/reservation", "/reservation/", "/api/v1/reservations"],
-        produces = [MediaType.APPLICATION_JSON_VALUE],
-    )
+class ReservationController(private val service: ReservationService) {
+    @PostMapping("/api/v1/reservations")
     @Operation(
-        summary = "Creates a reservation (for room and customer).",
         operationId = "createReservation",
+        summary = "Create a reservation with a stable operation key",
     )
     fun createReservation(
-        @Parameter(description = "Customer ID") @RequestParam("customerId") customerId: Int,
-        @Parameter(description = "Room ID") @RequestParam("roomId") roomId: Int,
-        @Parameter(description = "Start Date, format: YYYY-MM-DD")
-        @RequestParam("startDate")
-        startDateString: String,
-        @Parameter(description = "End Date, format: YYYY-MM-DD")
-        @RequestParam("endDate")
-        endDateString: String,
-    ): Int {
-        LOGGER.info(
-            "Called createReservation() with customerId {}, roomId {}, startDate {}, endDate {}",
-            customerId,
-            roomId,
-            startDateString,
-            endDateString,
-        )
-        return reservationService.createReservation(
-            customerId,
-            roomId,
-            startDateString,
-            endDateString,
-        )
+        @RequestParam customerId: Int,
+        @RequestParam roomId: Int,
+        @RequestParam startDate: String,
+        @RequestParam endDate: String,
+        @RequestParam(defaultValue = "1") guestCount: Int,
+        @RequestHeader("Idempotency-Key") key: String,
+    ): ResponseEntity<Int> {
+        val result = service.create(customerId, roomId, startDate, endDate, guestCount, key)
+        return ResponseEntity.ok()
+            .header("X-Operation-Key", result.key)
+            .header("X-Resource-Version", result.reservation!!.version.toString())
+            .body(result.resourceId)
     }
 
-    @GetMapping(
-        value =
-            [
-                "/reservation/available-apartments",
-                "/reservation/available-apartments/",
-                "/api/v1/reservations/available-apartments",
-            ],
-        produces = [MediaType.APPLICATION_JSON_VALUE],
-    )
+    @PatchMapping("/api/v1/reservations")
     @Operation(
-        summary = "Find all available apartments available for a date range.",
-        operationId = "findAvailableApartments",
+        operationId = "updateReservationRoom",
+        summary = "Move a reservation using its expected version",
     )
-    fun findAvailableApartments(
-        @Parameter(description = "Start Date, format: YYYY-MM-DD")
-        @RequestParam("startDate")
-        startDateString: String,
-        @Parameter(description = "End Date, format: YYYY-MM-DD")
-        @RequestParam("endDate")
-        endDateString: String,
-    ): List<Apartment> {
-        LOGGER.info(
-            "Called findAvailableApartments() with startDate {}, endDate {}",
-            startDateString,
-            endDateString,
-        )
-        return reservationService.findAvailableApartments(startDateString, endDateString)
-    }
-
-    @GetMapping(
-        value =
-            ["/reservation/customer", "/reservation/customer/", "/api/v1/reservations/customer"],
-        produces = [MediaType.APPLICATION_JSON_VALUE],
-    )
-    @Operation(
-        summary = "Find all reservations for a given customer.",
-        operationId = "findReservationsByCustomer",
-    )
-    fun findReservationsByCustomer(
-        @Parameter(description = "Customer ID") @RequestParam("customerId") customerId: Int
-    ): List<ReservationInfo> {
-        LOGGER.info("Called findReservations() with customerId {}", customerId)
-        return reservationService.findReservationsByCustomer(customerId)
-    }
-
-    @DeleteMapping(
-        value = ["/reservation", "/reservation/", "/api/v1/reservations"],
-        produces = [MediaType.APPLICATION_JSON_VALUE],
-    )
-    @Operation(summary = "Deletes a reservation.", operationId = "cancelReservation")
-    fun cancelReservation(
-        @Parameter(description = "Reservation ID") @RequestParam("reservationId") reservationId: Int
-    ) {
-        LOGGER.info("Called cancelReservation() with reservationId {}", reservationId)
-        reservationService.cancelReservation(reservationId)
-    }
-
-    @PatchMapping(
-        value = ["/reservation", "/reservation/", "/api/v1/reservations"],
-        produces = [MediaType.APPLICATION_JSON_VALUE],
-    )
-    @Operation(summary = "Updates a reservation's room.", operationId = "updateReservationRoom")
     fun updateReservationRoom(
-        @Parameter(description = "Reservation ID")
-        @RequestParam("reservationId")
-        reservationId: Int,
-        @Parameter(description = "New Room ID") @RequestParam("newRoomId") newRoomId: Int,
+        @RequestParam reservationId: Int,
+        @RequestParam newRoomId: Int,
+        @RequestParam expectedVersion: Long,
+        @RequestHeader("Idempotency-Key") key: String,
     ) {
-        LOGGER.info(
-            "Called updateReservationRoom() with reservationId and newRoomId{}",
-            reservationId,
-            newRoomId,
-        )
-        reservationService.updateReservationRoom(reservationId, newRoomId)
+        service.move(reservationId, newRoomId, expectedVersion, key)
     }
+
+    @DeleteMapping("/api/v1/reservations")
+    @Operation(
+        operationId = "cancelReservation",
+        summary = "Retain a cancellation and release inventory",
+    )
+    fun cancelReservation(
+        @RequestParam reservationId: Int,
+        @RequestParam expectedVersion: Long,
+        @RequestHeader("Idempotency-Key") key: String,
+    ) {
+        service.cancel(reservationId, expectedVersion, key)
+    }
+
+    @PatchMapping("/api/v1/reservations/{reservationId}/dates")
+    @Operation(
+        operationId = "changeReservationDates",
+        summary = "Change stay dates and guest count",
+    )
+    fun changeDates(
+        @PathVariable reservationId: Int,
+        @RequestParam startDate: String,
+        @RequestParam endDate: String,
+        @RequestParam guestCount: Int,
+        @RequestParam expectedVersion: Long,
+        @RequestHeader("Idempotency-Key") key: String,
+    ): ReservationInfo =
+        service
+            .change(reservationId, startDate, endDate, guestCount, expectedVersion, key)
+            .reservation!!
+
+    @GetMapping("/api/v1/reservations/{reservationId}")
+    @Operation(
+        operationId = "getReservation",
+        summary = "Read the current reservation, including its version",
+    )
+    fun get(@PathVariable reservationId: Int): ReservationInfo = service.reservation(reservationId)
+
+    @GetMapping("/api/v1/reservations/available-apartments")
+    @Operation(
+        operationId = "findAvailableApartments",
+        summary = "Read advisory availability using the write-side overlap rules",
+    )
+    fun available(
+        @RequestParam startDate: String,
+        @RequestParam endDate: String,
+        @RequestParam(defaultValue = "1") guestCount: Int,
+    ): List<Apartment> = service.findAvailableApartments(startDate, endDate, guestCount)
+
+    @GetMapping("/api/v1/reservations/customer")
+    @Operation(
+        operationId = "findReservationsByCustomer",
+        summary = "Read active reservations for a guest",
+    )
+    fun customer(@RequestParam customerId: Int): List<ReservationInfo> =
+        service.findReservationsByCustomer(customerId)
+
+    @GetMapping("/api/v1/operations/{operationKey}")
+    @Operation(
+        operationId = "getOperation",
+        summary = "Reconcile a write using its stable operation key",
+    )
+    fun operation(
+        @PathVariable operationKey: String,
+        @RequestParam kind: OperationKind,
+    ): OperationResult = service.operation(kind, operationKey)
 }

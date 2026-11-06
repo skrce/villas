@@ -14,6 +14,30 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 @ControllerAdvice
 class ExceptionHandler : ResponseEntityExceptionHandler() {
+    @ExceptionHandler(DomainException::class)
+    fun domainFailure(exception: DomainException): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(exception.status)
+            .body(ErrorResponse(exception.message, exception.code))
+
+    @ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException::class)
+    fun staleWrite(): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ErrorResponse("The record changed. Reload it before editing.", "STALE_VERSION"))
+
+    @ExceptionHandler(org.springframework.dao.PessimisticLockingFailureException::class)
+    fun lockedWrite(): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(
+                ErrorResponse(
+                    "Inventory changed. Reconcile or retry with the same operation key.",
+                    "INVENTORY_RETRYABLE",
+                )
+            )
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException::class)
+    fun invalidWrite(): ResponseEntity<ErrorResponse> =
+        ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ErrorResponse("The requested change conflicts with saved data.", "DATA_CONFLICT"))
 
     @ExceptionHandler(value = [IllegalArgumentException::class, ClientException::class])
     @ResponseStatus(code = HttpStatus.BAD_REQUEST)

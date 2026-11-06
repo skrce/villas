@@ -2,4 +2,5 @@
 /* eslint-disable */
 export * from './ApartmentApi';
 export * from './CustomerApi';
+export * from './MaintenanceApi';
 export * from './ReservationApi';

@@ -4,19 +4,22 @@ All URIs are relative to */api/v1*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
-| [**cancelReservation**](ReservationApi.md#cancelreservation) | **DELETE** /reservations | Deletes a reservation. |
-| [**createReservation**](ReservationApi.md#createreservation) | **POST** /reservations | Creates a reservation (for room and customer). |
-| [**findAvailableApartments**](ReservationApi.md#findavailableapartments) | **GET** /reservations/available-apartments | Find all available apartments available for a date range. |
-| [**findReservationsByCustomer**](ReservationApi.md#findreservationsbycustomer) | **GET** /reservations/customer | Find all reservations for a given customer. |
-| [**updateReservationRoom**](ReservationApi.md#updatereservationroom) | **PATCH** /reservations | Updates a reservation\&#39;s room. |
+| [**cancelReservation**](ReservationApi.md#cancelreservation) | **DELETE** /reservations | Retain a cancellation and release inventory |
+| [**changeReservationDates**](ReservationApi.md#changereservationdates) | **PATCH** /reservations/{reservationId}/dates | Change stay dates and guest count |
+| [**createReservation**](ReservationApi.md#createreservation) | **POST** /reservations | Create a reservation with a stable operation key |
+| [**findAvailableApartments**](ReservationApi.md#findavailableapartments) | **GET** /reservations/available-apartments | Read advisory availability using the write-side overlap rules |
+| [**findReservationsByCustomer**](ReservationApi.md#findreservationsbycustomer) | **GET** /reservations/customer | Read active reservations for a guest |
+| [**getOperation**](ReservationApi.md#getoperation) | **GET** /operations/{operationKey} | Reconcile a write using its stable operation key |
+| [**getReservation**](ReservationApi.md#getreservation) | **GET** /reservations/{reservationId} | Read the current reservation, including its version |
+| [**updateReservationRoom**](ReservationApi.md#updatereservationroom) | **PATCH** /reservations | Move a reservation using its expected version |
 
 
 
 ## cancelReservation
 
-> cancelReservation(reservationId)
+> cancelReservation(reservationId, expectedVersion, idempotencyKey)
 
-Deletes a reservation.
+Retain a cancellation and release inventory
 
 ### Example
 
@@ -37,8 +40,12 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // number | Reservation ID
+    // number
     reservationId: 56,
+    // number
+    expectedVersion: 789,
+    // string
+    idempotencyKey: idempotencyKey_example,
   } satisfies CancelReservationRequest;
 
   try {
@@ -58,7 +65,9 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **reservationId** | `number` | Reservation ID | [Defaults to `undefined`] |
+| **reservationId** | `number` |  | [Defaults to `undefined`] |
+| **expectedVersion** | `number` |  | [Defaults to `undefined`] |
+| **idempotencyKey** | `string` |  | [Defaults to `undefined`] |
 
 ### Return type
 
@@ -83,11 +92,97 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+## changeReservationDates
+
+> ReservationInfo changeReservationDates(reservationId, startDate, endDate, guestCount, expectedVersion, idempotencyKey)
+
+Change stay dates and guest count
+
+### Example
+
+```ts
+import {
+  Configuration,
+  ReservationApi,
+} from '';
+import type { ChangeReservationDatesRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // To configure HTTP basic authorization: basicAuth
+    username: "YOUR USERNAME",
+    password: "YOUR PASSWORD",
+  });
+  const api = new ReservationApi(config);
+
+  const body = {
+    // number
+    reservationId: 56,
+    // string
+    startDate: startDate_example,
+    // string
+    endDate: endDate_example,
+    // number
+    guestCount: 56,
+    // number
+    expectedVersion: 789,
+    // string
+    idempotencyKey: idempotencyKey_example,
+  } satisfies ChangeReservationDatesRequest;
+
+  try {
+    const data = await api.changeReservationDates(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **reservationId** | `number` |  | [Defaults to `undefined`] |
+| **startDate** | `string` |  | [Defaults to `undefined`] |
+| **endDate** | `string` |  | [Defaults to `undefined`] |
+| **guestCount** | `number` |  | [Defaults to `undefined`] |
+| **expectedVersion** | `number` |  | [Defaults to `undefined`] |
+| **idempotencyKey** | `string` |  | [Defaults to `undefined`] |
+
+### Return type
+
+[**ReservationInfo**](ReservationInfo.md)
+
+### Authorization
+
+[basicAuth](../README.md#basicAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `*/*`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
 ## createReservation
 
-> number createReservation(customerId, roomId, startDate, endDate)
+> number createReservation(customerId, roomId, startDate, endDate, idempotencyKey, guestCount)
 
-Creates a reservation (for room and customer).
+Create a reservation with a stable operation key
 
 ### Example
 
@@ -108,14 +203,18 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // number | Customer ID
+    // number
     customerId: 56,
-    // number | Room ID
+    // number
     roomId: 56,
-    // string | Start Date, format: YYYY-MM-DD
+    // string
     startDate: startDate_example,
-    // string | End Date, format: YYYY-MM-DD
+    // string
     endDate: endDate_example,
+    // string
+    idempotencyKey: idempotencyKey_example,
+    // number (optional)
+    guestCount: 56,
   } satisfies CreateReservationRequest;
 
   try {
@@ -135,10 +234,12 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **customerId** | `number` | Customer ID | [Defaults to `undefined`] |
-| **roomId** | `number` | Room ID | [Defaults to `undefined`] |
-| **startDate** | `string` | Start Date, format: YYYY-MM-DD | [Defaults to `undefined`] |
-| **endDate** | `string` | End Date, format: YYYY-MM-DD | [Defaults to `undefined`] |
+| **customerId** | `number` |  | [Defaults to `undefined`] |
+| **roomId** | `number` |  | [Defaults to `undefined`] |
+| **startDate** | `string` |  | [Defaults to `undefined`] |
+| **endDate** | `string` |  | [Defaults to `undefined`] |
+| **idempotencyKey** | `string` |  | [Defaults to `undefined`] |
+| **guestCount** | `number` |  | [Optional] [Defaults to `1`] |
 
 ### Return type
 
@@ -151,7 +252,7 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: `application/json`, `*/*`
+- **Accept**: `*/*`
 
 
 ### HTTP response details
@@ -165,9 +266,9 @@ example().catch(console.error);
 
 ## findAvailableApartments
 
-> Array&lt;Apartment&gt; findAvailableApartments(startDate, endDate)
+> Array&lt;Apartment&gt; findAvailableApartments(startDate, endDate, guestCount)
 
-Find all available apartments available for a date range.
+Read advisory availability using the write-side overlap rules
 
 ### Example
 
@@ -188,10 +289,12 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // string | Start Date, format: YYYY-MM-DD
+    // string
     startDate: startDate_example,
-    // string | End Date, format: YYYY-MM-DD
+    // string
     endDate: endDate_example,
+    // number (optional)
+    guestCount: 56,
   } satisfies FindAvailableApartmentsRequest;
 
   try {
@@ -211,8 +314,9 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **startDate** | `string` | Start Date, format: YYYY-MM-DD | [Defaults to `undefined`] |
-| **endDate** | `string` | End Date, format: YYYY-MM-DD | [Defaults to `undefined`] |
+| **startDate** | `string` |  | [Defaults to `undefined`] |
+| **endDate** | `string` |  | [Defaults to `undefined`] |
+| **guestCount** | `number` |  | [Optional] [Defaults to `1`] |
 
 ### Return type
 
@@ -225,7 +329,7 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: `application/json`, `*/*`
+- **Accept**: `*/*`
 
 
 ### HTTP response details
@@ -241,7 +345,7 @@ example().catch(console.error);
 
 > Array&lt;ReservationInfo&gt; findReservationsByCustomer(customerId)
 
-Find all reservations for a given customer.
+Read active reservations for a guest
 
 ### Example
 
@@ -262,7 +366,7 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // number | Customer ID
+    // number
     customerId: 56,
   } satisfies FindReservationsByCustomerRequest;
 
@@ -283,7 +387,7 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **customerId** | `number` | Customer ID | [Defaults to `undefined`] |
+| **customerId** | `number` |  | [Defaults to `undefined`] |
 
 ### Return type
 
@@ -296,7 +400,152 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: Not defined
-- **Accept**: `application/json`, `*/*`
+- **Accept**: `*/*`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## getOperation
+
+> OperationResult getOperation(operationKey, kind)
+
+Reconcile a write using its stable operation key
+
+### Example
+
+```ts
+import {
+  Configuration,
+  ReservationApi,
+} from '';
+import type { GetOperationRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // To configure HTTP basic authorization: basicAuth
+    username: "YOUR USERNAME",
+    password: "YOUR PASSWORD",
+  });
+  const api = new ReservationApi(config);
+
+  const body = {
+    // string
+    operationKey: operationKey_example,
+    // 'CREATE' | 'MOVE' | 'CHANGE' | 'CANCEL' | 'BLOCK' | 'UNBLOCK'
+    kind: kind_example,
+  } satisfies GetOperationRequest;
+
+  try {
+    const data = await api.getOperation(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **operationKey** | `string` |  | [Defaults to `undefined`] |
+| **kind** | `CREATE`, `MOVE`, `CHANGE`, `CANCEL`, `BLOCK`, `UNBLOCK` |  | [Defaults to `undefined`] [Enum: CREATE, MOVE, CHANGE, CANCEL, BLOCK, UNBLOCK] |
+
+### Return type
+
+[**OperationResult**](OperationResult.md)
+
+### Authorization
+
+[basicAuth](../README.md#basicAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `*/*`
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+| **200** | OK |  -  |
+| **400** | Bad Request |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+
+## getReservation
+
+> ReservationInfo getReservation(reservationId)
+
+Read the current reservation, including its version
+
+### Example
+
+```ts
+import {
+  Configuration,
+  ReservationApi,
+} from '';
+import type { GetReservationRequest } from '';
+
+async function example() {
+  console.log("🚀 Testing  SDK...");
+  const config = new Configuration({ 
+    // To configure HTTP basic authorization: basicAuth
+    username: "YOUR USERNAME",
+    password: "YOUR PASSWORD",
+  });
+  const api = new ReservationApi(config);
+
+  const body = {
+    // number
+    reservationId: 56,
+  } satisfies GetReservationRequest;
+
+  try {
+    const data = await api.getReservation(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+
+| Name | Type | Description  | Notes |
+|------------- | ------------- | ------------- | -------------|
+| **reservationId** | `number` |  | [Defaults to `undefined`] |
+
+### Return type
+
+[**ReservationInfo**](ReservationInfo.md)
+
+### Authorization
+
+[basicAuth](../README.md#basicAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
+- **Accept**: `*/*`
 
 
 ### HTTP response details
@@ -310,9 +559,9 @@ example().catch(console.error);
 
 ## updateReservationRoom
 
-> updateReservationRoom(reservationId, newRoomId)
+> updateReservationRoom(reservationId, newRoomId, expectedVersion, idempotencyKey)
 
-Updates a reservation\&#39;s room.
+Move a reservation using its expected version
 
 ### Example
 
@@ -333,10 +582,14 @@ async function example() {
   const api = new ReservationApi(config);
 
   const body = {
-    // number | Reservation ID
+    // number
     reservationId: 56,
-    // number | New Room ID
+    // number
     newRoomId: 56,
+    // number
+    expectedVersion: 789,
+    // string
+    idempotencyKey: idempotencyKey_example,
   } satisfies UpdateReservationRoomRequest;
 
   try {
@@ -356,8 +609,10 @@ example().catch(console.error);
 
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
-| **reservationId** | `number` | Reservation ID | [Defaults to `undefined`] |
-| **newRoomId** | `number` | New Room ID | [Defaults to `undefined`] |
+| **reservationId** | `number` |  | [Defaults to `undefined`] |
+| **newRoomId** | `number` |  | [Defaults to `undefined`] |
+| **expectedVersion** | `number` |  | [Defaults to `undefined`] |
+| **idempotencyKey** | `string` |  | [Defaults to `undefined`] |
 
 ### Return type
 

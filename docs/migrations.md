@@ -25,10 +25,12 @@ pending versions. No guest, room, booking, rate, or payment demo data is inserte
 | --- | --- |
 | V1 | Empty InnoDB/utf8mb4 business tables, property-scoped reference keys, SQL DATE stays, positive capacities, nonnegative legacy prices, and half-open date constraints |
 | V2 | Room active state, entity versions, reservation guest count/status, and range checks |
+| V3 | Maintenance blocks, transactional operation claims/results, and inventory events with subject/version and property-scoped reference constraints |
 
-V1 to V2 upgrade tests preserve synthetic Unicode guests and saved bookings. The
-status/version columns prepare the next inventory PR; cancellation retention and
-transactional locking are implemented there, not inferred from schema fields alone.
+V1 to V3 upgrade tests preserve synthetic Unicode guests and saved bookings. Runtime
+inventory writes use the transaction and lock protocol in the
+[reservation contract](contracts/reservations.md). New installations contain no
+business records, operation results, or events until an explicit workflow writes them.
 
 Each published version is immutable. Add a new version for a later change. Do not
 edit a successful migration, manually advance history, or disable validation.

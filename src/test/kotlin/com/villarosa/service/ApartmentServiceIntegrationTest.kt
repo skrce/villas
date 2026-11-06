@@ -3,9 +3,11 @@ package com.villarosa.service
 import com.villarosa.repository.ApartmentRepository
 import com.villarosa.repository.model.Apartment
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 
@@ -17,7 +19,12 @@ class ApartmentServiceIntegrationTest
 constructor(
     private val apartmentService: ApartmentService,
     private val apartmentRepository: ApartmentRepository,
+    private val jdbc: JdbcTemplate,
 ) {
+    @BeforeEach
+    fun resetData() {
+        com.villarosa.TestData.reset(jdbc)
+    }
 
     @Test
     fun getAllApartments_returnsPersistedApartments() {

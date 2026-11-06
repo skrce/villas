@@ -21,14 +21,14 @@ import org.hibernate.type.SqlTypes
 data class Reservation(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Int? = null,
     @Column(name = "customer_id", nullable = false) val customerId: Int? = null,
-    @Column(name = "room_id", nullable = false) val roomId: Int? = null,
-    @Column(name = "start_date", nullable = false) val startDate: LocalDate? = null,
-    @Column(name = "end_date", nullable = false) val endDate: LocalDate? = null,
-    @Column(name = "guest_count", nullable = false) val guestCount: Int = 1,
+    @Column(name = "room_id", nullable = false) var roomId: Int? = null,
+    @Column(name = "start_date", nullable = false) var startDate: LocalDate? = null,
+    @Column(name = "end_date", nullable = false) var endDate: LocalDate? = null,
+    @Column(name = "guest_count", nullable = false) var guestCount: Int = 1,
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false)
-    val status: ReservationStatus = ReservationStatus.ACTIVE,
+    var status: ReservationStatus = ReservationStatus.ACTIVE,
     @Version @Column(nullable = false) var version: Long = 0,
     @JsonIgnore
     @Column(name = "property_id", nullable = false)

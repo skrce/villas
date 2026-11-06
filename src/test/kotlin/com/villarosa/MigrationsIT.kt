@@ -21,11 +21,19 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
-            for (table in listOf("apartments", "customers", "reservations")) {
+            for (table in
+                listOf(
+                    "apartments",
+                    "customers",
+                    "reservations",
+                    "maintenance_blocks",
+                    "inventory_operations",
+                    "inventory_events",
+                )) {
                 connection.createStatement().use { statement ->
                     statement.executeQuery("SELECT COUNT(*) FROM $table").use { result ->
                         assertThat(result.next()).isTrue()
@@ -58,7 +66,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(1)
+            .isEqualTo(2)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement
