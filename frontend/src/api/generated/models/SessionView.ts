@@ -47,6 +47,12 @@ export interface SessionView {
     expiresAt?: Date | null;
     /**
      * 
+     * @type {string}
+     * @memberof SessionView
+     */
+    generation?: string | null;
+    /**
+     * 
      * @type {Array<string>}
      * @memberof SessionView
      */
@@ -85,6 +91,7 @@ export function SessionViewFromJSONTyped(json: any, ignoreDiscriminator: boolean
         'authenticated': json['authenticated'] == null ? undefined : json['authenticated'],
         'csrfToken': json['csrfToken'] == null ? undefined : json['csrfToken'],
         'expiresAt': json['expiresAt'] == null ? undefined : (new Date(json['expiresAt'])),
+        'generation': json['generation'] == null ? undefined : json['generation'],
         'permissions': json['permissions'] == null ? undefined : json['permissions'],
         'provider': json['provider'] == null ? undefined : json['provider'],
         'staff': json['staff'] == null ? undefined : StaffViewFromJSON(json['staff']),
@@ -105,6 +112,7 @@ export function SessionViewToJSONTyped(value?: SessionView | null, ignoreDiscrim
         'authenticated': value['authenticated'],
         'csrfToken': value['csrfToken'],
         'expiresAt': value['expiresAt'] == null ? value['expiresAt'] : value['expiresAt'].toISOString(),
+        'generation': value['generation'],
         'permissions': value['permissions'],
         'provider': value['provider'],
         'staff': StaffViewToJSON(value['staff']),

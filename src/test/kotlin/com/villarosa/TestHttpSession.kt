@@ -33,6 +33,10 @@ data class TestHttpSession(val cookie: Cookie, val csrf: String) {
             )
             session.setAttribute(StaffSessionFilter.AUTHENTICATED_AT, Instant.now().toEpochMilli())
             session.setAttribute(StaffSessionFilter.LAST_SEEN_AT, Instant.now().toEpochMilli())
+            session.setAttribute(
+                StaffSessionFilter.GENERATION,
+                java.util.UUID.randomUUID().toString(),
+            )
             store.save(session)
             val cookie =
                 Cookie(

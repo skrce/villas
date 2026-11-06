@@ -26,6 +26,7 @@ data class SessionView(
     val expiresAt: Instant? = null,
     val permissions: List<String> = emptyList(),
     val provider: String = "google",
+    val generation: String? = null,
 )
 
 data class InviteOwnerRequest(@field:NotBlank @field:Email @field:Size(max = 254) val email: String)
@@ -72,6 +73,7 @@ class StaffController(
                 "staff:manage",
             ),
             if (settings.synthetic) "synthetic" else "google",
+            request.getSession(false).getAttribute(StaffSessionFilter.GENERATION) as String,
         )
     }
 

@@ -88,6 +88,7 @@ class StaffSessionFilter(
     }
 
     companion object {
+        const val GENERATION = "villas.sessionGeneration"
         const val AUTHENTICATED_AT = "villas.authenticatedAt"
         const val LAST_SEEN_AT = "villas.lastSeenAt"
         private val SAFE_METHODS = setOf("GET", "HEAD", "OPTIONS", "TRACE")

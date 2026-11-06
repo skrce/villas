@@ -198,6 +198,79 @@ constructor(
     }
 
     @Test
+    fun authorizationHandshakesExpireAfterTenMinutesEvenBeforeAnAccountExists() {
+        val start = request("/oauth2/authorization/google")
+        assertThat(
+                jdbc.queryForObject(
+                    "SELECT MAX_INACTIVE_INTERVAL FROM SPRING_SESSION",
+                    Int::class.java,
+                )
+            )
+            .isEqualTo(600)
+        val grant =
+            http.send(
+                HttpRequest.newBuilder(URI(start.headers().firstValue("Location").get()))
+                    .GET()
+                    .build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+        clock.time.set(clock.instant().plus(Duration.ofMinutes(11)))
+        val completed =
+            http.send(
+                HttpRequest.newBuilder(URI(grant.headers().firstValue("Location").get()))
+                    .GET()
+                    .build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+        assertThat(completed.headers().firstValue("Location").get()).contains("sign_in_denied")
+        assertThat(staff.count()).isZero()
+        assertThat(request("/api/v1/apartments").statusCode()).isEqualTo(401)
+    }
+
+    @Test
+    fun failedAccountHandoffCannotRetainProviderTokensOrCreateAnAuthenticatedSession() {
+        jdbc.execute(
+            "CREATE TRIGGER reject_login_audit BEFORE INSERT ON staff_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Synthetic audit failure'"
+        )
+        try {
+            assertThat(signIn().second.headers().firstValue("Location").get())
+                .contains("sign_in_denied")
+            assertThat(staff.count()).isZero()
+            assertThat(request("/api/v1/apartments").statusCode()).isEqualTo(401)
+            val attributes =
+                jdbc
+                    .query(
+                        "SELECT ATTRIBUTE_BYTES FROM SPRING_SESSION_ATTRIBUTES",
+                        { row, _ -> String(row.getBytes(1), Charsets.ISO_8859_1) },
+                    )
+                    .joinToString()
+            assertThat(attributes)
+                .doesNotContain("OAuth2AuthenticationToken", "OidcIdToken", "owner@example.test")
+        } finally {
+            jdbc.execute("DROP TRIGGER reject_login_audit")
+        }
+        assertThat(signIn().second.headers().firstValue("Location").get())
+            .isEqualTo("$BASE/auth/complete")
+        assertThat(request("/api/v1/apartments").statusCode()).isEqualTo(200)
+    }
+
+    @Test
+    fun freshSignInForTheSameOwnerChangesOnlyThePublicSessionGeneration() {
+        signIn()
+        val first = json.readTree(request("/api/v1/auth/session").body())
+        signIn()
+        val second = json.readTree(request("/api/v1/auth/session").body())
+        assertThat(second.get("staff").get("id").asString())
+            .isEqualTo(first.get("staff").get("id").asString())
+        assertThat(second.get("generation").asString())
+            .isNotEqualTo(first.get("generation").asString())
+        assertThat(second.get("generation").asString())
+            .isNotEqualTo(
+                cookies.cookieStore.cookies.single { it.name == "VILLAS_LOCAL_SESSION" }.value
+            )
+    }
+
+    @Test
     fun logoutRequiresCsrfAndRemovesTheServerSession() {
         signIn()
         assertThat(request("/api/v1/auth/logout", "POST").statusCode()).isEqualTo(403)

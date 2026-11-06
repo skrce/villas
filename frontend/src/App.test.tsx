@@ -20,7 +20,7 @@ beforeEach(async () => {
   signedIn = true;
   fetchMock.mockReset();
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input).endsWith('/auth/session')) return new Response(JSON.stringify({ authenticated: signedIn, staff: { id: 'owner-test', email: 'owner@example.test', role: 'OWNER', active: true, version: 0 }, csrfToken: 'csrf-test', expiresAt: '2099-01-01T00:00:00Z', permissions: [], provider: 'synthetic' }));
+    if (String(input).endsWith('/auth/session')) return new Response(JSON.stringify({ authenticated: signedIn, staff: { id: 'owner-test', email: 'owner@example.test', role: 'OWNER', active: true, version: 0 }, generation: 'login-one', csrfToken: 'csrf-test', expiresAt: '2099-01-01T00:00:00Z', permissions: [], provider: 'synthetic' }));
     return fetchMock(input, init);
   });
   await refreshSession();
@@ -163,6 +163,16 @@ describe('staff console API integration', () => {
     expect(within(screen.getByRole('form', { name: 'Create customer' })).getByLabelText('First name')).toHaveValue('Retained');
     expect(screen.queryByRole('cell', { name: 'Lake' })).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('releases controls after session recovery even when an obsolete request never settles', async () => {
+    fetchMock.mockImplementationOnce(() => new Promise<Response>(() => {}));
+    render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: 'Load apartments' }));
+    expect(screen.getByRole('button', { name: 'Load apartments' })).toBeDisabled();
+    signedIn = false; await act(async () => { await refreshSession(); });
+    signedIn = true; await act(async () => { await refreshSession(); });
+    expect(screen.getByRole('button', { name: 'Load apartments' })).toBeEnabled();
   });
 
 });

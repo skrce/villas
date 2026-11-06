@@ -38,7 +38,7 @@ const read = (): Intents => {
   }
 };
 
-export const buildBookingActions = (api: ReservationApi, scope: string) => {
+export const buildBookingActions = (api: ReservationApi, scope: string, generation = scope) => {
   const execute = async <T>(
     kind: GetOperationKindEnum,
     identity: string,
@@ -106,10 +106,11 @@ export const buildBookingActions = (api: ReservationApi, scope: string) => {
   ): Promise<T> => {
     const fingerprint = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([scope, kind, input])));
     const identity = Array.from(new Uint8Array(fingerprint), (byte) => byte.toString(16).padStart(2, '0')).join('');
-    const existing = pending.get(identity);
+    const inFlightIdentity = JSON.stringify([generation, identity]);
+    const existing = pending.get(inFlightIdentity);
     if (existing) return existing as Promise<T>;
-    const request = execute(kind, identity, prepare, send, recovered).finally(() => pending.delete(identity));
-    pending.set(identity, request);
+    const request = execute(kind, identity, prepare, send, recovered).finally(() => pending.delete(inFlightIdentity));
+    pending.set(inFlightIdentity, request);
     return request;
   };
 

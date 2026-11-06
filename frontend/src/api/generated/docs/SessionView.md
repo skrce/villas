@@ -9,6 +9,7 @@ Name | Type
 `authenticated` | boolean
 `csrfToken` | string
 `expiresAt` | Date
+`generation` | string
 `permissions` | Array&lt;string&gt;
 `provider` | string
 `staff` | [StaffView](StaffView.md)
@@ -23,6 +24,7 @@ const example = {
   "authenticated": null,
   "csrfToken": null,
   "expiresAt": null,
+  "generation": null,
   "permissions": null,
   "provider": null,
   "staff": null,

@@ -7,8 +7,8 @@ const input = { customerId: 1, roomId: 7, startDate: '2026-11-06', endDate: '202
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { 'Content-Type': 'application/json' },
 });
-const actions = (scope = 'local:staff') => buildBookingActions(
-  new ReservationApi(new Configuration({ basePath: '/api/v1' })), scope,
+const actions = (scope = 'local:staff', generation = scope) => buildBookingActions(
+  new ReservationApi(new Configuration({ basePath: '/api/v1' })), scope, generation,
 );
 const key = (call: number) => new Headers(fetchMock.mock.calls[call][1]?.headers).get('Idempotency-Key');
 const notCommitted = () => json({ code: 'OPERATION_NOT_COMMITTED', message: 'Reconcile or retry with the same key.' }, 404);
@@ -144,6 +144,17 @@ describe('booking write reconciliation', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('lets an explicit retry in a new login recover a durable key without reusing the old promise', async () => {
+    let finish: (response: Response) => void = () => {};
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    const old = actions('owner-one', 'login-one').create(input);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(json({ key: original, kind: 'CREATE', resourceId: 42 }));
+    await expect(actions('owner-one', 'login-two').create(input)).resolves.toBe(42);
+    confirm(0); finish(json(42)); await old;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
   it('never deletes a different durable intent when completing its own', async () => {
     fetchMock.mockImplementationOnce(async () => {
       const saved = JSON.parse(localStorage.getItem('villarosa.pendingOperations.v2')!);

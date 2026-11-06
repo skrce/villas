@@ -110,3 +110,12 @@ verified invitations, unsupported role input, invalid issuer/audience/expiry/non
 signature, seven-day absolute and three-day idle boundaries, logout and revocation.
 These tests never call Google. Playwright exercises the same protocol through an
 explicit loopback-only synthetic provider. Production refuses that configuration.
+
+Independent review regressions enforce the OIDC handshake's own ten-minute limit at
+state creation and callback consumption. Only canonical staff authentication may be
+persisted. Any failed post-provider account handoff invalidates the session and permits
+a clean new attempt. A public random login generation, separate from the cookie/session
+ID, changes on every sign-in so same-Owner reauthentication also rejects old actions.
+Logout hides the current workspace immediately and pauses competing session refreshes
+until its server response/read-back completes. Pending booking promises are scoped to
+the login generation; durable recovery keys remain scoped to the canonical Owner.

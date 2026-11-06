@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 
 const fetchMock = vi.fn<typeof fetch>();
-const payload = (id = 'owner-one') => ({ authenticated: true, staff: { id, email: `${id}@example.test`, role: 'OWNER', active: true, version: 0 }, csrfToken: 'memory-only-csrf', expiresAt: '2099-01-01T00:00:00Z', permissions: ['staff:manage'], provider: 'synthetic' });
+const payload = (id = 'owner-one') => ({ authenticated: true, staff: { id, email: `${id}@example.test`, role: 'OWNER', active: true, version: 0 }, generation: 'login-one', csrfToken: 'memory-only-csrf', expiresAt: '2099-01-01T00:00:00Z', permissions: ['staff:manage'], provider: 'synthetic' });
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const load = async () => { const session = await import('./session'); fetchMock.mockResolvedValueOnce(json(payload())); await session.refreshSession(); return session; };
 beforeEach(() => { vi.resetModules(); fetchMock.mockReset(); vi.stubGlobal('fetch', fetchMock); localStorage.clear(); });
@@ -27,6 +27,26 @@ describe('staff session boundaries', () => {
     const count = fetchMock.mock.calls.length;
     await expect(old('/api/v1/reservations', { method: 'POST' })).rejects.toThrow('session changed');
     expect(fetchMock).toHaveBeenCalledTimes(count);
+  });
+  it('invalidates old clients after a fresh login by the same Owner without an observed 401', async () => {
+    const session = await load();
+    const old = session.scopedSessionFetch('owner-one', session.getSessionEpoch());
+    fetchMock.mockResolvedValueOnce(json({ ...payload(), generation: 'login-two' })); await session.refreshSession();
+    const calls = fetchMock.mock.calls.length;
+    await expect(old('/api/v1/reservations', { method: 'POST' })).rejects.toThrow('session changed');
+    expect(fetchMock).toHaveBeenCalledTimes(calls);
+  });
+  it('hides access while logout is pending and prevents a focus refresh from overriding its result', async () => {
+    const session = await load();
+    let finish: (response: Response) => void = () => {};
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    const signingOut = session.logout();
+    expect(session.getSession()).toMatchObject({ status: 'anonymous', reason: 'logout-pending' });
+    await session.refreshSession();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    fetchMock.mockResolvedValueOnce(json({ authenticated: false }));
+    finish(new Response(null, { status: 204 })); await signingOut;
+    expect(session.getSession()).toMatchObject({ status: 'anonymous', reason: 'logout' });
   });
   it('discards a response that arrives after a different Owner signs in', async () => {
     const session = await load();

@@ -429,6 +429,10 @@
             "nullable": true,
             "type": "string"
           },
+          "generation": {
+            "nullable": true,
+            "type": "string"
+          },
           "permissions": {
             "items": {
               "type": "string"

@@ -6,19 +6,21 @@ export type Staff = Required<Pick<StaffView, 'id' | 'email' | 'role' | 'active' 
 export type SessionState =
   | { status: 'loading' }
   | { status: 'anonymous' | 'unavailable'; reason?: string; provider: 'google' | 'synthetic' }
-  | { status: 'authenticated'; staff: Staff; expiresAt: Date; permissions: string[]; provider: 'google' | 'synthetic' };
+  | { status: 'authenticated'; staff: Staff; generation: string; expiresAt: Date; permissions: string[]; provider: 'google' | 'synthetic' };
 
 let state: SessionState = { status: 'loading' };
 let csrf: string | undefined;
 let epoch = 0;
 let refreshSequence = 0;
+let logoutInProgress = false;
 let ownerKey = 'anonymous';
 const listeners = new Set<() => void>();
 const notify = (next: SessionState) => {
   const previousId = state.status === 'authenticated' ? state.staff.id : undefined;
   const nextId = next.status === 'authenticated' ? next.staff.id : undefined;
   if (nextId) ownerKey = nextId;
-  if (previousId !== nextId || next.status !== 'authenticated') epoch++;
+  const changedGeneration = state.status === 'authenticated' && next.status === 'authenticated' && state.generation !== next.generation;
+  if (previousId !== nextId || next.status !== 'authenticated' || changedGeneration) epoch++;
   state = next;
   for (const listener of listeners) listener();
 };
@@ -71,6 +73,7 @@ const readSession = async () => {
 };
 
 export const refreshSession = async () => {
+  if (logoutInProgress) return;
   const sequence = ++refreshSequence;
   try {
     const body = await readSession();
@@ -79,12 +82,12 @@ export const refreshSession = async () => {
     if (!body.authenticated) { csrf = undefined; notify({ status: 'anonymous', provider }); return; }
     const staff = body.staff as Partial<Staff> | null;
     const expiry = new Date(String(body.expiresAt));
-    if (!staff || typeof staff.id !== 'string' || !staff.id || typeof staff.email !== 'string' || staff.role !== 'OWNER' || staff.active !== true
+    if (typeof body.generation !== 'string' || !body.generation || !staff || typeof staff.id !== 'string' || !staff.id || typeof staff.email !== 'string' || staff.role !== 'OWNER' || staff.active !== true
       || typeof staff.version !== 'number' || !Number.isSafeInteger(staff.version) || staff.version < 0
       || typeof body.csrfToken !== 'string' || !body.csrfToken || Number.isNaN(expiry.getTime())
       || !Array.isArray(body.permissions) || !body.permissions.every((permission) => typeof permission === 'string')) throw new Error('The session response could not be confirmed.');
     csrf = body.csrfToken;
-    notify({ status: 'authenticated', staff: staff as Staff, expiresAt: expiry, permissions: body.permissions, provider });
+    notify({ status: 'authenticated', staff: staff as Staff, generation: body.generation, expiresAt: expiry, permissions: body.permissions, provider });
   } catch (error) {
     if (sequence !== refreshSequence) return;
     csrf = undefined;
@@ -93,17 +96,23 @@ export const refreshSession = async () => {
 };
 
 export const logout = async () => {
-  const sequence = ++refreshSequence;
+  if (logoutInProgress) return;
+  logoutInProgress = true;
+  ++refreshSequence;
+  const token = csrf;
   const provider = state.status === 'loading' ? 'google' : state.provider;
+  csrf = undefined;
+  notify({ status: 'anonymous', reason: 'logout-pending', provider });
   try {
-    const response = await sessionFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
-    if (!response.ok || (await readSession()).authenticated) throw new Error('Sign-out could not be confirmed. Check your session before leaving this browser.');
-    if (sequence !== refreshSequence) return;
-    csrf = undefined; notify({ status: 'anonymous', reason: 'logout', provider });
-    const channel = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel('villas.session'); channel?.postMessage('changed'); channel?.close();
+    if (!token) throw new SessionChangedError();
+    const response = await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-TOKEN': token } });
+    if (!response.ok || (await readSession()).authenticated) throw new Error('Sign-out could not be confirmed.');
+    notify({ status: 'anonymous', reason: 'logout', provider });
   } catch {
-    if (sequence !== refreshSequence) return;
-    csrf = undefined; notify({ status: 'anonymous', reason: 'logout-unconfirmed', provider });
+    notify({ status: 'anonymous', reason: 'logout-unconfirmed', provider });
+  } finally {
+    logoutInProgress = false;
+    const channel = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel('villas.session'); channel?.postMessage('changed'); channel?.close();
   }
 };
 

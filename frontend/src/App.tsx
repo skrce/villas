@@ -94,8 +94,8 @@ function Login() {
       {session.status !== 'authenticated' && session.reason === 'logout-unconfirmed' && <p role="alert">Sign-out could not be confirmed. Check your session before leaving this browser.</p>}
       {session.status === 'unavailable' && <p role="alert">{session.reason}</p>}
       {new URLSearchParams(window.location.search).has('error') && <p role="alert">Sign-in was declined. Use a verified account with an unexpired invitation.</p>}
-      <button className="btn primary" onClick={() => { try { startSignIn(); } catch (error) { setError(String(error)); } }}>Sign in{session.provider === 'synthetic' ? ' to local demo' : ' with Google'}</button>
-      <button className="btn" onClick={() => void refreshSession()}>Check session</button>
+      <button disabled={session.status !== 'authenticated' && session.reason === 'logout-pending'} className="btn primary" onClick={() => { try { startSignIn(); } catch (error) { setError(String(error)); } }}>Sign in{session.provider === 'synthetic' ? ' to local demo' : ' with Google'}</button>
+      <button disabled={session.status !== 'authenticated' && session.reason === 'logout-pending'} className="btn" onClick={() => void refreshSession()}>Check session</button>
       {error && <p role="alert">{error} <a href="/auth/start" target="_blank" rel="noreferrer">Open sign-in</a></p>}
     </>}
   </section></main>;
@@ -153,7 +153,7 @@ function StaffConsole() {
 
   const [reservationsCustomerId, setReservationsCustomerId] = useState('');
 
-  const bookingActions = useMemo(() => buildBookingActions(apis.reservationApi, JSON.stringify([API_BASE, ownerKey])), [apis, ownerKey]);
+  const bookingActions = useMemo(() => buildBookingActions(apis.reservationApi, JSON.stringify([API_BASE, ownerKey]), String(sessionEpoch)), [apis, ownerKey, sessionEpoch]);
 
   const [cancelReservationId, setCancelReservationId] = useState('');
   const [updateReservationId, setUpdateReservationId] = useState('');
@@ -167,24 +167,28 @@ function StaffConsole() {
   const sessionReason = session.status === 'anonymous' || session.status === 'unavailable' ? session.reason : undefined;
   useEffect(() => {
     setApartments(null); setAvailableApartments(null); setCustomers(null); setReservations(null);
-    setAlert(null); setCreatedCustomerId(null); setCreatedReservationId(null); setCancelStatus(null); setUpdateStatus(null);
+    setIsLoading(false); setAlert(null); setCreatedCustomerId(null); setCreatedReservationId(null); setCancelStatus(null); setUpdateStatus(null);
     if (session.status === 'anonymous' && sessionReason?.startsWith('logout')) {
       setCustomerFirstName(''); setCustomerLastName(''); setCustomerPhone(''); setCustomerAddress('');
       setSearchFirstName(''); setSearchPhone(''); setReservationCustomerId(''); setReservationsCustomerId('');
     }
   }, [sessionEpoch, session.status, sessionReason]);
 
+  const stillCurrent = () => sessionEpoch === getSessionEpoch();
+
   const handleListApartments = async () => {
     setAlert(null);
     setIsLoading(true);
     try {
       const data = await apis.apartmentApi.listApartments();
+      if (!stillCurrent()) return;
       setApartments(data);
       setAlert({ type: 'success', message: `Loaded ${data.length} apartments.` });
     } catch (error) {
-      setAlert({ type: 'error', message: await parseErrorMessage(error) });
+      const message = await parseErrorMessage(error);
+      if (stillCurrent()) setAlert({ type: 'error', message });
     } finally {
-      setIsLoading(false);
+      if (stillCurrent()) setIsLoading(false);
     }
   };
 
@@ -205,12 +209,14 @@ function StaffConsole() {
         phone: customerPhone.trim(),
         address: customerAddress.trim(),
       } });
+      if (!stillCurrent()) return;
       setCreatedCustomerId(id);
       setAlert({ type: 'success', message: `Customer created with ID ${id}.` });
     } catch (error) {
-      setAlert({ type: 'error', message: await parseErrorMessage(error) });
+      const message = await parseErrorMessage(error);
+      if (stillCurrent()) setAlert({ type: 'error', message });
     } finally {
-      setIsLoading(false);
+      if (stillCurrent()) setIsLoading(false);
     }
   };
 
@@ -229,12 +235,14 @@ function StaffConsole() {
         firstName: searchFirstName.trim() || undefined,
         phone: searchPhone.trim() || undefined,
       } });
+      if (!stillCurrent()) return;
       setCustomers(data);
       setAlert({ type: 'success', message: `Found ${data.length} customers.` });
     } catch (error) {
-      setAlert({ type: 'error', message: await parseErrorMessage(error) });
+      const message = await parseErrorMessage(error);
+      if (stillCurrent()) setAlert({ type: 'error', message });
     } finally {
-      setIsLoading(false);
+      if (stillCurrent()) setIsLoading(false);
     }
   };
 
@@ -272,12 +280,14 @@ function StaffConsole() {
         endDate: reservationEndDate,
         guestCount,
       });
+      if (!stillCurrent()) return;
       setCreatedReservationId(id);
       setAlert({ type: 'success', message: `Reservation created with ID ${id}.` });
     } catch (error) {
-      setAlert({ type: 'error', message: await parseErrorMessage(error) });
+      const message = await parseErrorMessage(error);
+      if (stillCurrent()) setAlert({ type: 'error', message });
     } finally {
-      setIsLoading(false);
+      if (stillCurrent()) setIsLoading(false);
     }
   };
 
@@ -302,12 +312,14 @@ function StaffConsole() {
         endDate: availabilityEndDate,
         guestCount,
       });
+      if (!stillCurrent()) return;
       setAvailableApartments(data);
       setAlert({ type: 'success', message: `Found ${data.length} available apartments.` });
     } catch (error) {
-      setAlert({ type: 'error', message: await parseErrorMessage(error) });
+      const message = await parseErrorMessage(error);
+      if (stillCurrent()) setAlert({ type: 'error', message });
     } finally {
-      setIsLoading(false);
+      if (stillCurrent()) setIsLoading(false);
     }
   };
 
@@ -329,12 +341,14 @@ function StaffConsole() {
     setIsLoading(true);
     try {
       const data = await apis.reservationApi.findReservationsByCustomer({ customerId });
+      if (!stillCurrent()) return;
       setReservations(data);
       setAlert({ type: 'success', message: `Loaded ${data.length} reservations.` });
     } catch (error) {
-      setAlert({ type: 'error', message: await parseErrorMessage(error) });
+      const message = await parseErrorMessage(error);
+      if (stillCurrent()) setAlert({ type: 'error', message });
     } finally {
-      setIsLoading(false);
+      if (stillCurrent()) setIsLoading(false);
     }
   };
 
@@ -356,12 +370,14 @@ function StaffConsole() {
     setIsLoading(true);
     try {
       await bookingActions.cancel(reservationId);
+      if (!stillCurrent()) return;
       setCancelStatus(`Cancelled reservation ${reservationId}.`);
       setAlert({ type: 'success', message: 'Reservation cancelled.' });
     } catch (error) {
-      setAlert({ type: 'error', message: await parseErrorMessage(error) });
+      const message = await parseErrorMessage(error);
+      if (stillCurrent()) setAlert({ type: 'error', message });
     } finally {
-      setIsLoading(false);
+      if (stillCurrent()) setIsLoading(false);
     }
   };
 
@@ -384,12 +400,14 @@ function StaffConsole() {
     setIsLoading(true);
     try {
       await bookingActions.move(reservationId, newRoomId);
+      if (!stillCurrent()) return;
       setUpdateStatus(`Moved reservation ${reservationId} to room ${newRoomId}.`);
       setAlert({ type: 'success', message: 'Reservation updated.' });
     } catch (error) {
-      setAlert({ type: 'error', message: await parseErrorMessage(error) });
+      const message = await parseErrorMessage(error);
+      if (stillCurrent()) setAlert({ type: 'error', message });
     } finally {
-      setIsLoading(false);
+      if (stillCurrent()) setIsLoading(false);
     }
   };
 

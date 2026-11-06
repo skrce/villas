@@ -1,6 +1,5 @@
 package com.villarosa
 
-import com.villarosa.exception.DomainException
 import com.villarosa.security.*
 import jakarta.servlet.DispatcherType
 import java.time.Clock
@@ -38,7 +37,19 @@ class SecurityConfiguration {
     fun staffSecurityContexts() =
         DelegatingSecurityContextRepository(
             RequestAttributeSecurityContextRepository(),
-            HttpSessionSecurityContextRepository(),
+            object : HttpSessionSecurityContextRepository() {
+                override fun saveContext(
+                    context: org.springframework.security.core.context.SecurityContext,
+                    request: jakarta.servlet.http.HttpServletRequest,
+                    response: jakarta.servlet.http.HttpServletResponse,
+                ) {
+                    if (
+                        context.authentication == null ||
+                            context.authentication is StaffAuthentication
+                    )
+                        super.saveContext(context, request, response)
+                }
+            },
         )
 
     @Bean fun staffCsrfTokens() = HttpSessionCsrfTokenRepository()
@@ -111,6 +122,9 @@ class SecurityConfiguration {
             }
             .oauth2Login {
                 it.loginPage("${settings.publicOrigin}/login")
+                    .authorizationEndpoint { endpoint ->
+                        endpoint.authorizationRequestRepository(StaffAuthorizationRequests(clock))
+                    }
                     .userInfoEndpoint { endpoint -> endpoint.oidcUserService(oidc) }
                     .successHandler { request, response, authentication ->
                         val oauth = authentication as OAuth2AuthenticationToken
@@ -140,10 +154,14 @@ class SecurityConfiguration {
                                 clock.millis(),
                             )
                             session.setAttribute(StaffSessionFilter.LAST_SEEN_AT, clock.millis())
+                            session.setAttribute(
+                                StaffSessionFilter.GENERATION,
+                                java.util.UUID.randomUUID().toString(),
+                            )
                             csrf.saveToken(csrf.generateToken(request), request, response)
                             contexts.saveContext(context, request, response)
                             response.sendRedirect("${settings.publicOrigin}/auth/complete")
-                        } catch (_: DomainException) {
+                        } catch (_: Exception) {
                             request.getSession(false)?.invalidate()
                             SecurityContextHolder.clearContext()
                             response.sendRedirect(
