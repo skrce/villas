@@ -102,6 +102,53 @@ constructor(
     }
 
     @ParameterizedTest
+    @ValueSource(strings = ["-0.5", "0.9", "1.0", "\"0\"", "true"])
+    fun reviewedVersionsRequireJsonIntegersInsteadOfCoercedScalars(version: String) {
+        mvc.perform(
+                post("/api/v1/customers/1/status")
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
+                    .contentType("application/json")
+                    .content("""{"active":false,"expectedVersion":$version}""")
+            )
+            .andExpect(status().isBadRequest)
+        mvc.perform(
+                put("/api/v1/customers/1")
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
+                    .contentType("application/json")
+                    .content(
+                        """{"firstName":"Test","lastName":"Guest","expectedVersion":$version}"""
+                    )
+            )
+            .andExpect(status().isBadRequest)
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings =
+            [
+                "{\"limit\":1.5}",
+                "{\"afterId\":-0.5}",
+                "{\"limit\":\"10\"}",
+                "{\"includeArchived\":\"false\"}",
+            ]
+    )
+    fun privateQueryBoundsAndFlagsKeepTheirDeclaredJsonTypes(body: String) {
+        mvc.perform(
+                post("/api/v1/customers/query")
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
+                    .contentType("application/json")
+                    .content(body)
+            )
+            .andExpect(status().isBadRequest)
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = ["query", "duplicates", "1/status"])
     fun housekeepingCannotCallGuestManagementOrSearchRoutesDirectly(path: String) {
         mvc.perform(
