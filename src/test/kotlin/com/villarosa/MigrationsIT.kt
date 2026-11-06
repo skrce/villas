@@ -1,18 +1,23 @@
 package com.villarosa
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
 import org.assertj.core.api.Assertions.assertThat
+import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.FlywayException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.io.TempDir
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
 class MigrationsIT {
     @Container val database = TestDatabases.mariaDb()
+    @TempDir lateinit var recovery: Path
 
     private fun connection(): Connection =
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
@@ -21,7 +26,7 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
@@ -66,7 +71,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(2)
+            .isEqualTo(3)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement
@@ -148,7 +153,133 @@ class MigrationsIT {
                             "INSERT INTO reservations (customer_id, room_id, start_date, end_date) VALUES (1, 1, '$start', '$end')"
                         )
                     }
+                    assertThrows<SQLException> {
+                        statement.executeUpdate(
+                            "INSERT INTO maintenance_blocks (room_id, start_date, end_date, reason) VALUES (1, '$start', '$end', 'Synthetic')"
+                        )
+                    }
                 }
+            }
+        }
+    }
+
+    @Test
+    fun readIndexUpgradePreservesBookingsAndTheirSavedOperationHistory() {
+        DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "3")
+            .migrate()
+        val outcome =
+            """{"key":"00000000-0000-0000-0000-000000000001","kind":"CREATE","resourceId":1}"""
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "INSERT INTO apartments (id, capacity, view) VALUES (1, 2, 'Езеро')"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO customers (id, first_name, last_name, phone, address) VALUES (1, 'Test', 'Гостин', '000', 'Synthetic')"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO reservations (id, customer_id, room_id, start_date, end_date) VALUES (1, 1, 1, '2026-03-28', '2026-03-30')"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO inventory_operations (property_id, actor_id, operation_kind, operation_key, request_hash, result_json) VALUES ('villa-rosa', 'development', 'CREATE', '00000000-0000-0000-0000-000000000001', REPEAT('0', 64), '$outcome')"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO inventory_events (property_id, actor_id, operation_key, kind, reservation_id, resource_version, room_id, start_date, end_date, guest_count, occurred_at) VALUES ('villa-rosa', 'development', '00000000-0000-0000-0000-000000000001', 'CREATED', 1, 0, 1, '2026-03-28', '2026-03-30', 1, CURRENT_TIMESTAMP(6))"
+                )
+            }
+        }
+        val flyway =
+            DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
+        assertThat(flyway.migrate().migrationsExecuted).isZero()
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement
+                    .executeQuery(
+                        "SELECT c.last_name, r.start_date, o.result_json, e.kind FROM reservations r JOIN customers c ON c.id=r.customer_id JOIN inventory_events e ON e.reservation_id=r.id JOIN inventory_operations o ON o.operation_key=e.operation_key WHERE r.id=1"
+                    )
+                    .use { result ->
+                        assertThat(result.next()).isTrue()
+                        assertThat(result.getString(1)).isEqualTo("Гостин")
+                        assertThat(result.getString(2)).isEqualTo("2026-03-28")
+                        assertThat(result.getString(3)).isEqualTo(outcome)
+                        assertThat(result.getString(4)).isEqualTo("CREATED")
+                    }
+                statement
+                    .executeQuery(
+                        "SHOW INDEX FROM reservations WHERE Key_name='reservation_calendar'"
+                    )
+                    .use { result -> assertThat(result.next()).isTrue() }
+            }
+        }
+    }
+
+    @Test
+    fun partialDdlNeedsReviewedRepairAndRerunsWithoutDroppingSavedRecords() {
+        DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "INSERT INTO apartments (id, capacity, view) VALUES (1, 2, 'Езеро')"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO customers (id, first_name, last_name, phone, address) VALUES (1, 'Test', 'Гостин', '000', 'Synthetic')"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO reservations (id, customer_id, room_id, start_date, end_date) VALUES (1, 1, 1, '2026-03-28', '2026-03-30')"
+                )
+            }
+        }
+        Files.writeString(
+            recovery.resolve("V999__synthetic_recovery.sql"),
+            """
+            CREATE TABLE IF NOT EXISTS recovery_marker (id INT PRIMARY KEY);
+            INSERT IGNORE INTO recovery_marker (id) VALUES (1);
+            ALTER TABLE migration_precondition ADD COLUMN IF NOT EXISTS ready INT;
+            """
+                .trimIndent(),
+        )
+        val flyway =
+            Flyway.configure()
+                .dataSource(database.jdbcUrl, database.username, database.password)
+                .locations("classpath:db/migration", "filesystem:$recovery")
+                .cleanDisabled(true)
+                .baselineOnMigrate(false)
+                .load()
+        assertThrows<FlywayException> { flyway.migrate() }
+        assertThrows<FlywayException> { flyway.migrate() }
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT COUNT(*) FROM recovery_marker").use { result ->
+                    result.next()
+                    assertThat(result.getInt(1)).isEqualTo(1)
+                }
+                statement.executeQuery("SELECT COUNT(*) FROM reservations").use { result ->
+                    result.next()
+                    assertThat(result.getInt(1)).isEqualTo(1)
+                }
+                statement.execute("CREATE TABLE migration_precondition (id INT PRIMARY KEY)")
+            }
+        }
+        flyway.repair()
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
+        assertThat(flyway.migrate().migrationsExecuted).isZero()
+        flyway.validate()
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT COUNT(*) FROM recovery_marker").use { result ->
+                    result.next()
+                    assertThat(result.getInt(1)).isEqualTo(1)
+                }
+                statement
+                    .executeQuery(
+                        "SELECT c.last_name, r.start_date FROM reservations r JOIN customers c ON c.id=r.customer_id WHERE r.id=1"
+                    )
+                    .use { result ->
+                        assertThat(result.next()).isTrue()
+                        assertThat(result.getString(1)).isEqualTo("Гостин")
+                        assertThat(result.getString(2)).isEqualTo("2026-03-28")
+                    }
             }
         }
     }

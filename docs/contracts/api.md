@@ -28,6 +28,10 @@ edits require expected versions. The generated client and console send both.
 | `createMaintenanceBlock` | `POST /api/v1/maintenance-blocks` | None | Maintenance, milestone 2 |
 | `cancelMaintenanceBlock` | `DELETE /api/v1/maintenance-blocks/{blockId}` | None | Maintenance, milestone 2 |
 | `getOperation` | `GET /api/v1/operations/{operationKey}?kind=...` | None | Write reconciliation, milestone 2 |
+| `listReservations` | `GET /api/v1/reservations` | None | Bounded calendar, milestone 2 |
+| `listMaintenanceBlocks` | `GET /api/v1/maintenance-blocks` | None | Bounded calendar, milestone 2 |
+| `reservationHistory` | `GET /api/v1/reservations/{reservationId}/events` | None | Bounded history, milestone 2 |
+| `maintenanceHistory` | `GET /api/v1/maintenance-blocks/{blockId}/events` | None | Bounded history, milestone 2 |
 
 The generated contract contains only canonical routes. The frontend uses them.
 Legacy aliases remain because callers outside the console have not been inventoried.
@@ -47,6 +51,14 @@ JSON request DTOs and safer guest-data transport belong to the owning milestone.
 Avoid query logging in the meantime. See [reservation semantics](reservations.md)
 for transaction, replay, legacy compatibility, and unknown-outcome behavior.
 
+Calendar queries require a strict `startDate`/`endDate` interval of at most 366 days.
+Optional `status` filters active or cancelled records; omitting it includes both.
+Calendar/history pages use `limit` (1-200, default 100) and exclusive `afterId` (default
+0), returning `{items, nextCursor}`. Follow a non-null cursor with the same filters.
+Event IDs/cursors are decimal strings; reservation and maintenance IDs remain INT
+numbers. Compatibility guest lists return at most 100 active reservations, ordered
+by check-in and ID descending.
+
 ## Errors and access
 
 Handled errors use `{ "code": "...", "message": "..." }`. Do not parse human-readable
@@ -56,6 +68,7 @@ input failures, `HTTP_<status>` for handled framework failures,
 
 Inventory input errors use HTTP 400, including `INVALID_OPERATION_KEY`,
 `INVALID_GUEST_COUNT`, `CAPACITY_EXCEEDED`, `INVALID_VERSION`, and `INVALID_REASON`.
+Query bounds use 400 `INVALID_QUERY_WINDOW`, `INVALID_PAGE_SIZE`, or `INVALID_CURSOR`.
 Missing property-scoped references use 404 `NOT_FOUND`. A missing committed operation
 uses 404 `OPERATION_NOT_COMMITTED`, which is distinct from an unrelated route failure.
 Inventory conflicts, stale edits, cancelled resources, and key reuse use 409 with

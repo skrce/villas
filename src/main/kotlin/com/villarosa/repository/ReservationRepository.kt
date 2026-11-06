@@ -4,6 +4,7 @@ import com.villarosa.repository.model.Reservation
 import com.villarosa.repository.model.ReservationStatus
 import jakarta.persistence.LockModeType
 import java.time.LocalDate
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
@@ -24,6 +25,19 @@ interface ReservationRepository : JpaRepository<Reservation, Int> {
         propertyId: String,
         customerId: Int,
         status: ReservationStatus,
+        pageable: Pageable,
+    ): List<Reservation>
+
+    @Query(
+        "select r from Reservation r where r.propertyId=:property and r.startDate<:end and r.endDate>:start and (:status is null or r.status=:status) and r.id>:after order by r.id"
+    )
+    fun calendar(
+        property: String,
+        start: LocalDate,
+        end: LocalDate,
+        status: ReservationStatus?,
+        after: Int,
+        pageable: Pageable,
     ): List<Reservation>
 
     fun findByRoomId(roomId: Int): List<Reservation>

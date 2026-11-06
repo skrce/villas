@@ -107,7 +107,7 @@ node scripts/check.mjs
 
 This runs a clean Maven build, unit/HTTP/configuration tests, mandatory MariaDB tests,
 Kotlin formatting checks, OpenAPI/client drift checks, frontend lint, interaction
-tests, production build, and the Chromium workflow. Commit regenerated contract/client
+tests, production build, and the Chromium workflows. Commit regenerated contract/client
 files before running the drift check. Docker must be available; database tests are
 not silently skipped.
 
@@ -170,8 +170,11 @@ and deployment sequencing remain milestone 10 work.
 Do not expose the local launcher publicly. Hosting, Google client registration,
 backups, and live-provider verification remain later setup work.
 
-Booking concurrency, retries, and inventory operations are in progress in milestone 2.
-Strict calendar dates and the versioned schema are implemented in its first PR.
-This console is for synthetic local checks until those rules and
-staff permissions are complete. See [decisions](docs/decisions.md) and
+Booking writes now serialize on apartment locks, enforce versions, retain
+cancellations, and support operation-key reconciliation. Calendar/history queries
+are bounded in the database. The basic console accepts guest counts and recovers
+pending booking changes across reloads and tabs. Its booking changes require browser
+Web Locks over HTTPS or localhost. See the [reservation contract](docs/contracts/reservations.md).
+This console remains for synthetic local checks until Google sessions, permissions,
+and the later staff workflows are complete. See [decisions](docs/decisions.md) and
 [proposed permissions](docs/contracts/permissions.md).
