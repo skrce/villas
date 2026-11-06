@@ -91,7 +91,7 @@ it("selects a free keyboard period and opens a draft with its room and dates", a
   last.focus();
   await userEvent.keyboard("{Enter}");
   await userEvent.click(
-    screen.getByRole("link", { name: "Create reservation", exact: true }),
+    screen.getByRole("link", { name: "Create reservation" }),
   );
   await screen.findByRole("heading", { name: "New reservation" });
   expect(screen.getByLabelText("Check-in")).toHaveValue("2030-01-03");
@@ -133,7 +133,7 @@ it("uses distinct week query keys and discards a previous week selection", async
     name: "Select Lake room, night of 8 Jan 2030",
   });
   expect(
-    screen.queryByRole("link", { name: "Create reservation", exact: true }),
+    screen.queryByRole("link", { name: "Create reservation" }),
   ).not.toBeInTheDocument();
   expect(
     api.mock.calls
