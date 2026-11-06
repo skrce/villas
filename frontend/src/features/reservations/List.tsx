@@ -1,7 +1,8 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useWorkspace } from "../../app/context";
+import { positiveId } from "./calendarData";
 import { useRooms } from "../rooms/queries";
 import {
   addDays,
@@ -29,18 +30,20 @@ export function Reservations() {
   const to = params.get("to") || addDays(today, 30);
   const status = params.get("status") || "ACTIVE";
   const after = params.get("after");
+  const roomId = params.get("room") || "";
   const valid =
     validDate(from) &&
     validDate(to) &&
     to > from &&
     (Date.parse(to) - Date.parse(from)) / 86400000 <= 366 &&
     ["ACTIVE", "CANCELLED", "ALL"].includes(status) &&
-    (!after ||
-      (/^[1-9]\d*$/.test(after) && Number.isSafeInteger(Number(after))));
-  const form = useForm({ values: { from, to, status } });
+    (!after || positiveId(after)) &&
+    (!roomId || positiveId(roomId));
+  const form = useForm({ values: { from, to, status, roomId } });
+  const selectedRoom = useWatch({ control: form.control, name: "roomId" });
   const rooms = useRooms();
   const query = useQuery({
-    queryKey: ["reservations", from, to, status, after],
+    queryKey: ["reservations", from, to, status, after, roomId],
     queryFn: ({ signal }) =>
       apis.inventoryApi.listReservations(
         {
@@ -50,10 +53,13 @@ export function Reservations() {
             status === "ALL" ? undefined : (status as "ACTIVE" | "CANCELLED"),
           afterId: after ? Number(after) : undefined,
           limit: 50,
+          roomId: roomId ? Number(roomId) : undefined,
         },
         { signal },
       ),
     enabled: valid,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: "always",
   });
   return (
     <>
@@ -73,7 +79,12 @@ export function Reservations() {
           className="form-row"
           aria-label="Filter reservations"
           onSubmit={form.handleSubmit((value) =>
-            setParams({ from: value.from, to: value.to, status: value.status }),
+            setParams({
+              from: value.from,
+              to: value.to,
+              status: value.status,
+              ...(value.roomId ? { room: value.roomId } : {}),
+            }),
           )}
         >
           <Field
@@ -96,6 +107,18 @@ export function Reservations() {
             <option value="ACTIVE">Active</option>
             <option value="CANCELLED">Cancelled</option>
             <option value="ALL">All statuses</option>
+          </SelectField>
+          <SelectField
+            label="Room"
+            {...form.register("roomId")}
+            value={selectedRoom}
+          >
+            <option value="">All rooms</option>
+            {rooms.data?.map((room) => (
+              <option key={room.id} value={room.id!}>
+                {roomChoiceLabel(room)}
+              </option>
+            ))}
           </SelectField>
           <button className="button secondary">Apply filters</button>
         </form>
@@ -177,6 +200,7 @@ export function Reservations() {
                       to,
                       status,
                       after: String(query.data.nextCursor),
+                      ...(roomId ? { room: roomId } : {}),
                     })
                   }
                 >

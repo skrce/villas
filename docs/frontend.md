@@ -161,3 +161,25 @@ separate Check previous save action reconciles retained keys and historical quot
 without a new quote, write or availability gate. It validates the accepted-price
 pointer and complete saved stay/version before clearing recovery state. Accepted
 price history uses bounded exclusive version cursors and validates financial data.
+
+
+## Room calendar
+
+`/calendar?from=YYYY-MM-DD&after=ROOM_ID&archived=true` displays seven property nights
+and one complete page of at most 20 rooms. The default includes active rooms only.
+Next/first page controls use exclusive room IDs. The backend uses one repeatable-read
+snapshot for room metadata, active bookings and maintenance. Cancelled history stays
+available through the reservation list/detail rather than occupying calendar nights.
+
+A desktop table exposes each free night as a keyboard button. Select the first and
+last night in one room, then follow Create reservation. On narrow screens a room
+agenda links available contiguous periods directly to the form. Dates and opaque
+room/guest IDs can be deep-linked; guest names/contacts never enter these URLs.
+Invalid filters or malformed/incomplete/overlapping responses prevent new selection.
+A refresh pauses selection until it succeeds. Error, loading, offline and empty
+room states are explicit. Availability is advisory and rechecked atomically at save.
+
+`/reservations` accepts `from`, `to`, `status`, `room` and `after` filters. All filters
+participate in the query key and pagination URL. Calendar, list and availability
+reads refresh when the window regains focus or reconnects. Protected data remains
+inside the session-scoped query cache and Owner memory drafts.

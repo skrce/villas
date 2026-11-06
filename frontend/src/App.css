@@ -1157,3 +1157,137 @@ footer {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.calendar-navigation,
+.calendar-legend,
+.calendar-selection {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.calendar-navigation {
+  margin-top: 1rem;
+}
+.calendar-legend {
+  font-size: 0.8rem;
+  color: #526457;
+}
+.calendar-desktop {
+  overflow-x: auto;
+}
+.calendar-grid {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 800px;
+  border-collapse: separate;
+  border-spacing: 4px;
+}
+.calendar-grid th {
+  font-size: 0.8rem;
+  text-align: left;
+}
+.calendar-grid th:first-child {
+  width: 150px;
+}
+.calendar-grid th small {
+  display: block;
+  margin-top: 0.3rem;
+  font-weight: 400;
+}
+.calendar-grid td {
+  vertical-align: top;
+  padding: 0;
+  border: 0;
+}
+.calendar-event {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.7rem;
+  border-radius: 8px;
+  background: #e4eee5;
+  border: 1px solid #b4cbb8;
+  color: #24452f;
+  text-decoration: none;
+  min-height: 100px;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+.calendar-event.maintenance {
+  background: #f7eddb;
+  border-color: #dfcda8;
+  color: #62471b;
+}
+.calendar-event .status {
+  align-self: flex-start;
+}
+.calendar-free button {
+  width: 100%;
+  min-height: 100px;
+  height: 100%;
+  border: 1px dashed #c5d1c5;
+  border-radius: 8px;
+  background: #fafcf8;
+  color: #54755a;
+  cursor: pointer;
+  font: inherit;
+}
+.calendar-free button:hover {
+  background: #e6efe4;
+}
+.calendar-free button[aria-pressed="true"] {
+  background: #d8e8d1;
+  border: 2px solid #426b45;
+}
+.calendar-free button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.calendar-selection {
+  margin-top: 1rem;
+  background: #edf2e7;
+  padding: 1rem;
+  border-radius: 8px;
+}
+.calendar-agenda {
+  display: none;
+}
+.agenda-room {
+  border: 1px solid #dce2d6;
+  padding: 1rem;
+  border-radius: 10px;
+  margin-top: 1rem;
+}
+.agenda-room h3 {
+  margin: 0;
+}
+.agenda-room .calendar-event {
+  margin-top: 0.7rem;
+}
+.agenda-gap {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  border: 1px dashed #c5d1c5;
+  border-radius: 8px;
+}
+@media (max-width: 1100px) {
+  .calendar-desktop,
+  .calendar-grid-help {
+    display: none;
+  }
+  .calendar-agenda {
+    display: block;
+  }
+  .calendar-navigation .button {
+    flex: 1 1 auto;
+  }
+}
+
+.calendar-grid th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 0.7rem;
+}
