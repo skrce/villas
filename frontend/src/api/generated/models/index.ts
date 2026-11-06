@@ -21,6 +21,8 @@ export * from './PriceHistory';
 export * from './PriceLine';
 export * from './QuoteConfirmationRequest';
 export * from './QuoteRequest';
+export * from './QuotedRoomChange';
+export * from './QuotedStayChange';
 export * from './RatePreviewRequest';
 export * from './RateUpdateRequest';
 export * from './RecordStatusRequest';

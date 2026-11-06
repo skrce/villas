@@ -1,4 +1,4 @@
-import type { PriceData, QuoteData } from "./pricing";
+import type { PriceData, QuoteData } from "../../shared/pricing";
 import { dateLabel, eventLabel, euros } from "../../shared/format";
 
 export function PriceSummary({ price }: { price: PriceData }) {

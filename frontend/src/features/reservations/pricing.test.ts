@@ -6,7 +6,7 @@ import {
   quoteSchema,
   refreshedQuote,
   stayIdentity,
-} from "./pricing";
+} from "../../shared/pricing";
 
 const input = {
   customerId: 5,

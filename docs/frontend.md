@@ -153,3 +153,11 @@ recovery across tabs and reload. These are local synthetic-provider checks; real
 Primary API guidance: [React Router](https://reactrouter.com/start/declarative/routing),
 [TanStack query cancellation](https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation),
 [React Hook Form](https://react-hook-form.com/docs/useform), [Zod](https://zod.dev/api).
+
+Booking room/date/party edits review a whole-stay quote before confirmation. The
+original booking version remains in the Owner's memory-only draft across sign-in.
+A stale draft requires a protected Load latest stay read before a new review. The
+separate Check previous save action reconciles retained keys and historical quotes
+without a new quote, write or availability gate. It validates the accepted-price
+pointer and complete saved stay/version before clearing recovery state. Accepted
+price history uses bounded exclusive version cursors and validates financial data.

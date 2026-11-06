@@ -37,6 +37,7 @@ edits require expected versions. The generated client and console send both.
 | `createBookingQuote` / `getBookingQuote` | `POST /api/v1/booking-quotes` / `GET /api/v1/booking-quotes/{id}` | None | Immutable Owner-scoped quote with expiry and rate version |
 | `confirmReservationQuote` | `POST /api/v1/reservations/quoted` | Creation adapters also accept `quoteId` | Private reviewed stay/quote confirmation with a stable operation key |
 | `reservationPrice` / `reservationPriceHistory` | `GET /api/v1/reservations/{id}/price` / `/prices` | None | Accepted price and bounded immutable history |
+| `moveReservationWithQuote` / `changeReservationWithQuote` | `PATCH /api/v1/reservations/{id}/room/quoted` / `/dates/quoted` | Older change routes accept `quoteId` | Whole-stay price acceptance and atomic versioned edit |
 | `createReservation` | `POST /api/v1/reservations` | `POST /reservation` | Bookings, milestones 2 and 7 |
 | `findAvailableApartments` | `GET /api/v1/reservations/available-apartments` | `GET /reservation/available-apartments` | Availability, milestones 2 and 7 |
 | `findReservationsByCustomer` | `GET /api/v1/reservations/customer` | `GET /reservation/customer` | Bookings, milestone 7 |
@@ -137,7 +138,7 @@ Update the generated contract and permission matrix with each domain.
 
 Guest fields are confirmed. Cancellation/refund rules remain open in
 [decisions](../decisions.md). Manual overrides are confirmed disabled; booking-change
-repricing is still awaiting owner approval. Do not silently turn proposals into policy.
+repricing is confirmed as a full current-rate quote requiring explicit acceptance. See the pricing contract for no-op, history and recovery rules.
 
 The staff workspace uses generated clients with same-origin sessions and cancellation
 signals on queries. Guest search criteria stay in JSON. Browser route links contain

@@ -44,6 +44,7 @@ export interface ChangeReservationDatesRequest {
     guestCount: number;
     expectedVersion: number;
     idempotencyKey: string;
+    quoteId?: string;
 }
 
 export interface CreateReservationRequest {
@@ -80,6 +81,7 @@ export interface UpdateReservationRoomRequest {
     newRoomId: number;
     expectedVersion: number;
     idempotencyKey: string;
+    quoteId?: string;
 }
 
 /**
@@ -210,6 +212,10 @@ export class ReservationApi extends runtime.BaseAPI {
 
         if (requestParameters['expectedVersion'] != null) {
             queryParameters['expectedVersion'] = requestParameters['expectedVersion'];
+        }
+
+        if (requestParameters['quoteId'] != null) {
+            queryParameters['quoteId'] = requestParameters['quoteId'];
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
@@ -560,6 +566,10 @@ export class ReservationApi extends runtime.BaseAPI {
 
         if (requestParameters['expectedVersion'] != null) {
             queryParameters['expectedVersion'] = requestParameters['expectedVersion'];
+        }
+
+        if (requestParameters['quoteId'] != null) {
+            queryParameters['quoteId'] = requestParameters['quoteId'];
         }
 
         const headerParameters: runtime.HTTPHeaders = {};

@@ -42,8 +42,9 @@ class ReservationController(private val service: ReservationService) {
         @RequestParam newRoomId: Int,
         @RequestParam expectedVersion: Long,
         @RequestHeader("Idempotency-Key") key: String,
+        @RequestParam(required = false) quoteId: String?,
     ) {
-        service.move(reservationId, newRoomId, expectedVersion, key)
+        service.move(reservationId, newRoomId, expectedVersion, key, quoteId)
     }
 
     @DeleteMapping("/api/v1/reservations")
@@ -71,9 +72,10 @@ class ReservationController(private val service: ReservationService) {
         @RequestParam guestCount: Int,
         @RequestParam expectedVersion: Long,
         @RequestHeader("Idempotency-Key") key: String,
+        @RequestParam(required = false) quoteId: String?,
     ): ReservationInfo =
         service
-            .change(reservationId, startDate, endDate, guestCount, expectedVersion, key)
+            .change(reservationId, startDate, endDate, guestCount, expectedVersion, key, quoteId)
             .reservation!!
 
     @GetMapping("/api/v1/reservations/{reservationId}")

@@ -43,7 +43,7 @@ const DEFINITIVE_ERRORS = new Set([
   'INVALID_REQUEST', 'INVALID_OPERATION_KEY', 'INVALID_ID', 'INVALID_VERSION',
   'INVALID_GUEST_COUNT', 'CAPACITY_EXCEEDED', 'NOT_FOUND', 'STALE_VERSION',
   'RESERVATION_CHANGED', 'RESERVATION_CANCELLED', 'ROOM_INACTIVE',
-  'INVENTORY_CONFLICT', 'DATA_CONFLICT', 'GUEST_ARCHIVED', 'INVALID_REASON', 'HTTP_400', 'QUOTE_CHANGED', 'QUOTE_MISMATCH', 'QUOTE_ALREADY_ACCEPTED', 'QUOTE_REQUIRED', 'PRICE_REVIEW_REQUIRED',
+  'INVENTORY_CONFLICT', 'DATA_CONFLICT', 'GUEST_ARCHIVED', 'INVALID_REASON', 'INVALID_QUOTE', 'HTTP_400', 'QUOTE_CHANGED', 'QUOTE_MISMATCH', 'QUOTE_ALREADY_ACCEPTED', 'QUOTE_REQUIRED', 'PRICE_REVIEW_REQUIRED',
 ]);
 type Intent = { key: string; expectedVersion?: number; quoteId?: string };
 type Intents = Record<string, Intent>;
@@ -79,7 +79,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
     identity: string,
     prepare: () => Promise<number | undefined>,
     send: (intent: Intent) => Promise<unknown>,
-    recovered: (result: OperationResult, intent: Intent) => T,
+    recovered: (result: OperationResult, intent: Intent) => T | Promise<T>,
     recoveryOnly: boolean,
     quoteId?: string,
   ): Promise<T> => {
@@ -90,8 +90,11 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
     });
     let existing = !!intent;
     if (!intent) {
-      if (recoveryOnly) throw new PendingIntentMissingError(kind === GetOperationKindEnum.Create ? 'No previous booking save matches these details in this browser. Review a price before confirming a new reservation.' : 'No pending maintenance request matches these details in this browser. Re-enter the original dates and reason to check it.');
-      const prepared: Intent = { key: crypto.randomUUID(), expectedVersion: await prepare(), ...(quoteId ? {quoteId} : {}) };
+      if (recoveryOnly) throw new PendingIntentMissingError(kind === GetOperationKindEnum.Block ? 'No pending maintenance request matches these details in this browser. Re-enter the original dates and reason to check it.' : 'No previous booking save matches these details in this browser. Review a price before confirming a new request.');
+      const expectedVersion = await prepare();
+      if (expectedVersion !== undefined && !validVersion(expectedVersion)) throw new Error('The reviewed reservation version is invalid. Reload before saving.');
+      if (quoteId !== undefined && !UUID_SHAPE.test(quoteId)) throw new OperationRecoveryError('Review a valid saved quote before confirming.');
+      const prepared: Intent = { key: crypto.randomUUID(), expectedVersion, ...(quoteId ? {quoteId: quoteId.toLowerCase()} : {}) };
       intent = await stored(() => {
         const current = read();
         if (current[identity]) {
@@ -120,7 +123,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
       if (result?.key !== intent.key || result.kind !== kind || !Number.isSafeInteger(result.resourceId) || result.resourceId <= 0 || result.resourceId > 2147483647) {
         throw new Error('The saved result could not be confirmed. Check the records before retrying.');
       }
-      const value = recovered(result, intent);
+      const value = await recovered(result, intent);
       await clear();
       return value;
     };
@@ -131,7 +134,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
         if (!(error instanceof ResponseError) || error.response.status !== 404) throw error;
         const body = await error.response.clone().json().catch(() => null);
         if (body?.code !== 'OPERATION_NOT_COMMITTED') throw error;
-        if (recoveryOnly) throw new OperationRecoveryError(kind === GetOperationKindEnum.Create ? 'No confirmed booking result was found yet. Keep the original details and check again, or review the saved reservations.' : 'No committed result was found for this request. Restore the room before saving new maintenance.');
+        if (recoveryOnly) throw new OperationRecoveryError(kind === GetOperationKindEnum.Block ? 'No committed result was found for this request. Restore the room before saving new maintenance.' : 'No confirmed booking result was found yet. Keep the original details and check again, or review the saved reservations.');
       }
     }
     try {
@@ -151,7 +154,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
     input: unknown,
     prepare: () => Promise<number | undefined>,
     send: (intent: Intent) => Promise<unknown>,
-    recovered: (result: OperationResult, intent: Intent) => T,
+    recovered: (result: OperationResult, intent: Intent) => T | Promise<T>,
     recoveryOnly = false,
     quoteId?: string,
   ): Promise<T> => {
@@ -171,6 +174,31 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
       throw new Error('The reservation version could not be loaded. Refresh the records before editing.');
     }
     return booking.version;
+  };
+
+  const edited = async (id: number, result: OperationResult, intent: Intent, target: {roomId?: number; startDate?: string; endDate?: string; guestCount?: number}) => {
+    if (result.resourceId !== id) throw new Error('The saved reservation change could not be confirmed.');
+    if (!intent.quoteId) return;
+    if (!quotes) throw new OperationRecoveryError('Saved quotes are unavailable. Reload the workspace.');
+    const {quoteSchema} = await import('../shared/pricing');
+    const offer = quoteSchema.parse(await quotes.getBookingQuote({quoteId: intent.quoteId}));
+    const booking = result.reservation;
+    if (offer.id !== intent.quoteId || !booking || booking.id !== id || booking.acceptedQuoteId !== intent.quoteId
+      || booking.status !== 'ACTIVE' || booking.version !== intent.expectedVersion! + 1
+      || !Number.isSafeInteger(booking.customerId) || booking.customerId! <= 0 || booking.customerId! > 2147483647
+      || booking.roomId !== offer.roomId || booking.startDate !== offer.startDate || booking.endDate !== offer.endDate || booking.guestCount !== offer.guestCount
+      || (target.roomId !== undefined && offer.roomId !== target.roomId)
+      || (target.startDate !== undefined && (offer.startDate !== target.startDate || offer.endDate !== target.endDate || offer.guestCount !== target.guestCount)))
+      throw new Error('The accepted price and saved reservation change could not be confirmed.');
+  };
+  const moveIdentity = (id: number, room: number, priced: boolean) => ({reservationId: id, newRoomId: room, ...(priced ? {priceContract: 'EUR-v1'} : {})});
+  const changeIdentity = (id: number, start: string, end: string, count: number, priced: boolean) => ({reservationId: id, startDate: start, endDate: end, guestCount: count, ...(priced ? {priceContract: 'EUR-v1'} : {})});
+  const recoverEdit = async (kind: GetOperationKindEnum, input: (priced: boolean) => unknown, id: number, target: {roomId?: number; startDate?: string; endDate?: string; guestCount?: number}) => {
+    try { return await run(kind, input(true), async () => undefined, async () => undefined, (result, intent) => edited(id,result,intent,target), true); }
+    catch (error) {
+      if (!(error instanceof PendingIntentMissingError)) throw error;
+      return run(kind,input(false),async () => undefined,async () => undefined,(result,intent) => edited(id,result,intent,target),true);
+    }
   };
 
   return {
@@ -223,15 +251,23 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
           result => result.resourceId,true);
       }
     },
-    move: (reservationId: number, newRoomId: number, expectedVersion?: number) => run(
-      GetOperationKindEnum.Move, { reservationId, newRoomId }, () => expectedVersion === undefined ? version(reservationId) : Promise.resolve(expectedVersion),
-      (intent) => api.updateReservationRoom({ reservationId, newRoomId, expectedVersion: intent.expectedVersion!, idempotencyKey: intent.key }),
-      () => undefined,
+    recoverMove: (reservationId: number, newRoomId: number) => recoverEdit(GetOperationKindEnum.Move,
+      priced => moveIdentity(reservationId,newRoomId,priced), reservationId,{roomId: newRoomId}),
+    recoverChange: (reservationId: number, startDate: string, endDate: string, guestCount: number) => recoverEdit(GetOperationKindEnum.Change,
+      priced => changeIdentity(reservationId,startDate,endDate,guestCount,priced), reservationId,{startDate,endDate,guestCount}),
+    move: (reservationId: number, newRoomId: number, expectedVersion?: number, quoteId?: string) => run(
+      GetOperationKindEnum.Move, moveIdentity(reservationId,newRoomId,!!quoteId), () => expectedVersion === undefined ? version(reservationId) : Promise.resolve(expectedVersion),
+      (intent) => intent.quoteId && quotes
+        ? quotes.moveReservationWithQuote({reservationId,idempotencyKey: intent.key, quotedRoomChange: {newRoomId,expectedVersion: intent.expectedVersion!,quoteId: intent.quoteId}})
+        : api.updateReservationRoom({reservationId,newRoomId,expectedVersion: intent.expectedVersion!,idempotencyKey: intent.key}),
+      (result,intent) => edited(reservationId,result,intent,{roomId: newRoomId}), false, quoteId,
     ),
-    change: (reservationId: number, startDate: string, endDate: string, guestCount: number, expectedVersion: number) => run(
-      GetOperationKindEnum.Change, { reservationId, startDate, endDate, guestCount }, async () => expectedVersion,
-      (intent) => api.changeReservationDates({ reservationId, startDate, endDate, guestCount, expectedVersion: intent.expectedVersion!, idempotencyKey: intent.key }),
-      () => undefined,
+    change: (reservationId: number, startDate: string, endDate: string, guestCount: number, expectedVersion: number, quoteId?: string) => run(
+      GetOperationKindEnum.Change, changeIdentity(reservationId,startDate,endDate,guestCount,!!quoteId), async () => expectedVersion,
+      (intent) => intent.quoteId && quotes
+        ? quotes.changeReservationWithQuote({reservationId,idempotencyKey: intent.key,quotedStayChange: {startDate,endDate,guestCount,expectedVersion: intent.expectedVersion!,quoteId: intent.quoteId}})
+        : api.changeReservationDates({reservationId,startDate,endDate,guestCount,expectedVersion: intent.expectedVersion!,idempotencyKey: intent.key}),
+      (result,intent) => edited(reservationId,result,intent,{startDate,endDate,guestCount}), false, quoteId,
     ),
     cancel: (reservationId: number, expectedVersion?: number) => run(
       GetOperationKindEnum.Cancel, { reservationId }, () => expectedVersion === undefined ? version(reservationId) : Promise.resolve(expectedVersion),

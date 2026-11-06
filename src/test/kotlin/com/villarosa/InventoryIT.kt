@@ -44,6 +44,7 @@ constructor(
     private val jdbc: JdbcTemplate,
     private val transactionManager: PlatformTransactionManager,
 ) {
+    private val reviewed = ReviewedChanges(service, quotes, transactionManager)
     private lateinit var guest: Customer
     private lateinit var first: Apartment
     private lateinit var second: Apartment
@@ -178,7 +179,7 @@ constructor(
     fun createAndMoveShareTheDestinationLock() {
         val old = create()
         oneCommitted(
-            race({ create(second) }, { service.move(old.resourceId, second.id!!, 0, key()) })
+            race({ create(second) }, { reviewed.move(old.resourceId, second.id!!, 0, key()) })
         )
         assertThat(
                 reservations.findAll().count {
@@ -194,8 +195,8 @@ constructor(
         val two = create(second)
         oneCommitted(
             race(
-                { service.move(one.resourceId, third.id!!, 0, key()) },
-                { service.move(two.resourceId, third.id!!, 0, key()) },
+                { reviewed.move(one.resourceId, third.id!!, 0, key()) },
+                { reviewed.move(two.resourceId, third.id!!, 0, key()) },
             )
         )
         assertThat(reservations.findAll().count { it.roomId == third.id }).isEqualTo(1)
@@ -206,8 +207,8 @@ constructor(
         val booking = create()
         oneCommitted(
             race(
-                { service.move(booking.resourceId, second.id!!, 0, key()) },
-                { service.move(booking.resourceId, third.id!!, 0, key()) },
+                { reviewed.move(booking.resourceId, second.id!!, 0, key()) },
+                { reviewed.move(booking.resourceId, third.id!!, 0, key()) },
             )
         )
         assertThat(service.reservation(booking.resourceId).version).isEqualTo(1)
@@ -257,7 +258,7 @@ constructor(
         val old = create(end = "2026-11-08")
         oneCommitted(
             race(
-                { service.change(old.resourceId, "2026-11-06", "2026-11-10", 1, 0, key()) },
+                { reviewed.change(old.resourceId, "2026-11-06", "2026-11-10", 1, 0, key()) },
                 { create(start = "2026-11-08", end = "2026-11-10") },
             )
         )
@@ -309,9 +310,9 @@ constructor(
     @Test
     fun staleEditsRollBackTheOperationAndAuditTogether() {
         val saved = create()
-        service.move(saved.resourceId, second.id!!, 0, key())
+        reviewed.move(saved.resourceId, second.id!!, 0, key())
         val stale =
-            assertThrows<DomainException> { service.move(saved.resourceId, third.id!!, 0, key()) }
+            assertThrows<DomainException> { reviewed.move(saved.resourceId, third.id!!, 0, key()) }
         assertThat(stale.code).isEqualTo("STALE_VERSION")
         assertThat(service.reservation(saved.resourceId).roomId).isEqualTo(second.id)
         assertThat(events.count()).isEqualTo(2)
@@ -375,9 +376,9 @@ constructor(
         val operation = key()
         val action = {
             when (kind) {
-                OperationKind.MOVE -> service.move(booking!!.resourceId, second.id!!, 0, operation)
+                OperationKind.MOVE -> reviewed.move(booking!!.resourceId, second.id!!, 0, operation)
                 OperationKind.CHANGE ->
-                    service.change(
+                    reviewed.change(
                         booking!!.resourceId,
                         "2026-11-05",
                         "2026-11-10",
@@ -422,15 +423,17 @@ constructor(
         val quote = quotes.create(first.id!!, "2026-11-06", "2026-11-09", 1)
         val original = create(operation = creationKey, quote = quote)
         val moveKey = key()
-        val moved = service.move(original.resourceId, second.id!!, 0, moveKey)
+        val moved = reviewed.move(original.resourceId, second.id!!, 0, moveKey)
         val changeKey = key()
         val changed =
-            service.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, changeKey)
+            reviewed.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, changeKey)
         val cancelKey = key()
         val cancelled = service.cancel(original.resourceId, 2, cancelKey)
         assertThat(create(operation = creationKey, quote = quote)).isEqualTo(original)
-        assertThat(service.move(original.resourceId, second.id!!, 0, moveKey)).isEqualTo(moved)
-        assertThat(service.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, changeKey))
+        assertThat(reviewed.move(original.resourceId, second.id!!, 0, moveKey)).isEqualTo(moved)
+        assertThat(
+                reviewed.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, changeKey)
+            )
             .isEqualTo(changed)
         assertThat(service.cancel(original.resourceId, 2, cancelKey)).isEqualTo(cancelled)
         assertThat(service.reservation(original.resourceId).version).isEqualTo(3)
@@ -450,8 +453,8 @@ constructor(
         val two = create(second, start = "2026-11-08", end = "2026-11-10")
         assertThat(
                 race(
-                    { service.move(one.resourceId, second.id!!, 0, key()) },
-                    { service.move(two.resourceId, first.id!!, 0, key()) },
+                    { reviewed.move(one.resourceId, second.id!!, 0, key()) },
+                    { reviewed.move(two.resourceId, first.id!!, 0, key()) },
                 )
             )
             .containsOnly("COMMITTED")
@@ -465,8 +468,8 @@ constructor(
         TransactionTemplate(transactionManager).execute { outer ->
             val cached = reservations.findById(original.resourceId).get()
             assertThat(cached.roomId).isEqualTo(first.id)
-            service.move(original.resourceId, second.id!!, 0, key())
-            service.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, key())
+            reviewed.move(original.resourceId, second.id!!, 0, key())
+            reviewed.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, key())
             outer.setRollbackOnly()
         }
         val current = service.reservation(original.resourceId)
@@ -478,12 +481,12 @@ constructor(
     @Test
     fun sameRoomIsANoopAndCancellationRetainsHistoryButReleasesInventory() {
         val saved = create()
-        val unchanged = service.move(saved.resourceId, first.id!!, 0, key())
+        val unchanged = reviewed.move(saved.resourceId, first.id!!, 0, key())
         assertThat(unchanged.reservation!!.version).isZero()
         assertThat(events.count()).isEqualTo(1)
         first.active = false
         first = rooms.saveAndFlush(first)
-        assertThat(service.move(saved.resourceId, first.id!!, 0, key()).reservation!!.version)
+        assertThat(reviewed.move(saved.resourceId, first.id!!, 0, key()).reservation!!.version)
             .isZero()
         first.active = true
         first = rooms.saveAndFlush(first)
@@ -540,21 +543,21 @@ constructor(
         val saved = create()
         assertThat(
                 assertThrows<DomainException> {
-                        service.change(saved.resourceId, "2026-11-06", "2026-11-09", 3, 0, key())
+                        reviewed.change(saved.resourceId, "2026-11-06", "2026-11-09", 3, 0, key())
                     }
                     .code
             )
             .isEqualTo("CAPACITY_EXCEEDED")
         assertThat(
                 assertThrows<DomainException> {
-                        service.move(saved.resourceId, second.id!!, -1, key())
+                        reviewed.move(saved.resourceId, second.id!!, -1, key())
                     }
                     .code
             )
             .isEqualTo("INVALID_VERSION")
-        val unchanged = service.change(saved.resourceId, "2026-11-06", "2026-11-09", 1, 0, key())
+        val unchanged = reviewed.change(saved.resourceId, "2026-11-06", "2026-11-09", 1, 0, key())
         assertThat(unchanged.reservation!!.version).isZero()
-        val changed = service.change(saved.resourceId, "2026-11-05", "2026-11-10", 2, 0, key())
+        val changed = reviewed.change(saved.resourceId, "2026-11-05", "2026-11-10", 2, 0, key())
         assertThat(changed.reservation!!.version).isEqualTo(1)
         assertThat(changed.reservation.guestCount).isEqualTo(2)
         assertThat(
@@ -566,14 +569,14 @@ constructor(
         assertThat(repeated.reservation!!.version).isEqualTo(2)
         assertThat(
                 assertThrows<DomainException> {
-                        service.move(saved.resourceId, second.id!!, 2, key())
+                        reviewed.move(saved.resourceId, second.id!!, 2, key())
                     }
                     .code
             )
             .isEqualTo("RESERVATION_CANCELLED")
         assertThat(
                 assertThrows<DomainException> {
-                        service.change(saved.resourceId, "2026-11-06", "2026-11-09", 1, 2, key())
+                        reviewed.change(saved.resourceId, "2026-11-06", "2026-11-09", 1, 2, key())
                     }
                     .code
             )
@@ -600,12 +603,12 @@ constructor(
             )
             .isEqualTo("INVALID_ID")
         assertThat(
-                assertThrows<DomainException> { service.move(999999, first.id!!, 0, key()) }.code
+                assertThrows<DomainException> { reviewed.move(999999, first.id!!, 0, key()) }.code
             )
             .isEqualTo("NOT_FOUND")
         assertThat(
                 assertThrows<DomainException> {
-                        service.change(999999, "2026-11-06", "2026-11-09", 1, 0, key())
+                        reviewed.change(999999, "2026-11-06", "2026-11-09", 1, 0, key())
                     }
                     .code
             )
@@ -657,7 +660,7 @@ constructor(
             .isEqualTo("NOT_FOUND")
         assertThat(
                 assertThrows<DomainException> {
-                        service.move(otherBooking.id!!, first.id!!, 0, key())
+                        reviewed.move(otherBooking.id!!, first.id!!, 0, key())
                     }
                     .code
             )

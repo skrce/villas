@@ -273,6 +273,199 @@ constructor(
     }
 
     @Test
+    fun roomAndStayChangesAcceptWholeCurrentPricesAndRetainEveryPriorAgreement() {
+        val original = quote()
+        val saved = confirm(original)
+        rates.update(room.id!!, 1, "EUR", 6001, emptyList())
+        val extension = quotes.create(room.id!!, "2030-01-01", "2030-01-04", 3)
+        val changed =
+            inventory.change(
+                saved.resourceId,
+                extension.startDate,
+                extension.endDate,
+                3,
+                0,
+                key(),
+                extension.id,
+            )
+        assertThat(changed.reservation!!.version).isEqualTo(1)
+        assertThat(quotes.currentPrice(saved.resourceId)!!.quote.price.totalCents).isEqualTo(18003)
+        val destination =
+            rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 7001, rateVersion = 1))
+        val move = quotes.create(destination.id!!, extension.startDate, extension.endDate, 3)
+        val moved = inventory.move(saved.resourceId, destination.id!!, 1, key(), move.id)
+        assertThat(moved.reservation!!.version).isEqualTo(2)
+        assertThat(quotes.currentPrice(saved.resourceId)!!.quote.price.totalCents).isEqualTo(21003)
+        assertThat(quotes.history(saved.resourceId, null, 100).items.map { it.quote })
+            .containsExactly(move, extension, original)
+        val accepted = quotes.currentPrice(saved.resourceId)
+        inventory.cancel(saved.resourceId, 2, key())
+        rates.update(destination.id!!, 1, "EUR", 9901, emptyList())
+        assertThat(quotes.currentPrice(saved.resourceId)).isEqualTo(accepted)
+        assertThat(quotes.get(original.id)).isEqualTo(original)
+    }
+
+    @Test
+    fun aPartyOnlyChangeRequiresANewAgreementEvenWhenItsTotalIsUnchanged() {
+        val old = quote()
+        val saved = confirm(old)
+        assertThat(
+                failure {
+                    inventory.change(saved.resourceId, old.startDate, old.endDate, 3, 0, key())
+                }
+                    .code
+            )
+            .isEqualTo("PRICE_REVIEW_REQUIRED")
+        val next = quotes.create(room.id!!, old.startDate, old.endDate, 3)
+        val operation = key()
+        val changed =
+            inventory.change(
+                saved.resourceId,
+                next.startDate,
+                next.endDate,
+                3,
+                0,
+                operation,
+                next.id,
+            )
+        assertThat(changed.reservation!!.version).isEqualTo(1)
+        assertThat(next.price.totalCents).isEqualTo(old.price.totalCents)
+        clock.value = next.expiresAt.plusSeconds(1)
+        assertThat(
+                inventory.change(
+                    saved.resourceId,
+                    next.startDate,
+                    next.endDate,
+                    3,
+                    0,
+                    operation,
+                    next.id,
+                )
+            )
+            .isEqualTo(changed)
+        assertThat(quotes.history(saved.resourceId, null, 100).items).hasSize(2)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["MOVE", "CHANGE"])
+    fun changedEditRatesReturnAPersistedOfferBeforeAnyReservationOrPriceChange(kind: String) {
+        val saved = confirm(quote())
+        val target =
+            if (kind == "MOVE")
+                rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 7001, rateVersion = 1))
+            else room
+        val old =
+            quotes.create(
+                target.id!!,
+                "2030-01-01",
+                if (kind == "MOVE") "2030-01-03" else "2030-01-04",
+                2,
+            )
+        rates.update(target.id!!, 1, "EUR", 8001, emptyList())
+        val operation = key()
+        fun apply(offer: BookingQuote, key: String) =
+            if (kind == "MOVE") inventory.move(saved.resourceId, target.id!!, 0, key, offer.id)
+            else
+                inventory.change(
+                    saved.resourceId,
+                    offer.startDate,
+                    offer.endDate,
+                    2,
+                    0,
+                    key,
+                    offer.id,
+                )
+        val rejected = failure { apply(old, operation) }
+        assertThat(rejected.code).isEqualTo("QUOTE_CHANGED")
+        val fresh = rejected.replacementQuote!!
+        assertThat(quotes.get(fresh.id)).isEqualTo(fresh)
+        assertThat(inventory.reservation(saved.resourceId).version).isZero()
+        assertThat(quotes.history(saved.resourceId, null, 100).items).hasSize(1)
+        assertThat(failure { inventory.operation(OperationKind.valueOf(kind), operation) }.code)
+            .isEqualTo("OPERATION_NOT_COMMITTED")
+        assertThat(apply(fresh, key()).reservation!!.acceptedQuoteId).isEqualTo(fresh.id)
+        assertThat(quotes.currentPrice(saved.resourceId)!!.quote.price.totalCents)
+            .isEqualTo(8001 * fresh.price.nights)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["MOVE", "CHANGE"])
+    fun aFailedEditPriceInsertRollsBackInventoryEventsVersionAndOperation(kind: String) {
+        val original = quote()
+        val saved = confirm(original)
+        val target =
+            if (kind == "MOVE")
+                rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 7001, rateVersion = 1))
+            else room
+        val offer =
+            quotes.create(
+                target.id!!,
+                "2030-01-01",
+                if (kind == "MOVE") "2030-01-03" else "2030-01-04",
+                2,
+            )
+        val operation = key()
+        fun apply() =
+            if (kind == "MOVE")
+                inventory.move(saved.resourceId, target.id!!, 0, operation, offer.id)
+            else
+                inventory.change(
+                    saved.resourceId,
+                    offer.startDate,
+                    offer.endDate,
+                    2,
+                    0,
+                    operation,
+                    offer.id,
+                )
+        jdbc.execute(
+            "CREATE TRIGGER reject_edit_price BEFORE INSERT ON reservation_prices FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic edit price failure'"
+        )
+        try {
+            val failure = assertThrows<jakarta.persistence.PersistenceException> { apply() }
+            assertThat(generateSequence(failure as Throwable) { it.cause }.last().message)
+                .contains("Synthetic edit price failure")
+        } finally {
+            jdbc.execute("DROP TRIGGER IF EXISTS reject_edit_price")
+        }
+        assertThat(inventory.reservation(saved.resourceId)).isEqualTo(saved.reservation)
+        assertThat(count("reservation_prices")).isEqualTo(1)
+        assertThat(count("inventory_events")).isEqualTo(1)
+        assertThat(failure { inventory.operation(OperationKind.valueOf(kind), operation) }.code)
+            .isEqualTo("OPERATION_NOT_COMMITTED")
+        assertThat(apply().reservation!!.version).isEqualTo(1)
+    }
+
+    @Test
+    fun unchangedDetailsNeverRepriceOrConsumeAnOfferedQuote() {
+        val original = quote()
+        val saved = confirm(original)
+        rates.update(room.id!!, 1, "EUR", 8001, emptyList())
+        val unused = quote()
+        assertThat(inventory.move(saved.resourceId, room.id!!, 0, key(), unused.id).reservation)
+            .isEqualTo(saved.reservation)
+        assertThat(
+                inventory
+                    .change(
+                        saved.resourceId,
+                        original.startDate,
+                        original.endDate,
+                        2,
+                        0,
+                        key(),
+                        unused.id,
+                    )
+                    .reservation
+            )
+            .isEqualTo(saved.reservation)
+        assertThat(quotes.currentPrice(saved.resourceId)!!.quote).isEqualTo(original)
+        assertThat(count("reservation_prices")).isEqualTo(1)
+        assertThat(count("inventory_events")).isEqualTo(1)
+        inventory.cancel(saved.resourceId, 0, key())
+        assertThat(confirm(unused).reservation!!.acceptedQuoteId).isEqualTo(unused.id)
+    }
+
+    @Test
     fun quotedRoomDatesAndPartySizeCannotBeSubstitutedAtConfirmation() {
         val quote = quote()
         val second =

@@ -9,7 +9,7 @@ import {
   acceptedPriceSchema,
   matchesQuote,
   type AcceptedPriceData,
-} from "./pricing";
+} from "../../shared/pricing";
 
 export function ReservationPricePanel({
   reservation,

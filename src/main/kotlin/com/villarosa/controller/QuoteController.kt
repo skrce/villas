@@ -58,6 +58,48 @@ data class QuoteConfirmationRequest(
     }
 }
 
+data class QuotedRoomChange(
+    @field:NotNull
+    @field:Min(1)
+    @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+    val newRoomId: Int?,
+    @field:NotNull
+    @field:Min(0)
+    @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+    val expectedVersion: Long?,
+    @field:NotBlank val quoteId: String,
+) {
+    @JsonAnySetter
+    fun unknown(name: String, value: Any?) {
+        invalid(
+            "INVALID_QUOTE",
+            "A room change accepts only the destination, reviewed version and quote.",
+        )
+    }
+}
+
+data class QuotedStayChange(
+    @field:NotBlank val startDate: String,
+    @field:NotBlank val endDate: String,
+    @field:NotNull
+    @field:Min(1)
+    @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+    val guestCount: Int?,
+    @field:NotNull
+    @field:Min(0)
+    @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+    val expectedVersion: Long?,
+    @field:NotBlank val quoteId: String,
+) {
+    @JsonAnySetter
+    fun unknown(name: String, value: Any?) {
+        invalid(
+            "INVALID_QUOTE",
+            "A stay change accepts only dates, party size, reviewed version and quote.",
+        )
+    }
+}
+
 @RestController
 @Tag(name = "Quotes")
 class QuoteController(
@@ -108,11 +150,46 @@ class QuoteController(
     @GetMapping("/api/v1/reservations/{reservationId}/price")
     @Operation(
         operationId = "reservationPrice",
-        summary =
-            "Read the immutable accepted price, or explicit null for an unpriced historical reservation",
+        summary = "Read the accepted price or explicit unrecorded historical state",
     )
     fun price(@PathVariable reservationId: Int): ReservationPriceView =
         quotes.currentPrice(reservationId).let { ReservationPriceView(it != null, it) }
+
+    @PatchMapping("/api/v1/reservations/{reservationId}/room/quoted")
+    @Operation(
+        operationId = "moveReservationWithQuote",
+        summary = "Accept a new whole-stay price and move the reservation atomically",
+    )
+    fun move(
+        @PathVariable reservationId: Int,
+        @Valid @RequestBody body: QuotedRoomChange,
+        @RequestHeader("Idempotency-Key") key: String,
+    ) =
+        reservations
+            .move(reservationId, body.newRoomId!!, body.expectedVersion!!, key, body.quoteId)
+            .reservation!!
+
+    @PatchMapping("/api/v1/reservations/{reservationId}/dates/quoted")
+    @Operation(
+        operationId = "changeReservationWithQuote",
+        summary = "Accept a new whole-stay price and change dates or party size atomically",
+    )
+    fun change(
+        @PathVariable reservationId: Int,
+        @Valid @RequestBody body: QuotedStayChange,
+        @RequestHeader("Idempotency-Key") key: String,
+    ) =
+        reservations
+            .change(
+                reservationId,
+                body.startDate,
+                body.endDate,
+                body.guestCount!!,
+                body.expectedVersion!!,
+                key,
+                body.quoteId,
+            )
+            .reservation!!
 
     @GetMapping("/api/v1/reservations/{reservationId}/prices")
     @Operation(

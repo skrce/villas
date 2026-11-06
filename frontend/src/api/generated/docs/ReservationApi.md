@@ -93,7 +93,7 @@ example().catch(console.error);
 
 ## changeReservationDates
 
-> ReservationInfo changeReservationDates(reservationId, startDate, endDate, guestCount, expectedVersion, idempotencyKey)
+> ReservationInfo changeReservationDates(reservationId, startDate, endDate, guestCount, expectedVersion, idempotencyKey, quoteId)
 
 Change stay dates and guest count
 
@@ -127,6 +127,8 @@ async function example() {
     expectedVersion: 789,
     // string
     idempotencyKey: idempotencyKey_example,
+    // string (optional)
+    quoteId: quoteId_example,
   } satisfies ChangeReservationDatesRequest;
 
   try {
@@ -152,6 +154,7 @@ example().catch(console.error);
 | **guestCount** | `number` |  | [Defaults to `undefined`] |
 | **expectedVersion** | `number` |  | [Defaults to `undefined`] |
 | **idempotencyKey** | `string` |  | [Defaults to `undefined`] |
+| **quoteId** | `string` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -555,7 +558,7 @@ example().catch(console.error);
 
 ## updateReservationRoom
 
-> updateReservationRoom(reservationId, newRoomId, expectedVersion, idempotencyKey)
+> updateReservationRoom(reservationId, newRoomId, expectedVersion, idempotencyKey, quoteId)
 
 Move a reservation using its expected version
 
@@ -585,6 +588,8 @@ async function example() {
     expectedVersion: 789,
     // string
     idempotencyKey: idempotencyKey_example,
+    // string (optional)
+    quoteId: quoteId_example,
   } satisfies UpdateReservationRoomRequest;
 
   try {
@@ -608,6 +613,7 @@ example().catch(console.error);
 | **newRoomId** | `number` |  | [Defaults to `undefined`] |
 | **expectedVersion** | `number` |  | [Defaults to `undefined`] |
 | **idempotencyKey** | `string` |  | [Defaults to `undefined`] |
+| **quoteId** | `string` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 

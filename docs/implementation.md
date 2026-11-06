@@ -300,11 +300,11 @@ PR #24 is merged after independent backend/frontend review and exact-head CI.
 Its complete gate passed 181 unit/HTTP cases, 133 native MariaDB cases, 106 frontend
 cases, 13 launcher checks and ten Chromium workflows. No checks were skipped.
 
-The owner confirmed D07: manual overrides stay disabled. Booking-change repricing
-still awaits D12. This rates checkpoint does not close #7 or claim a complete priced
+The owner confirmed D07: manual overrides stay disabled. D12 is now confirmed:
+room/date/party changes require a new whole-stay quote at current rates. This rates checkpoint does not close #7 or claim a complete priced
 booking workflow.
 
-## Milestone 6 quote integration in progress
+## Milestone 6 quote integration
 
 V11 adds immutable Owner-scoped quotes and accepted reservation-price snapshots.
 The new booking screen reviews the exact seasonal breakdown, then requires explicit
@@ -318,16 +318,22 @@ including after availability changes. Durable intents retain an opaque quote UUI
 raw guest, stay and price details remain out of browser storage. The detail page
 shows an explicit unrecorded historical price or the accepted breakdown/history.
 
-Scoped verification passes 200 unit/HTTP/configuration cases, 30 quote/migration
-and 21 guest MariaDB cases, 152 frontend cases and 13 launcher checks. A real Chromium quote workflow passes against
-synthetic OIDC/private MariaDB, including missing rates, seasonal leap-day arithmetic,
-rate changes requiring another click, immutable prices and 320px axe/overflow checks.
-These are scoped results, not a complete-gate pass. Existing date/room editing and
-the full browser suite await the approved booking-change pricing policy and remaining
-integration. Independent review and final exact-head checks must clear before merge.
+The owner-approved change policy is implemented in private quoted room/stay APIs
+and review-first dialogs. Real changes append a price agreement and update inventory,
+version, audit and operation result atomically. No-ops retain their agreed price.
+Unpriced historical records acquire their first agreement only after an explicit
+priced change. Cancellation retains financial history without a fee or refund.
 
-QuoteService's raw branch coverage is 95.45%, with 95.9% line coverage. The new
-financial response validator has 100% lines/95.34% branches; the accepted-price panel
-has 94.11% lines/96.66% branches. Frontend application coverage is 85.39% lines/80.76%
-branches. These scoped results do not substitute for the remaining full-suite and
-booking-change integration gates.
+Versioned booking drafts survive same-Owner reauthentication; stale drafts require
+an explicit protected reload. Edit recovery checks the original saved quote and
+operation before clearing its retained key, including after reload or expiry, without
+a fresh quote or write. Financial response validation is shared by both workflows.
+
+Scoped checks pass 173 frontend cases, including explicit edit acceptance, unchanged
+party-price totals, refreshed offers, stale drafts, protected reload failures and lost
+edit recovery. The existing native inventory races/rollback/version cases pass with
+explicit reviewed quote fixtures. Direct native pricing tests cover whole-stay changes,
+immutable prior agreements, edit-price rollback, changed-rate replacements and no-ops.
+Full-gate, browser, independent-review and final merge evidence are recorded in #7
+and the implementing PR before milestone closure. Real Google and deployed acceptance
+remain separately tracked gates.

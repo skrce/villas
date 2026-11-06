@@ -88,6 +88,10 @@ constructor(
                     "staff_accounts" to 0L,
                     "staff_invitations" to 0L,
                     "staff_events" to 0L,
+                    "seasonal_rates" to 0L,
+                    "booking_quotes" to 0L,
+                    "reservation_prices" to 0L,
+                    "business_events" to 0L,
                 )
             )
     }
@@ -141,7 +145,7 @@ constructor(
         val created =
             request(
                 "POST",
-                "/api/v1/reservations?customerId=${guest.body()}&roomId=${first.id}&startDate=2026-11-06&endDate=2026-11-09",
+                quotedPath(guest.body().toInt(), first.id!!, "2026-11-06", "2026-11-09"),
             )
         assertThat(created.statusCode()).isEqualTo(200)
         val id = created.body().toInt()
@@ -157,10 +161,11 @@ constructor(
                 "PATCH",
                 "/api/v1/reservations?reservationId=$id&newRoomId=${second.id}&expectedVersion=0",
             )
-        assertThat(moved.statusCode()).isEqualTo(200)
-        assertThat(reservations.findById(id).get().roomId).isEqualTo(second.id)
+        assertThat(moved.statusCode()).isEqualTo(409)
+        assertThat(moved.body()).contains("PRICE_REVIEW_REQUIRED")
+        assertThat(reservations.findById(id).get().roomId).isEqualTo(first.id)
         assertThat(
-                request("DELETE", "/api/v1/reservations?reservationId=$id&expectedVersion=1")
+                request("DELETE", "/api/v1/reservations?reservationId=$id&expectedVersion=0")
                     .statusCode()
             )
             .isEqualTo(200)
@@ -237,7 +242,8 @@ constructor(
         assertThat(capacity.body()).contains("CAPACITY_EXCEEDED")
 
         val key = java.util.UUID.randomUUID().toString()
-        val created = request("POST", "$path&guestCount=2", operationKey = key)
+        val confirmedPath = quotedPath(guest.id!!, first.id!!, "2026-11-06", "2026-11-09", 2)
+        val created = request("POST", confirmedPath, operationKey = key)
         assertThat(created.statusCode()).isEqualTo(200)
         assertThat(created.headers().firstValue("X-Operation-Key")).hasValue(key)
         assertThat(created.headers().firstValue("X-Resource-Version")).hasValue("0")
@@ -247,27 +253,37 @@ constructor(
                     .statusCode()
             )
             .isEqualTo(400)
+        val unquotedMove =
+            request(
+                "PATCH",
+                "/api/v1/reservations?reservationId=$id&newRoomId=${second.id}&expectedVersion=0",
+            )
+        assertThat(unquotedMove.statusCode()).isEqualTo(409)
+        assertThat(unquotedMove.body()).contains("PRICE_REVIEW_REQUIRED")
         assertThat(
-                request(
-                        "PATCH",
-                        "/api/v1/reservations?reservationId=$id&newRoomId=${second.id}&expectedVersion=0",
-                    )
+                request("DELETE", "/api/v1/reservations?reservationId=$id&expectedVersion=0")
                     .statusCode()
             )
             .isEqualTo(200)
         val stale = request("DELETE", "/api/v1/reservations?reservationId=$id&expectedVersion=0")
         assertThat(stale.statusCode()).isEqualTo(409)
         assertThat(stale.body()).contains("STALE_VERSION")
-        val replay = request("POST", "$path&guestCount=2", operationKey = key)
+        val replay = request("POST", confirmedPath, operationKey = key)
         assertThat(replay.body()).isEqualTo(created.body())
         assertThat(replay.headers().firstValue("X-Resource-Version")).hasValue("0")
         val outcome = request("GET", "/api/v1/operations/$key?kind=CREATE")
         assertThat(outcome.statusCode()).isEqualTo(200)
         assertThat(outcome.body()).contains("\"roomId\":${first.id}").contains("\"version\":0")
         assertThat(request("GET", "/api/v1/reservations/$id").body())
-            .contains("\"roomId\":${second.id}")
+            .contains("\"roomId\":${first.id}")
             .contains("\"version\":1")
-        val reused = request("POST", "$path&guestCount=1", operationKey = key)
+            .contains("\"status\":\"CANCELLED\"")
+        val reused =
+            request(
+                "POST",
+                confirmedPath.replace("guestCount=2", "guestCount=1"),
+                operationKey = key,
+            )
         assertThat(reused.statusCode()).isEqualTo(409)
         assertThat(reused.body()).contains("IDEMPOTENCY_KEY_REUSED")
         val unknown = request("GET", "/api/v1/operations/$key?kind=MOVE")
@@ -321,14 +337,14 @@ constructor(
         val first =
             request(
                     "POST",
-                    "/api/v1/reservations?customerId=${guest.id}&roomId=${room.id}&startDate=2026-11-01&endDate=2026-11-03",
+                    quotedPath(guest.id!!, room.id!!, "2026-11-01", "2026-11-03"),
                 )
                 .body()
                 .toInt()
         val second =
             request(
                     "POST",
-                    "/api/v1/reservations?customerId=${guest.id}&roomId=${room.id}&startDate=2026-11-03&endDate=2026-11-05",
+                    quotedPath(guest.id!!, room.id!!, "2026-11-03", "2026-11-05"),
                 )
                 .body()
                 .toInt()
@@ -378,6 +394,31 @@ constructor(
         assertThat(json.readTree(blocks.body()).get("items").size()).isEqualTo(1)
         assertThat(request("GET", "/api/v1/maintenance-blocks/$blockId/events").statusCode())
             .isEqualTo(200)
+    }
+
+    private fun quotedPath(
+        guestId: Int,
+        roomId: Int,
+        start: String,
+        end: String,
+        count: Int = 1,
+    ): String {
+        TestData.configureSyntheticRate(jdbc, roomId)
+        val quote =
+            request(
+                "POST",
+                "/api/v1/booking-quotes",
+                body =
+                    """{"roomId":$roomId,"startDate":"$start","endDate":"$end","guestCount":$count}""",
+            )
+        assertThat(quote.statusCode()).isEqualTo(200)
+        val id =
+            tools.jackson.databind.json.JsonMapper.builder()
+                .build()
+                .readTree(quote.body())
+                .get("id")
+                .asText()
+        return "/api/v1/reservations?customerId=$guestId&roomId=$roomId&startDate=$start&endDate=$end&guestCount=$count&quoteId=$id"
     }
 
     private fun request(
@@ -438,6 +479,10 @@ constructor(
                                     "staff_accounts",
                                     "staff_invitations",
                                     "staff_events",
+                                    "seasonal_rates",
+                                    "booking_quotes",
+                                    "reservation_prices",
+                                    "business_events",
                                 )
                                 .associateWith { table ->
                                     statement.executeQuery("SELECT COUNT(*) FROM $table").use {

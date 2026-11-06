@@ -5,7 +5,7 @@ base nightly EUR price. Dated seasonal prices replace that base price for their
 calendar nights. The room price covers any party within its capacity. The Owner
 enters the final accommodation price. Villas adds no taxes, fees, discounts or
 minimum-stay rules. The owner confirmed that manual price overrides remain disabled.
-Booking-change repricing remains a separate pending owner decision.
+The owner also approved explicit whole-stay repricing for room/date/party changes.
 
 ## Money and periods
 
@@ -110,8 +110,38 @@ including when the room is now unavailable. Browser storage retains only a hashe
 intent, operation key, optional reviewed version and opaque quote UUID, never raw
 guest, stay or price details.
 
-Existing accepted prices remain unchanged by rate edits and cancellation. Real
-date/room/party changes to a priced booking currently return `PRICE_REVIEW_REQUIRED`
-until the owner approves the change-pricing policy and that workflow is implemented.
-Identical changes remain no-ops. This checkpoint does not complete milestone 6.
+## Booking changes
+
+The owner approved D12 on November 6, 2026. A real room/date/party change recalculates
+the entire requested stay at current rates. Staff must explicitly accept the new
+quote. This also applies to a historical unpriced reservation: its first agreed price
+is recorded at the change version, without inventing an earlier price.
+
+`PATCH /api/v1/reservations/{id}/room/quoted` accepts private JSON
+`{newRoomId, expectedVersion, quoteId}`. The quoted dates/party must match the current
+booking. `PATCH /api/v1/reservations/{id}/dates/quoted` accepts
+`{startDate, endDate, guestCount, expectedVersion, quoteId}`; the quote must match that
+stay in the booking's current room. Both require `Idempotency-Key`, current Owner
+membership, CSRF and Origin. Client totals and unsupported fields are rejected.
+
+Changes lock the Owner, guest and sorted affected rooms before checking the reviewed
+booking version, inventory and quote. Updating the stay/accepted-quote pointer, one
+booking-version increment, the new immutable price, inventory event, audit and operation
+result are atomic. Previous prices remain untouched. Expired or changed-rate offers
+follow the same persisted replacement and explicit acceptance rule as new bookings.
+The older change adapters accept a quote UUID and enforce the same admission rule.
+An original committed unquoted edit can still replay its historical result.
+
+Identical room/date/party inputs are no-ops. They do not reprice, consume an offered
+quote, increment the booking version or append a price/inventory event. Cancellation
+retains the accepted price and initiates no fee or refund.
+
+The edit dialogs retain the originally reviewed booking version with their Owner's
+memory-only draft. A changed version blocks a new submission until a protected Load
+latest stay read succeeds. A quote must match the currently entered target before
+confirmation. Check previous save uses the original operation and historical quote,
+verifies the accepted-price pointer, exact stay and resulting version, then clears
+its key. It never requests a fresh quote or repeats a write. Room recovery can include
+current or archived choices when an earlier move has already changed availability.
+
 Live Google and deployment acceptance remain separately recorded gates.

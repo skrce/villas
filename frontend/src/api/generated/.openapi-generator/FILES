@@ -33,6 +33,8 @@ docs/PriceHistory.md
 docs/PriceLine.md
 docs/QuoteConfirmationRequest.md
 docs/QuoteRequest.md
+docs/QuotedRoomChange.md
+docs/QuotedStayChange.md
 docs/QuotesApi.md
 docs/RatePreviewRequest.md
 docs/RateUpdateRequest.md
@@ -76,6 +78,8 @@ models/PriceHistory.ts
 models/PriceLine.ts
 models/QuoteConfirmationRequest.ts
 models/QuoteRequest.ts
+models/QuotedRoomChange.ts
+models/QuotedStayChange.ts
 models/RatePreviewRequest.ts
 models/RateUpdateRequest.ts
 models/RecordStatusRequest.ts

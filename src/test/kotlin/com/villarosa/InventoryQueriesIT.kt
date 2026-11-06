@@ -38,8 +38,10 @@ constructor(
     private val guests: CustomerRepository,
     private val reservations: ReservationRepository,
     private val jdbc: JdbcTemplate,
+    private val transactionManager: org.springframework.transaction.PlatformTransactionManager,
     private val factory: EntityManagerFactory,
 ) {
+    private val reviewed = ReviewedChanges(service, quotes, transactionManager)
     private lateinit var guest: Customer
     private lateinit var room: Apartment
 
@@ -128,7 +130,7 @@ constructor(
     @Test
     fun eventPagesKeepVersionsAndUtcInstantsWithoutGuestContacts() {
         val booking = create("2026-11-01", "2026-11-03")
-        service.change(booking.resourceId, "2026-11-01", "2026-11-04", 2, 0, key())
+        reviewed.change(booking.resourceId, "2026-11-01", "2026-11-04", 2, 0, key())
         service.cancel(booking.resourceId, 1, key())
         val first = queries.reservationEvents(booking.resourceId, "0", 2)
         assertThat(first.items.map { it.kind }).containsExactly("CREATED", "CHANGED")

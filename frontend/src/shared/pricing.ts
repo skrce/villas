@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { dateSchema } from "../../shared/schemas";
-import { validCents } from "../../shared/money";
-import { UUID_SHAPE } from "../../shared/ids";
+import { dateSchema } from "./schemas";
+import { validCents } from "./money";
+import { UUID_SHAPE } from "./ids";
 
 export const quoteIdShape = UUID_SHAPE;
 const version = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);

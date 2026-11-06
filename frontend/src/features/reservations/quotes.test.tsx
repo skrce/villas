@@ -46,6 +46,23 @@ let offers: Map<string, ReturnType<typeof testQuote>>;
 let saved: Record<string, unknown> | undefined;
 let operation: Record<string, unknown> | undefined;
 let generation: string;
+let agreements: {
+  reservationId: number;
+  reservationVersion: number;
+  acceptedAt: string;
+  quote: ReturnType<typeof testQuote>;
+}[];
+const allRooms = [
+  room,
+  { ...room, id: 8, name: "Lake annex", reference: "ANNEX-2" },
+];
+const rememberPrice = () =>
+  agreements.push({
+    reservationId: 42,
+    reservationVersion: Number(saved!.version),
+    acceptedAt: new Date().toISOString(),
+    quote: offers.get(String(saved!.acceptedQuoteId))!,
+  });
 const calls = (route: string, method: string) =>
   api.mock.calls.filter(
     ([url, init]) => path(url) === route && (init?.method ?? "GET") === method,
@@ -72,13 +89,47 @@ async function responses(
       provider: "synthetic",
     });
   if (route === "/api/v1/customers/5") return json(guest);
-  if (route === "/api/v1/apartments") return json([room]);
+  if (route === "/api/v1/apartments") return json(allRooms);
   if (route === "/api/v1/reservations/available-apartments")
-    return json(saved ? [] : [room]);
+    return json(saved ? [] : allRooms);
   if (route === "/api/v1/booking-quotes") {
-    const offer = testQuote(body(init));
+    const offer = testQuote(
+      body(init),
+      offers.size ? crypto.randomUUID() : TEST_QUOTE_ID,
+      body(init).roomId === 8 ? 6001 : 5001,
+    );
     offers.set(offer.id, offer);
     return json(offer);
+  }
+  if (route.startsWith("/api/v1/booking-quotes/"))
+    return offers.has(route.split("/").pop()!)
+      ? json(offers.get(route.split("/").pop()!))
+      : json({ code: "NOT_FOUND" }, 404);
+  if (route.endsWith("/quoted") && init?.method === "PATCH") {
+    const requested = body(init);
+    if (requested.expectedVersion !== saved?.version)
+      return json({ code: "STALE_VERSION" }, 409);
+    const moving = route.includes("/room/quoted");
+    saved = {
+      ...saved,
+      ...(moving
+        ? { roomId: requested.newRoomId }
+        : {
+            startDate: requested.startDate,
+            endDate: requested.endDate,
+            guestCount: requested.guestCount,
+          }),
+      version: Number(saved!.version) + 1,
+      acceptedQuoteId: requested.quoteId,
+    };
+    rememberPrice();
+    operation = {
+      key: new Headers(init.headers).get("Idempotency-Key"),
+      kind: moving ? "MOVE" : "CHANGE",
+      resourceId: 42,
+      reservation: saved,
+    };
+    return json(saved);
   }
   if (route === "/api/v1/reservations/quoted") {
     const requested = body(init);
@@ -100,6 +151,7 @@ async function responses(
       resourceId: 42,
       reservation: saved,
     };
+    rememberPrice();
     return json(42);
   }
   if (route.startsWith("/api/v1/operations/"))
@@ -112,7 +164,9 @@ async function responses(
   if (route === "/api/v1/reservations/42/price")
     return json({
       recorded: true,
-      price: {
+      price: agreements.find(
+        (value) => value.quote.id === saved?.acceptedQuoteId,
+      ) ?? {
         reservationId: 42,
         reservationVersion: 0,
         acceptedAt: new Date().toISOString(),
@@ -120,11 +174,12 @@ async function responses(
       },
     });
   if (route === "/api/v1/reservations/42/prices")
-    return json({ items: [], nextCursor: null });
+    return json({ items: [...agreements].reverse(), nextCursor: null });
   return json({ code: "NOT_FOUND" }, 404);
 }
 beforeEach(async () => {
   offers = new Map();
+  agreements = [];
   saved = undefined;
   operation = undefined;
   generation = "quote-login-one";
@@ -165,6 +220,288 @@ async function review() {
   return screen.findByRole("button", { name: /Confirm reservation/ });
 }
 describe("reviewed quote booking workflow", () => {
+  async function booked() {
+    await enter();
+    await userEvent.click(await review());
+    await screen.findByRole("heading", { name: "Agreed accommodation price" });
+  }
+  async function dialogFor(kind: "stay" | "move") {
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: kind === "stay" ? "Edit stay" : "Move room",
+      }),
+    );
+    return screen.getByRole("dialog", {
+      name: kind === "stay" ? "Edit stay" : "Move room",
+    });
+  }
+  async function checkout(dialog: HTMLElement, value: string) {
+    await userEvent.clear(within(dialog).getByLabelText("Check-out"));
+    await userEvent.type(within(dialog).getByLabelText("Check-out"), value);
+  }
+  async function editQuote(dialog: HTMLElement) {
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Review price" }),
+    );
+    return within(dialog).findByRole("button", { name: /Confirm changes/ });
+  }
+  it("requires explicit whole-stay price acceptance for dates and room moves and retains the agreements", async () => {
+    await booked();
+    const stay = await dialogFor("stay");
+    await checkout(stay, "2030-01-04");
+    const accept = await editQuote(stay);
+    expect(accept).toHaveTextContent("€150.03");
+    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
+      0,
+    );
+    await userEvent.click(accept);
+    await waitFor(() => expect(stay).not.toBeInTheDocument());
+    expect(saved).toMatchObject({ endDate: "2030-01-04", version: 1 });
+    const move = await dialogFor("move");
+    await userEvent.selectOptions(within(move).getByLabelText("New room"), "8");
+    const moveAccept = await editQuote(move);
+    expect(moveAccept).toHaveTextContent("€180.03");
+    await userEvent.click(moveAccept);
+    await waitFor(() => expect(move).not.toBeInTheDocument());
+    expect(saved).toMatchObject({
+      roomId: 8,
+      endDate: "2030-01-04",
+      version: 2,
+    });
+    expect(agreements.map((value) => value.quote.price.totalCents)).toEqual([
+      10002, 15003, 18003,
+    ]);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Price history" }),
+    );
+    expect(await screen.findByText("Current agreement")).toBeInTheDocument();
+    expect(screen.getAllByText("Previous agreement")).toHaveLength(2);
+    expect(
+      body(calls("/api/v1/reservations/42/room/quoted", "PATCH")[0][1]),
+    ).toMatchObject({ newRoomId: 8, expectedVersion: 1 });
+  });
+  it("requires a new party-size agreement even when the room total is unchanged", async () => {
+    await booked();
+    const stay = await dialogFor("stay");
+    await userEvent.clear(within(stay).getByLabelText("Guests"));
+    await userEvent.type(within(stay).getByLabelText("Guests"), "3");
+    const accept = await editQuote(stay);
+    expect(accept).toHaveTextContent("€100.02");
+    await userEvent.click(accept);
+    await waitFor(() => expect(stay).not.toBeInTheDocument());
+    expect(agreements).toHaveLength(2);
+    expect(agreements[1].quote.id).not.toBe(agreements[0].quote.id);
+    expect(saved).toMatchObject({ guestCount: 3, version: 1 });
+  });
+  it("asks for a second explicit acceptance when edit rates change and retains entered details", async () => {
+    await booked();
+    let first = true;
+    api.mockImplementation((url, init) => {
+      if (path(url) === "/api/v1/reservations/42/dates/quoted" && first) {
+        first = false;
+        const fresh = testQuote(
+          { ...input, endDate: "2030-01-04" },
+          crypto.randomUUID(),
+          6001,
+          2,
+        );
+        offers.set(fresh.id, fresh);
+        return Promise.resolve(
+          json({ code: "QUOTE_CHANGED", replacementQuote: fresh }, 409),
+        );
+      }
+      return responses(url, init);
+    });
+    const stay = await dialogFor("stay");
+    await checkout(stay, "2030-01-04");
+    await userEvent.click(await editQuote(stay));
+    const accept = await within(stay).findByRole("button", {
+      name: "Confirm changes · €180.03",
+    });
+    expect(within(stay).getByLabelText("Check-out")).toHaveValue("2030-01-04");
+    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
+      1,
+    );
+    expect(saved!.version).toBe(0);
+    await userEvent.click(accept);
+    await waitFor(() => expect(stay).not.toBeInTheDocument());
+    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
+      2,
+    );
+    expect(agreements.at(-1)!.quote.price.totalCents).toBe(18003);
+  });
+  it("hides an edit quote when the requested dates change", async () => {
+    await booked();
+    const stay = await dialogFor("stay");
+    await checkout(stay, "2030-01-04");
+    await editQuote(stay);
+    await checkout(stay, "2030-01-05");
+    expect(
+      within(stay).queryByRole("button", { name: /Confirm changes/ }),
+    ).not.toBeInTheDocument();
+    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
+      0,
+    );
+  });
+  it("recovers a lost date-change response after full reload without another quote or write", async () => {
+    await booked();
+    let lost = true;
+    api.mockImplementation(async (url, init) => {
+      if (path(url) === "/api/v1/reservations/42/dates/quoted" && lost) {
+        lost = false;
+        await responses(url, init);
+        throw new TypeError("Lost edit response");
+      }
+      return responses(url, init);
+    });
+    const stay = await dialogFor("stay");
+    await checkout(stay, "2030-01-04");
+    await userEvent.click(await editQuote(stay));
+    await within(stay).findByText(/The result could not be confirmed/);
+    cleanup();
+    window.history.replaceState({}, "", "/reservations/42");
+    await act(async () => {
+      render(<App />);
+    });
+    const restored = await dialogFor("stay");
+    const quoteCount = calls("/api/v1/booking-quotes", "POST").length;
+    expect(
+      within(restored).getByRole("button", { name: "Review price" }),
+    ).toBeDisabled();
+    await userEvent.click(
+      within(restored).getByRole("button", { name: "Check previous save" }),
+    );
+    await waitFor(() => expect(restored).not.toBeInTheDocument());
+    expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(quoteCount);
+    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
+      1,
+    );
+  });
+  it("can reconcile a lost move after reload when the destination has become the current room", async () => {
+    await booked();
+    let lost = true;
+    api.mockImplementation(async (url, init) => {
+      if (path(url) === "/api/v1/reservations/42/room/quoted" && lost) {
+        lost = false;
+        await responses(url, init);
+        throw new TypeError("Lost move response");
+      }
+      return responses(url, init);
+    });
+    const move = await dialogFor("move");
+    await userEvent.selectOptions(within(move).getByLabelText("New room"), "8");
+    await userEvent.click(await editQuote(move));
+    await within(move).findByText(/The result could not be confirmed/);
+    cleanup();
+    window.history.replaceState({}, "", "/reservations/42");
+    await act(async () => {
+      render(<App />);
+    });
+    const restored = await dialogFor("move");
+    await userEvent.click(
+      within(restored).getByRole("checkbox", {
+        name: "Include other rooms for an interrupted save",
+      }),
+    );
+    await userEvent.selectOptions(
+      within(restored).getByLabelText("New room"),
+      "8",
+    );
+    const quoted = calls("/api/v1/booking-quotes", "POST").length;
+    expect(
+      within(restored).getByRole("button", { name: "Review price" }),
+    ).toBeDisabled();
+    await userEvent.click(
+      within(restored).getByRole("button", { name: "Check previous save" }),
+    );
+    await waitFor(() => expect(restored).not.toBeInTheDocument());
+    expect(calls("/api/v1/reservations/42/room/quoted", "PATCH")).toHaveLength(
+      1,
+    );
+    expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(quoted);
+  });
+
+  it("retains the reviewed booking version across reauthentication until a protected reload", async () => {
+    await booked();
+    const stay = await dialogFor("stay");
+    await checkout(stay, "2030-01-04");
+    saved = { ...saved, version: 1, endDate: "2030-01-05" };
+    generation = "changed-booking-session";
+    await act(async () => {
+      await refreshSession({ explicit: true });
+    });
+    const restored = await dialogFor("stay");
+    expect(within(restored).getByLabelText("Check-out")).toHaveValue(
+      "2030-01-04",
+    );
+    expect(
+      within(restored).getByRole("button", { name: "Review price" }),
+    ).toBeDisabled();
+    const reads = calls("/api/v1/reservations/42", "GET").length;
+    await userEvent.click(
+      within(restored).getByRole("button", { name: "Load latest stay" }),
+    );
+    await waitFor(() =>
+      expect(within(restored).getByLabelText("Check-out")).toHaveValue(
+        "2030-01-05",
+      ),
+    );
+    expect(calls("/api/v1/reservations/42", "GET")).toHaveLength(reads + 1);
+    await checkout(restored, "2030-01-06");
+    await userEvent.click(await editQuote(restored));
+    await waitFor(() => expect(restored).not.toBeInTheDocument());
+    expect(
+      body(calls("/api/v1/reservations/42/dates/quoted", "PATCH")[0][1])
+        .expectedVersion,
+    ).toBe(1);
+  });
+  it("retains entered edit fields when loading the latest reservation fails", async () => {
+    await booked();
+    const stay = await dialogFor("stay");
+    await checkout(stay, "2030-01-04");
+    api.mockImplementation((url, init) =>
+      path(url) === "/api/v1/reservations/42/dates/quoted"
+        ? Promise.resolve(json({ code: "STALE_VERSION" }, 409))
+        : responses(url, init),
+    );
+    await userEvent.click(await editQuote(stay));
+    await within(stay).findByRole("button", { name: "Load latest stay" });
+    api.mockImplementation((url, init) =>
+      path(url) === "/api/v1/reservations/42"
+        ? Promise.reject(new TypeError("Read unavailable"))
+        : responses(url, init),
+    );
+    await userEvent.click(
+      within(stay).getByRole("button", { name: "Load latest stay" }),
+    );
+    await within(stay).findByText(/The result could not be confirmed/);
+    expect(within(stay).getByLabelText("Check-out")).toHaveValue("2030-01-04");
+    expect(
+      within(stay).getByRole("button", { name: "Refresh quote" }),
+    ).toBeDisabled();
+  });
+  it("offers rate configuration instead of an unpriced edit", async () => {
+    await booked();
+    api.mockImplementation((url, init) =>
+      path(url) === "/api/v1/booking-quotes"
+        ? Promise.resolve(json({ code: "RATES_REQUIRED" }, 409))
+        : responses(url, init),
+    );
+    const stay = await dialogFor("stay");
+    await checkout(stay, "2030-01-04");
+    await userEvent.click(
+      within(stay).getByRole("button", { name: "Review price" }),
+    );
+    expect(
+      await within(stay).findByRole("link", {
+        name: "Configure this room's rates",
+      }),
+    ).toHaveAttribute("href", "/rooms/7#rates");
+    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
+      0,
+    );
+  });
+
   it("loads bounded price history with an exclusive version cursor and retains earlier agreements", async () => {
     const current = testQuote(input);
     const previous = testQuote(
@@ -224,7 +561,7 @@ describe("reviewed quote booking workflow", () => {
       render(<App />);
     });
     await userEvent.click(
-      await screen.findByRole("button", { name: "Price history", exact: true }),
+      await screen.findByRole("button", { name: "Price history" }),
     );
     expect(
       await screen.findByText("Current agreement", { exact: true }),
@@ -297,7 +634,7 @@ describe("reviewed quote booking workflow", () => {
       render(<App />);
     });
     await userEvent.click(
-      await screen.findByRole("button", { name: "Price history", exact: true }),
+      await screen.findByRole("button", { name: "Price history" }),
     );
     const history = (
       await screen.findByRole("heading", { name: "Accepted price history" })

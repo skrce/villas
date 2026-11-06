@@ -67,7 +67,13 @@ class InventoryWriter(
         )
     }
 
-    fun move(id: Int, destination: Int, expected: Long?, key: String): OperationResult {
+    fun move(
+        id: Int,
+        destination: Int,
+        expected: Long?,
+        key: String,
+        quoteId: String? = null,
+    ): OperationResult {
         checkGuest(
             reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
         )
@@ -77,15 +83,25 @@ class InventoryWriter(
         val booking = current(id, expected, locked.keys)
         active(booking)
         if (booking.roomId != destination) {
-            if (booking.acceptedQuoteId != null)
-                conflict(
-                    "PRICE_REVIEW_REQUIRED",
-                    "A priced stay needs an accepted change quote before changing rooms.",
+            val room = locked.getValue(destination)
+            val dates = StayDates(booking.startDate!!, booking.endDate!!)
+            checkRoom(room, booking.guestCount)
+            checkAvailable(destination, dates, id)
+            val price =
+                quotes.acceptable(
+                    quoteId
+                        ?: conflict(
+                            "PRICE_REVIEW_REQUIRED",
+                            "Review and accept a new quote before changing rooms.",
+                        ),
+                    room,
+                    dates,
+                    booking.guestCount,
                 )
-            checkRoom(locked.getValue(destination), booking.guestCount)
-            checkAvailable(destination, StayDates(booking.startDate!!, booking.endDate!!), id)
             booking.roomId = destination
+            booking.acceptedQuoteId = price.id
             reservations.saveAndFlush(booking)
+            quotes.accept(price, booking)
             reservationEvent(booking, key, "MOVED", original)
         }
         return OperationResult(
@@ -102,6 +118,7 @@ class InventoryWriter(
         guestCount: Int,
         expected: Long,
         key: String,
+        quoteId: String? = null,
     ): OperationResult {
         checkGuest(
             reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
@@ -111,16 +128,6 @@ class InventoryWriter(
         val room = lockRooms(listOf(roomId)).getValue(roomId)
         val booking = current(id, expected, setOf(roomId))
         active(booking)
-        if (
-            booking.acceptedQuoteId != null &&
-                (booking.startDate != dates.start ||
-                    booking.endDate != dates.end ||
-                    booking.guestCount != guestCount)
-        )
-            conflict(
-                "PRICE_REVIEW_REQUIRED",
-                "A priced stay needs an accepted change quote before changing its dates or party size.",
-            )
         checkRoom(room, guestCount)
         checkAvailable(roomId, dates, id)
         if (
@@ -128,10 +135,23 @@ class InventoryWriter(
                 booking.endDate != dates.end ||
                 booking.guestCount != guestCount
         ) {
+            val price =
+                quotes.acceptable(
+                    quoteId
+                        ?: conflict(
+                            "PRICE_REVIEW_REQUIRED",
+                            "Review and accept a new quote before changing the stay.",
+                        ),
+                    room,
+                    dates,
+                    guestCount,
+                )
             booking.startDate = dates.start
             booking.endDate = dates.end
             booking.guestCount = guestCount
+            booking.acceptedQuoteId = price.id
             reservations.saveAndFlush(booking)
+            quotes.accept(price, booking)
             reservationEvent(booking, key, "CHANGED")
         }
         return OperationResult(

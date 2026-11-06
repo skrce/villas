@@ -1,9 +1,7 @@
 import { useContext, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import type { z } from "zod";
 import { DraftContext, useWorkspace } from "../../app/context";
-import { staySchema } from "../../shared/schemas";
 import { dateLabel, eventLabel, roomChoiceLabel } from "../../shared/format";
 import { useSave } from "../../shared/useSave";
 import { useRooms } from "../rooms/queries";
@@ -85,23 +83,8 @@ function ReservationDetailPage() {
       },
     });
   };
-  const mutation = useSave<{
-    room?: number;
-    stay?: z.infer<typeof staySchema>;
-  }>(
-    async (value) => {
-      if (editing?.kind === "cancel")
-        return booking.cancel(id, editing!.version);
-      if (editing?.kind === "move")
-        return booking.move(id, value.room!, editing!.version);
-      return booking.change(
-        id,
-        value.stay!.startDate,
-        value.stay!.endDate,
-        value.stay!.guestCount,
-        editing!.version,
-      );
-    },
+  const mutation = useSave<void>(
+    () => booking.cancel(id, editing!.version),
     () => {
       drafts?.delete(`reservation-edit:${id}:${editing?.kind}`);
       setEditing(undefined);
@@ -275,15 +258,23 @@ function ReservationDetailPage() {
             key={editing.kind}
             kind={editing.kind}
             draftKey={`reservation-edit:${id}:${editing.kind}`}
+            reservationId={id}
+            expectedVersion={editing.version}
+            currentVersion={record.version}
+            onBusy={setBusy}
+            onSaved={() => {
+              setEditing(undefined);
+              setSaved(true);
+            }}
             record={editing.snapshot}
             rooms={rooms.data ?? []}
             busy={mutation.isPending}
             blocked={mutation.stale}
             message={mutation.message}
-            onSubmit={async (value) => {
+            onSubmit={async () => {
               setBusy(true);
               try {
-                await mutation.submit(value);
+                await mutation.submit();
               } finally {
                 setBusy(false);
               }

@@ -221,7 +221,11 @@ constructor(
                 )
             )
 
-        reservationService.updateReservationRoom(reservation.id!!, apartment2.id!!)
+        reservationService.updateReservationRoom(
+            reservation.id!!,
+            apartment2.id!!,
+            quotes.create(apartment2.id!!, "2020-01-01", "2020-01-05", 1).id,
+        )
 
         val updated = reservationRepository.findById(reservation.id!!).orElse(null)
         assertThat(updated).isNotNull
@@ -249,7 +253,11 @@ constructor(
 
         val exception =
             assertThrows<com.villarosa.exception.DomainException> {
-                reservationService.updateReservationRoom(reservation.id!!, apartment2.id!!)
+                reservationService.updateReservationRoom(
+                    reservation.id!!,
+                    apartment2.id!!,
+                    quotes.create(apartment2.id!!, "2020-01-01", "2020-01-05", 1).id,
+                )
             }
 
         assertThat(exception.message).contains("The room is unavailable for those dates.")

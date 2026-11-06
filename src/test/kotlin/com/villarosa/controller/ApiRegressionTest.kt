@@ -77,6 +77,23 @@ constructor(
     fun moveAcceptsGeneratedClientAndLegacyPaths(path: String) {
         val booking = saveReservation()
         val destination = apartments.save(Apartment(null, 2, "East", "Garden", 100, 150))
+        com.villarosa.TestData.configureSyntheticRate(jdbc, destination.id!!)
+        val quoted =
+            mvc.perform(
+                    post("/api/v1/booking-quotes")
+                        .cookie(browser.cookie)
+                        .header("X-CSRF-TOKEN", browser.csrf)
+                        .header("Origin", "http://localhost:5173")
+                        .contentType("application/json")
+                        .content(
+                            """{"roomId":${destination.id},"startDate":"2026-11-06","endDate":"2026-11-09","guestCount":1}"""
+                        )
+                )
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+        val quoteId = json.readTree(quoted).get("id").asText()
 
         mvc.perform(
                 patch(path)
@@ -87,6 +104,7 @@ constructor(
                     .param("expectedVersion", "0")
                     .param("reservationId", booking.id.toString())
                     .param("newRoomId", destination.id.toString())
+                    .param("quoteId", quoteId)
             )
             .andExpect(status().isOk)
 

@@ -20,6 +20,9 @@ import type {
   PriceHistory,
   QuoteConfirmationRequest,
   QuoteRequest,
+  QuotedRoomChange,
+  QuotedStayChange,
+  ReservationInfo,
   ReservationPriceView,
 } from '../models/index';
 import {
@@ -33,9 +36,21 @@ import {
     QuoteConfirmationRequestToJSON,
     QuoteRequestFromJSON,
     QuoteRequestToJSON,
+    QuotedRoomChangeFromJSON,
+    QuotedRoomChangeToJSON,
+    QuotedStayChangeFromJSON,
+    QuotedStayChangeToJSON,
+    ReservationInfoFromJSON,
+    ReservationInfoToJSON,
     ReservationPriceViewFromJSON,
     ReservationPriceViewToJSON,
 } from '../models/index';
+
+export interface ChangeReservationWithQuoteRequest {
+    reservationId: number;
+    idempotencyKey: string;
+    quotedStayChange: QuotedStayChange;
+}
 
 export interface ConfirmReservationQuoteRequest {
     idempotencyKey: string;
@@ -48,6 +63,12 @@ export interface CreateBookingQuoteRequest {
 
 export interface GetBookingQuoteRequest {
     quoteId: string;
+}
+
+export interface MoveReservationWithQuoteRequest {
+    reservationId: number;
+    idempotencyKey: string;
+    quotedRoomChange: QuotedRoomChange;
 }
 
 export interface ReservationPriceRequest {
@@ -64,6 +85,64 @@ export interface ReservationPriceHistoryRequest {
  * 
  */
 export class QuotesApi extends runtime.BaseAPI {
+
+    /**
+     * Accept a new whole-stay price and change dates or party size atomically
+     */
+    async changeReservationWithQuoteRaw(requestParameters: ChangeReservationWithQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ReservationInfo>> {
+        if (requestParameters['reservationId'] == null) {
+            throw new runtime.RequiredError(
+                'reservationId',
+                'Required parameter "reservationId" was null or undefined when calling changeReservationWithQuote().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling changeReservationWithQuote().'
+            );
+        }
+
+        if (requestParameters['quotedStayChange'] == null) {
+            throw new runtime.RequiredError(
+                'quotedStayChange',
+                'Required parameter "quotedStayChange" was null or undefined when calling changeReservationWithQuote().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/reservations/{reservationId}/dates/quoted`;
+        urlPath = urlPath.replace(`{${"reservationId"}}`, encodeURIComponent(String(requestParameters['reservationId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: QuotedStayChangeToJSON(requestParameters['quotedStayChange']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ReservationInfoFromJSON(jsonValue));
+    }
+
+    /**
+     * Accept a new whole-stay price and change dates or party size atomically
+     */
+    async changeReservationWithQuote(requestParameters: ChangeReservationWithQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ReservationInfo> {
+        const response = await this.changeReservationWithQuoteRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Accept a saved quote and atomically create its priced reservation with a stable operation key
@@ -196,7 +275,65 @@ export class QuotesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Read the immutable accepted price, or explicit null for an unpriced historical reservation
+     * Accept a new whole-stay price and move the reservation atomically
+     */
+    async moveReservationWithQuoteRaw(requestParameters: MoveReservationWithQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ReservationInfo>> {
+        if (requestParameters['reservationId'] == null) {
+            throw new runtime.RequiredError(
+                'reservationId',
+                'Required parameter "reservationId" was null or undefined when calling moveReservationWithQuote().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling moveReservationWithQuote().'
+            );
+        }
+
+        if (requestParameters['quotedRoomChange'] == null) {
+            throw new runtime.RequiredError(
+                'quotedRoomChange',
+                'Required parameter "quotedRoomChange" was null or undefined when calling moveReservationWithQuote().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/reservations/{reservationId}/room/quoted`;
+        urlPath = urlPath.replace(`{${"reservationId"}}`, encodeURIComponent(String(requestParameters['reservationId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'PATCH',
+            headers: headerParameters,
+            query: queryParameters,
+            body: QuotedRoomChangeToJSON(requestParameters['quotedRoomChange']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ReservationInfoFromJSON(jsonValue));
+    }
+
+    /**
+     * Accept a new whole-stay price and move the reservation atomically
+     */
+    async moveReservationWithQuote(requestParameters: MoveReservationWithQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ReservationInfo> {
+        const response = await this.moveReservationWithQuoteRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read the accepted price or explicit unrecorded historical state
      */
     async reservationPriceRaw(requestParameters: ReservationPriceRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ReservationPriceView>> {
         if (requestParameters['reservationId'] == null) {
@@ -225,7 +362,7 @@ export class QuotesApi extends runtime.BaseAPI {
     }
 
     /**
-     * Read the immutable accepted price, or explicit null for an unpriced historical reservation
+     * Read the accepted price or explicit unrecorded historical state
      */
     async reservationPrice(requestParameters: ReservationPriceRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ReservationPriceView> {
         const response = await this.reservationPriceRaw(requestParameters, initOverrides);

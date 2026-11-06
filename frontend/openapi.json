@@ -683,6 +683,68 @@
         ],
         "type": "object"
       },
+      "QuotedRoomChange": {
+        "properties": {
+          "expectedVersion": {
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "newRoomId": {
+            "format": "int32",
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "quoteId": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "newRoomId",
+          "quoteId"
+        ],
+        "type": "object"
+      },
+      "QuotedStayChange": {
+        "properties": {
+          "endDate": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "expectedVersion": {
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "guestCount": {
+            "format": "int32",
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "quoteId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "startDate": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endDate",
+          "expectedVersion",
+          "guestCount",
+          "quoteId",
+          "startDate"
+        ],
+        "type": "object"
+      },
       "RatePreviewRequest": {
         "properties": {
           "endDate": {
@@ -2687,6 +2749,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "quoteId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3057,6 +3127,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "quoteId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3084,6 +3162,66 @@
         "summary": "Change stay dates and guest count",
         "tags": [
           "Reservation"
+        ]
+      }
+    },
+    "/reservations/{reservationId}/dates/quoted": {
+      "patch": {
+        "operationId": "changeReservationWithQuote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotedStayChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Accept a new whole-stay price and change dates or party size atomically",
+        "tags": [
+          "Quotes"
         ]
       }
     },
@@ -3184,7 +3322,7 @@
             "description": "Bad Request"
           }
         },
-        "summary": "Read the immutable accepted price, or explicit null for an unpriced historical reservation",
+        "summary": "Read the accepted price or explicit unrecorded historical state",
         "tags": [
           "Quotes"
         ]
@@ -3246,6 +3384,66 @@
           }
         },
         "summary": "Read bounded immutable accepted price history",
+        "tags": [
+          "Quotes"
+        ]
+      }
+    },
+    "/reservations/{reservationId}/room/quoted": {
+      "patch": {
+        "operationId": "moveReservationWithQuote",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotedRoomChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Accept a new whole-stay price and move the reservation atomically",
         "tags": [
           "Quotes"
         ]

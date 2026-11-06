@@ -24,7 +24,7 @@ import {
   stayIdentity,
   type QuoteData,
   type StayInput,
-} from "./pricing";
+} from "../../shared/pricing";
 import {
   Empty,
   Dialog,

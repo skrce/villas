@@ -59,9 +59,9 @@ constructor(
                 .content(value)
         )
 
-    private fun quote(): BookingQuote =
+    private fun quote(value: String = body): BookingQuote =
         json.readValue(
-            postQuote().andExpect(status().isOk).andReturn().response.contentAsString,
+            postQuote(value).andExpect(status().isOk).andReturn().response.contentAsString,
             BookingQuote::class.java,
         )
 
@@ -162,6 +162,55 @@ constructor(
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM reservations", Long::class.java))
             .isZero()
         confirm(confirmation(fresh)).andExpect(status().isOk)
+    }
+
+    @Test
+    fun privateQuotedEditRoutesAcceptNewWholeStayPricesAndRetainEarlierAgreements() {
+        val original = quote()
+        val id =
+            confirm(confirmation(original))
+                .andExpect(status().isOk)
+                .andReturn()
+                .response
+                .contentAsString
+                .toInt()
+        val extension = quote(body.replace("2030-01-03", "2030-01-04"))
+        fun edit(path: String, value: String) =
+            mvc.perform(
+                patch("/api/v1/reservations/$id/$path/quoted")
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .contentType("application/json")
+                    .content(value)
+            )
+        edit(
+                "dates",
+                """{"startDate":"2030-01-01","endDate":"2030-01-04","guestCount":2,"expectedVersion":0,"quoteId":"${extension.id}"}""",
+            )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.version").value(1))
+            .andExpect(jsonPath("$.acceptedQuoteId").value(extension.id))
+        jdbc.update(
+            "INSERT INTO apartments (id,property_id,name,reference,capacity,active,version,base_rate_cents,rate_version) VALUES (2,'villa-rosa','Second','R-2',4,TRUE,0,7001,1)"
+        )
+        val move =
+            quote(body.replace("\"roomId\":1", "\"roomId\":2").replace("2030-01-03", "2030-01-04"))
+        edit("room", """{"newRoomId":2,"expectedVersion":1,"quoteId":"${move.id}"}""")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.version").value(2))
+            .andExpect(jsonPath("$.roomId").value(2))
+        mvc.perform(get("/api/v1/reservations/$id/prices").cookie(browser.cookie))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items.length()").value(3))
+            .andExpect(jsonPath("$.items[0].quote.price.totalCents").value(21003))
+            .andExpect(jsonPath("$.items[2].quote.id").value(original.id))
+        edit(
+                "room",
+                """{"newRoomId":1,"expectedVersion":2,"quoteId":"${original.id}","overrideCents":1}""",
+            )
+            .andExpect(status().isBadRequest)
     }
 
     @ParameterizedTest

@@ -43,7 +43,10 @@ constructor(
     private val quotes: QuoteService,
     private val queries: InventoryQueries,
     private val jdbc: JdbcTemplate,
+    private val transactionManager: org.springframework.transaction.PlatformTransactionManager,
 ) {
+    private val reviewed = ReviewedChanges(inventory, quotes, transactionManager)
+
     @BeforeEach
     fun fixtures() {
         TestData.reset(jdbc, database.jdbcUrl)
@@ -144,7 +147,7 @@ constructor(
         assertThat(archive.code).isEqualTo("ROOM_HAS_BOOKINGS")
         assertThat(service.findApartmentById(room.id!!)!!.capacity).isEqualTo(4)
         assertThat(service.findApartmentById(room.id!!)!!.version).isZero()
-        inventory.change(booking.resourceId, "2099-01-01", "2099-01-04", 2, 0, key())
+        reviewed.change(booking.resourceId, "2099-01-01", "2099-01-04", 2, 0, key())
         assertThat(service.update(room.id!!, 0, profile(capacity = 2)).capacity).isEqualTo(2)
         assertThat(bookings.count()).isEqualTo(1)
     }
@@ -175,8 +178,9 @@ constructor(
     fun movingAStayResolvesRoomArchiveAndRetainedMaintenanceAppliesAgainAfterRestore() {
         val room = service.create(profile())
         val destination = service.create(profile("OTHER"))
+        TestData.configureSyntheticRate(jdbc, destination.id!!)
         val booking = createBooking(room)
-        inventory.move(booking.resourceId, destination.id!!, 0, key())
+        reviewed.move(booking.resourceId, destination.id!!, 0, key())
         val block =
             inventory.block(room.id!!, "2099-02-01", "2099-02-03", "Synthetic repair", key())
         val archived = service.status(room.id!!, 0, false)

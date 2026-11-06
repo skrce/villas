@@ -39,8 +39,15 @@ class LegacyReservationController(private val service: ReservationService) {
         @RequestParam newRoomId: Int,
         @RequestParam(required = false) expectedVersion: Long?,
         @RequestHeader("Idempotency-Key", required = false) key: String?,
+        @RequestParam(required = false) quoteId: String?,
     ) {
-        service.move(reservationId, newRoomId, expectedVersion, key ?: UUID.randomUUID().toString())
+        service.move(
+            reservationId,
+            newRoomId,
+            expectedVersion,
+            key ?: UUID.randomUUID().toString(),
+            quoteId,
+        )
     }
 
     @DeleteMapping("/reservation", "/reservation/")

@@ -97,8 +97,9 @@ refuses to replace existing records. No guest or booking is seeded. New syntheti
 rooms have explicit EUR-cent nightly rates, separate from the retained legacy test
 price fields. Existing rooms are never repriced by rerunning fixtures. Owners configure
 their rates on the room page, then review and accept a saved price when booking.
-Manual price overrides are disabled. Booking-change pricing still requires the
-owner's policy decision and the remaining milestone 6 integration.
+Manual price overrides are disabled. Changes to room, dates or party size require
+explicit acceptance of a new whole-stay quote at current rates. Prior agreed prices
+remain in history. Interrupted saves can be checked without a fresh quote or write.
 
 ```sh
 node scripts/dev-db.mjs status
