@@ -10,8 +10,8 @@ start are recorded in [decisions](decisions.md).
 | --- | --- | --- | --- |
 | 1 | [Modernize the foundation and establish regression checks](https://github.com/skrce/villas/issues/2) | None | Implemented and verified; review/merge evidence is in the linked issue |
 | 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Implemented and locally verified; final review/merge evidence is in the linked issue |
-| 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Owner-only foundation merged; local OIDC/session/browser integration under verification; live Google setup explicitly deferred |
-| 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | Authorized after milestone 3's verified local authentication checkpoint |
+| 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Local implementation reviewed, verified and merged in PRs #18 and #19; live Google setup explicitly deferred |
+| 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | In progress after milestone 3's verified and merged local authentication checkpoint |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Planned |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Planned |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Planned |
@@ -145,7 +145,7 @@ production acceptance is implied by the local checks.
 
 ## Known limitations
 
-The frontend remains a single basic console until milestone 4. The schema has
+Milestone 4 replaces the console with a routed responsive workspace. The schema has
 versioned migrations, reference constraints, and strict calendar dates. Inventory
 transactions, version checks, retry reconciliation, and bounded queries are implemented.
 Cancellation retains the record and events. Price integers are fixture values, not the
@@ -182,3 +182,17 @@ the required invitation/identity, revocation, concurrent writes, handoff failure
 CSRF, lifetime and rollback cases, but those checks do not erase the measured gap.
 Continue filling boundary coverage during live-provider qualification and later
 lifecycle work. No global percentage is substituted for those failure cases.
+
+## Milestone 4 local implementation
+
+The workspace now has separate routed features, keyed query state, validated forms,
+shared accessible controls and phone record layouts. It replaces API settings and
+manual ID entry with session login, guest search and room choices. Existing booking
+creation, date edits, room moves, retained cancellation/history, guest lookup/creation
+and Owner administration are wired to their real APIs. Future workflows are not shown
+as placeholders or fake metrics. See [frontend conventions and demo](frontend.md).
+
+The local demo works without Google setup in a separate synthetic database. Its
+lifecycle checks cover occupied ports, signals, worker failure and retained state after
+cleanup failure. Real Google and deployed acceptance remain separate open gates.
+Final review and verification evidence will be recorded in the milestone issue/PR.

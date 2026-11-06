@@ -74,6 +74,7 @@ jobs:
         run: |
           git diff --exit-code -- openapi.json src/api/generated
           test -z "$(git ls-files --others --exclude-standard -- src/api/generated)"
+      - run: npm run format:check
       - run: npm run lint
       - run: npm run test:coverage
       - run: npm run build

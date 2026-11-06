@@ -131,3 +131,9 @@ these native locking guarantees.
 pagination, property isolation, limits, and actual Hibernate entity-load counts.
 Native rollback tests inject failures after every type of inventory mutation.
 Historical replay and suspended outer transactions also have permanent regressions.
+
+The routed interface also captures the reviewed resource version before opening an
+edit confirmation. Its per-tab unresolved key survives another tab clearing the shared
+claim after confirmation. Both localStorage and sessionStorage contain only hashed
+identities and key/version metadata. A replay refreshes current details and does not
+claim that the current room/dates still equal the historical result.

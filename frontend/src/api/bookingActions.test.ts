@@ -18,6 +18,7 @@ const confirm = (call: number, kind = 'CREATE') => fetchMock.mockImplementationO
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
 });
@@ -154,6 +155,42 @@ describe('booking write reconciliation', () => {
     await expect(actions('owner-one', 'login-two').create(input)).resolves.toBe(42);
     confirm(0); finish(json(42)); await old;
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+  it('uses the version reviewed in the UI instead of silently loading a newer version', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 })); confirm(0, 'MOVE');
+    await expect(actions().move(42, 8, 3)).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0][0]).toContain('expectedVersion=3');
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('PATCH');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+  it('reconciles a lost stay edit with its original version and key', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Lost response'));
+    await expect(actions().change(42, '2026-11-06', '2026-11-10', 2, 3)).rejects.toThrow();
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(json({ key: original, kind: 'CHANGE', resourceId: 42 }));
+    await expect(actions().change(42, '2026-11-06', '2026-11-10', 2, 4)).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][1]?.method).toBe('GET');
+  });
+  it('keeps its own unconfirmed key after another tab confirms and clears the shared claim', async () => {
+    const originalStorage = sessionStorage;
+    const values = new Map<string, string>();
+    const otherStorage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); }, clear: () => values.clear(), key: () => null, get length() { return values.size; } } as Storage;
+    const first = actions('owner-one', 'tab-one');
+    vi.stubGlobal('sessionStorage', otherStorage); const other = actions('owner-one', 'tab-two'); vi.stubGlobal('sessionStorage', originalStorage);
+    let fail: (reason: Error) => void = () => {};
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((_resolve, reject) => { fail = reject; }));
+    const lost = expect(first.create(input)).rejects.toThrow();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(notCommitted()).mockResolvedValueOnce(json(42)); confirm(2);
+    await expect(other.create(input)).resolves.toBe(42);
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toBe('{}');
+    fail(new Error('Lost response')); await lost;
+    fetchMock.mockResolvedValueOnce(json({ key: original, kind: 'CREATE', resourceId: 42 }));
+    await expect(first.create(input)).resolves.toBe(42);
+    expect(fetchMock.mock.calls[4][0]).toContain(original!);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(2);
   });
   it('never deletes a different durable intent when completing its own', async () => {
     fetchMock.mockImplementationOnce(async () => {

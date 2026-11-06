@@ -13,3 +13,6 @@ afterEach(() => {
 });
 
 Object.defineProperty(globalThis.crypto, 'subtle', { configurable: true, value: webcrypto.subtle });
+
+HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
