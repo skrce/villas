@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildBookingActions } from './bookingActions';
-import { Configuration, ReservationApi } from './generated';
+import { Configuration, ReservationApi, MaintenanceApi, ApartmentApi } from './generated';
 
 const fetchMock = vi.fn<typeof fetch>();
 const input = { customerId: 1, roomId: 7, startDate: '2026-11-06', endDate: '2026-11-09' };
@@ -219,5 +219,38 @@ describe('booking write reconciliation', () => {
     fetchMock.mockResolvedValueOnce(json({ id: 42, version: -1 }));
     await expect(actions().cancel(42)).rejects.toThrow('version could not be loaded');
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
+
+
+describe('maintenance operation reconciliation', () => {
+  const block = {id: 30, roomId: 7, startDate: '2030-01-01', endDate: '2030-01-03', reason: 'Synthetic private repair', status: 'ACTIVE', version: 0};
+  const client = () => {
+    const config = new Configuration({basePath: '/api/v1', fetchApi: fetchMock});
+    return buildBookingActions(new ReservationApi(config), 'maintenance-owner', 'maintenance-login', new MaintenanceApi(config), new ApartmentApi(config));
+  };
+  it('sends private maintenance JSON and verifies its committed result', async () => {
+    fetchMock.mockResolvedValueOnce(json(block)).mockImplementationOnce(async () => json({key: key(0), kind: 'BLOCK', resourceId: 30, maintenance: block}));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason)).resolves.toBe(30);
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/apartments/7/maintenance');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({startDate: block.startDate, endDate: block.endDate, reason: block.reason});
+    expect(JSON.stringify(localStorage)).not.toContain(block.reason);
+  });
+  it('retains a block intent when the saved snapshot is malformed and reconciles before another POST', async () => {
+    fetchMock.mockResolvedValueOnce(json(block)).mockImplementationOnce(async () => json({key: key(0), kind: 'BLOCK', resourceId: 30, maintenance: {id: 30}}));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason)).rejects.toThrow('could not be confirmed');
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(json({key: original, kind: 'BLOCK', resourceId: 30, maintenance: block}));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason)).resolves.toBe(30);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+  it('keeps the reviewed block version and rejects a cancellation snapshot that still says active', async () => {
+    fetchMock.mockResolvedValueOnce(json(block)).mockImplementationOnce(async () => json({key: key(0), kind: 'UNBLOCK', resourceId: 30, maintenance: block}));
+    await expect(client().unblock(30, 3)).rejects.toThrow('could not be confirmed');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('expectedVersion=3');
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(json({key: original, kind: 'UNBLOCK', resourceId: 30, maintenance: {...block, status: 'CANCELLED', version: 4}}));
+    await expect(client().unblock(30, 4)).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

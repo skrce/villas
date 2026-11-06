@@ -28,17 +28,17 @@ export function GuestPicker({
   const query = useQuery({
     queryKey: ["guests", "picker", search],
     queryFn: ({ signal }) =>
-      apis.customerApi.searchCustomer(
+      apis.customerApi.queryCustomers(
         {
-          customerSearchRequest: /^[+\d\s()-]+$/.test(search)
-            ? { phone: search }
-            : { firstName: search },
+          guestQueryRequest: /^[+\d\p{Z}\s().-]+$/u.test(search)
+            ? { phone: search, limit: 20 }
+            : { name: search, limit: 20 },
         },
         { signal },
       ),
     enabled: !value && search.length >= 2,
   });
-  const items = query.data ?? [];
+  const items = query.data?.items ?? [];
   const visible =
     open && !value && search.length >= 2 && search === label.trim();
   const choose = (guest: Customer) => {
@@ -102,7 +102,7 @@ export function GuestPicker({
         {error ||
           (value
             ? "Guest selected. Edit to choose someone else."
-            : "Type a first name or phone, then choose a match.")}
+            : "Type a name or phone, then choose a match.")}
       </p>
       <ul
         id={`${id}-list`}
@@ -131,8 +131,8 @@ export function GuestPicker({
             : query.isError
               ? "Guest search unavailable. Edit the search to try again."
               : !items.length
-                ? "No matches. Add a guest from Guests first."
-                : `${items.length} matches. Use arrow keys and Enter to select.`}
+                ? "No matches. Use Add guest to create a profile."
+                : `${items.length} matches${query.data?.nextCursor ? ", refine the search for more" : ""}. Use arrow keys and Enter to select.`}
         </p>
       )}
     </div>

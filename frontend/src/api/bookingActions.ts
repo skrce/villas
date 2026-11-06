@@ -1,10 +1,13 @@
 import {
   GetOperationKindEnum,
   ReservationApi,
+  MaintenanceApi,
+  ApartmentApi,
   ResponseError,
   type CreateReservationRequest,
   type OperationResult,
 } from './generated';
+import { validVersion } from '../shared/format';
 
 const STORAGE_KEY = 'villarosa.pendingOperations.v2';
 const OWN_STORAGE_KEY = 'villarosa.ownPendingOperations.v2';
@@ -12,7 +15,7 @@ const DEFINITIVE_ERRORS = new Set([
   'INVALID_REQUEST', 'INVALID_OPERATION_KEY', 'INVALID_ID', 'INVALID_VERSION',
   'INVALID_GUEST_COUNT', 'CAPACITY_EXCEEDED', 'NOT_FOUND', 'STALE_VERSION',
   'RESERVATION_CHANGED', 'RESERVATION_CANCELLED', 'ROOM_INACTIVE',
-  'INVENTORY_CONFLICT', 'IDEMPOTENCY_KEY_REUSED', 'DATA_CONFLICT',
+  'INVENTORY_CONFLICT', 'IDEMPOTENCY_KEY_REUSED', 'DATA_CONFLICT', 'GUEST_ARCHIVED', 'INVALID_REASON', 'HTTP_400',
 ]);
 type Intent = { key: string; expectedVersion?: number };
 type Intents = Record<string, Intent>;
@@ -39,7 +42,7 @@ const read = (storage: Storage = localStorage, key = STORAGE_KEY): Intents => {
   }
 };
 
-export const buildBookingActions = (api: ReservationApi, scope: string, generation = scope) => {
+export const buildBookingActions = (api: ReservationApi, scope: string, generation = scope, maintenance?: MaintenanceApi, apartments?: ApartmentApi) => {
   const ownStorage = sessionStorage;
   const remember = (identity: string, intent: Intent) => ownStorage.setItem(OWN_STORAGE_KEY, JSON.stringify({ ...read(ownStorage, OWN_STORAGE_KEY), [identity]: intent }));
   const execute = async <T>(
@@ -136,6 +139,28 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
   };
 
   return {
+    block: (roomId: number, startDate: string, endDate: string, reason: string) => run(
+      GetOperationKindEnum.Block, {roomId, startDate, endDate, reason: reason.trim()}, async () => undefined,
+      (intent) => {
+        if (!apartments) throw new Error('Room maintenance is unavailable. Reload the workspace.');
+        return apartments.blockApartment({apartmentId: roomId, idempotencyKey: intent.key, roomBlockRequest: {startDate, endDate, reason: reason.trim()}});
+      },
+      (result) => {
+        if (!result.maintenance || result.maintenance.id !== result.resourceId || !validVersion(result.maintenance.version) || result.maintenance.status !== 'ACTIVE') throw new Error('The maintenance result could not be confirmed.');
+        return result.resourceId;
+      },
+    ),
+    unblock: (blockId: number, expectedVersion: number) => run(
+      GetOperationKindEnum.Unblock, {blockId}, async () => expectedVersion,
+      (intent) => {
+        if (!maintenance) throw new Error('Room maintenance is unavailable. Reload the workspace.');
+        return maintenance.cancelMaintenanceBlock({blockId, expectedVersion: intent.expectedVersion!, idempotencyKey: intent.key});
+      },
+      (result) => {
+        if (result.resourceId !== blockId || !result.maintenance || result.maintenance.id !== blockId || !validVersion(result.maintenance.version) || result.maintenance.status !== 'CANCELLED') throw new Error('The maintenance result could not be confirmed.');
+        return undefined;
+      },
+    ),
     create: (input: Omit<CreateReservationRequest, 'idempotencyKey'>) => run(
       GetOperationKindEnum.Create, {
         customerId: input.customerId, roomId: input.roomId,

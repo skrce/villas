@@ -8,6 +8,71 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
+import { Link } from "react-router-dom";
+export function TextArea({
+  label,
+  error,
+  hint,
+  ...props
+}: ComponentProps<"textarea"> & {
+  label: string;
+  error?: string;
+  hint?: string;
+}) {
+  const id = useId();
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <textarea
+        {...props}
+        id={id}
+        aria-invalid={!!error}
+        aria-describedby={error || hint ? `${id}-help` : undefined}
+      />
+      {(error || hint) && (
+        <p className={error ? "field-error" : "hint"} id={`${id}-help`}>
+          {error || hint}
+        </p>
+      )}
+    </div>
+  );
+}
+export function RecordState({ active }: { active?: boolean }) {
+  return (
+    <span
+      className={`status ${active === false ? "status-cancelled" : "status-active"}`}
+    >
+      {active === false ? "Archived" : "Active"}
+    </span>
+  );
+}
+export function MutationNotice({
+  save,
+}: {
+  save: { message: string; relatedIds: number[]; moreRecords: boolean };
+}) {
+  if (!save.message) return null;
+  return (
+    <Notice error>
+      <p>{save.message}</p>
+      {save.relatedIds.length > 0 && (
+        <ul className="conflict-links">
+          {save.relatedIds.map((id) => (
+            <li key={id}>
+              <Link to={`/reservations/${id}`}>Reservation #{id}</Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {save.moreRecords && (
+        <p>
+          Additional reservations also need resolution. Resolve these, then
+          check again.
+        </p>
+      )}
+    </Notice>
+  );
+}
 export function Field({
   label,
   error,
@@ -172,6 +237,7 @@ export function Dialog({
     return () => {
       dialog.close();
       if (previous?.isConnected) previous.focus();
+      else document.getElementById("main")?.focus();
     };
   }, []);
   return (

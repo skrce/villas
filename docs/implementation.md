@@ -12,7 +12,7 @@ start are recorded in [decisions](decisions.md).
 | 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Implemented and locally verified; final review/merge evidence is in the linked issue |
 | 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Local implementation reviewed, verified and merged in PRs #18 and #19; live Google setup explicitly deferred |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | [Implemented and independently reviewed in PR #20](https://github.com/skrce/villas/pull/20); final merge/CI evidence is in the linked issue |
-| 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Active. Guest APIs and native checks in progress; room administration and integrated screens follow |
+| 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Backend PRs #21/#22 merged after review and CI; integrated UI verified locally, final review/merge evidence is in the linked issue |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Planned |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Planned |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Planned |
@@ -218,17 +218,50 @@ adversarial cases pass and the raw gap stays explicit during later qualification
 
 ## Milestone 5 delivery
 
-The owner confirmed required first/last names and optional contacts on November 6,
-2026. Guest work adds private full-name/phone queries, bounded directory/history pages,
-normalized optional contacts, duplicate review, optimistic profile changes and retained
-archive/restore. Inventory writes share a guest lock to prevent races with archival.
-The milestone issue records subsequent PRs, exact revisions and verification. Google
-setup remains explicitly deferred under milestone 3. Room and frontend acceptance
-remain pending until their implementing PRs demonstrate them.
+The owner confirmed required first/last names and optional phone/email/address/notes
+on November 6, 2026. [PR #21](https://github.com/skrce/villas/pull/21) is merged with
+private combined Unicode name/phone queries, bounded directory/history, optional
+normalized contacts, duplicate review, versioned editing and retained archive/restore.
+Shared contacts never merge people. Guest archival and booking admission/date changes
+share a guest lock; current/future active stays must be resolved before archival.
 
-Room administration adds names/property-unique references, optional bed/features/floor
-attributes, bounded directory/detail APIs and private JSON maintenance creation. Room
-capacity/archive changes serialize with booking admission and reject affected stays
-with bounded surrogate links. Native checks cover competing Owners, rollback, room
-filters, Skopje checkout boundaries and partial V9 recovery. Integrated UI/browser
-acceptance and final review/CI are recorded by the following PR and milestone issue.
+[PR #22](https://github.com/skrce/villas/pull/22) is merged with named room references,
+capacity/bed/view/floor/features, versioned metadata/status, private JSON maintenance
+and room-filtered bounded inventory reads. Capacity/archive changes serialize with
+booking admission and return bounded links to affected reservations. V8/V9 preserve
+existing records and resume partial DDL. No legacy price is converted into a real rate.
+
+Independent reviews found and verified fixes for Unicode/prefix phone matching and
+JSON fractions being truncated into capacities or edit versions. These are permanent
+native/H2/HTTP regressions. Two reviewers cleared both final heads; exact-head CI
+passed before merge. Additional independent probes exercised every V9 statement
+prefix, concurrent reference creation and booking/archive/move/date/maintenance races.
+The room checkpoint passes 142 unit/HTTP and 124 native cases with no skips.
+
+The integrated frontend adds the guest/room directories and editable profiles, full
+reservation history, archive/restore/conflict resolution links, inline walk-ins,
+reference-labelled room choices and maintenance/history workflows. Reviewed versions
+remain in the Owner's memory-only draft across reauthentication. Explicit Load latest
+performs a fresh protected read. Unknown responses are not reported as confirmed;
+no write repeats automatically. Maintenance retains the operation-key recovery contract
+across tabs and reload, without persisting raw details. The fixture rooms now have
+explicit synthetic names/references matching the same contracts as room administration.
+
+Local frontend checks pass 71 cases. Nine real Chromium workflows verify these screens
+against signed synthetic OIDC and private MariaDB, including stale edits, 51-record
+pagination, family phones, duplicate review, capacity/archive/maintenance conflicts,
+archive/restore/history, and recovery of a lost maintenance response across tabs/reload
+without a second POST. Desktop/320px axe scans and attached screenshots pass. Final
+complete-gate, independent review and merge evidence are recorded in the milestone issue.
+
+Raw backend branch coverage is 100% for BookingProtection, 97.22% for the guest
+normalizer and 100% for the room normalizer. CustomerService is 78.95%, GuestDirectory
+86.67% and ApartmentService 81.25%. Frontend generated code is excluded; current
+application coverage is 82.00% line/74.82% branch. The retry adapter is 92.13% branch,
+session 83.92%, mutation helper 80.55% and versioned-draft helper 66.66%. Sub-90%
+critical-module targets remain explicit qualification work; passing required workflows
+is not a claim that every failure branch or production environment is verified.
+
+Real Google setup/acceptance remains explicitly deferred in milestone 3. Seasonal
+rates, complete calendar/lifecycle, settlement/reporting and deployment/pilot remain
+milestones 6-10. Milestone 5 introduces no new role, pricing, refund or hosting policy.

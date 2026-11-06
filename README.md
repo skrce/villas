@@ -5,7 +5,7 @@ Staff management for Villa Rosa, starting in North Macedonia with EUR and the
 React/TypeScript/Vite, and MariaDB.
 
 Invited Google accounts establish server-side Owner sessions. The current frontend
-has a routed staff workspace. Calendar, rates, payments,
+has a routed staff workspace with guest/room administration and dated maintenance. Calendar, rates, payments,
 and production deployment follow the
 [ten-step implementation tracker](docs/implementation.md).
 
@@ -34,7 +34,9 @@ npm ci
 npm run demo
 ```
 
-Open `http://localhost:5173` and choose **Synthetic Owner**. This uses a separate private
+Open `http://localhost:5173` and choose **Synthetic Owner**. Use Rooms to add/edit
+room metadata and maintenance, Guests to manage optional-contact profiles/history,
+and New reservation to select or create a guest inline. This uses a separate private
 demo database and loopback identity provider, with a visible demo banner. It never
 reads the real Google configuration or calls Google. Ctrl+C stops the owned servers
 and database and retains the demo records. See [frontend setup](docs/frontend.md)
@@ -92,8 +94,8 @@ node scripts/dev-db.mjs fixtures
 
 This adds two synthetic rooms only when all three business tables are empty. It
 refuses to replace existing records. No guest or booking is seeded. The fixture prices
-are legacy test values, not configured production rates. Real room/rate management
-arrives in milestones 5 and 6.
+are legacy test values, not configured production rates. Owners add/edit rooms and guests through the app. Rates and saved quotes
+remain milestone 6.
 
 ```sh
 node scripts/dev-db.mjs status

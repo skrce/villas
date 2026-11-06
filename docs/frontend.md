@@ -14,18 +14,19 @@ route focus. Feature pages load as separate chunks under `features/`.
 | Route | Implemented behavior |
 | --- | --- |
 | `/reservations` | Bounded period/status query, URL filters/cursor, empty/error/retry states and record links |
-| `/reservations/new` | Guest combobox, strict stay validation, capacity-aware room availability and reconciled creation |
+| `/reservations/new` | Full-name/phone guest combobox, inline guest creation/selection, reference-labelled room choices, strict stays and reconciled creation |
 | `/reservations/:id` | Current guest/room/stay, versioned move/date/cancellation confirmation and paged history |
-| `/guests` | Private JSON search and validated guest creation |
-| `/guests/:id` | Guest contacts, active reservations and a preselected guest link for a new reservation |
-| `/rooms` | Current room inventory and capacity; legacy fixture prices are not displayed as real rates |
+| `/guests` | Bounded private combined search, archived toggle, optional-contact creation and duplicate review |
+| `/guests/:id` | Optional contacts/notes, versioned profile edit, archive/restore, complete paginated history and new-stay link |
+| `/rooms` | Searchable bounded room directory, unique references, active/archive status and room creation |
+| `/rooms/:id` | Editable metadata, versioned archive/restore, bounded dated availability, maintenance create/cancel and retained event history |
 | `/settings/staff` | Owner invitations, revocation, deactivation and session revocation, with current versions |
 
 Owner settings requires the server-provided `staff:manage` capability. Every supported
 staff account is currently an Owner. Unknown routes have a recovery link. Calendar,
 Today, rates, reports and financial workflows are not linked before implementation.
-Full guest/room CRUD and the later booking/finance workflows remain their planned
-milestones; this checkpoint does not replace their policy gates.
+Guest/room management is implemented. Seasonal rates, the complete calendar and
+later booking/finance workflows remain their own milestones and policy gates.
 
 ## Requests, edits and recovery
 
@@ -44,7 +45,14 @@ again until the Owner closes it, reviews the latest record and opens a new confi
 The resulting operation is confirmed before success is reported; current details are
 then fetched again because a historical replay is not a claim about current state.
 
-Web Locks coordinate short updates to the shared booking claim. Each tab also retains
+Guest/room editors retain the reviewed version with their entered draft across
+reauthentication. A changed/missing version blocks resubmission. Load latest performs
+a real protected GET, updates the fields/version only after that explicit action,
+and keeps entered details if that read fails. Status confirmations retain their
+captured version until closed. Unconfirmed metadata results require read-back; Refresh
+details is available. No malformed write response is shown as a confirmed change.
+
+Web Locks coordinate short updates to the shared booking/maintenance claim. Each tab also retains
 its own unresolved operation in sessionStorage, so another tab's successful confirmation
 cannot erase its recovery key. Both stores contain only a SHA-256 identity, random
 operation key and optional expected version. They contain no raw guest IDs, dates,
@@ -56,10 +64,20 @@ explicitly include unavailable inventory and re-enter the same details to check 
 saved result. Server transactions remain authoritative for new writes.
 No mutation retries automatically. Browsers need Web Locks over HTTPS or localhost.
 
+Maintenance creation uses private JSON and the same retained-key reconciliation as
+bookings. It does not pre-block recovery based on advisory availability. Confirmation
+checks the key/kind/resource and maintenance state/version before clearing the intent.
+Successful maintenance selects its dated room window, retaining cancelled history.
+
 Guest creation has no idempotency contract yet. Its unconfirmed-result message directs
 the Owner to search saved guests before trying again. Guest creation/search criteria
 use JSON; names/contacts are not put in links or query strings. Only surrogate IDs
-and non-sensitive period/status/cursor filters appear in direct links.
+and non-sensitive period/status/cursor filters appear in direct links. Room creation
+has a unique reference rather than an operation-key contract; search that reference
+before repeating an uncertain create. Shared contacts never merge guests. Same-name
+creation requires explicit separate-person review; archived matches link to retained
+profiles. New reservation drafts are scoped by a linked guest when present, so a
+new guest link cannot accidentally retain another guest choice.
 
 ## Dates and display
 
@@ -76,7 +94,7 @@ room fixture prices or implement the later rate contract.
 Shared controls provide explicit labels, linked field errors, status announcements,
 a keyboard guest combobox, native date inputs, a modal dialog, confirmations and
 request/empty states. Native modal focus containment and Escape are preserved; closing
-restores focus to the triggering control. Important actions have visible focus and
+restores focus to the triggering control or the main content if that control was removed. Important actions have visible focus and
 44-pixel targets and require no hover or drag. Tables become labelled record cards on
 phones. Navigation and all required actions fit at 320 CSS pixels. Motion preferences
 are respected. Desktop and phone evidence is attached to the Playwright report.
@@ -116,8 +134,10 @@ The browser uses its own disposable database/provider and the production fronten
 build. It exercises guest creation, booking/date/room/cancellation persistence,
 concurrent tabs with a lost response and an explicit retry, owner invitations/session
 revocation, reauthentication without a repeated write, direct links, keyboard modal
-focus and phone record actions. Axe scans desktop, modal and 320-pixel pages. These
-are local synthetic-provider checks; real Google and deployment acceptance remain open.
+focus and phone record actions. Axe scans desktop, modal and 320-pixel pages. The milestone 5 browser checks also cover named room/profile editing, real stale-edit
+recovery, inline walk-ins, shared-contact/duplicate review, 51-record pagination,
+capacity/archive and maintenance conflicts, archive/restore/history, and maintenance
+recovery across tabs and reload. These are local synthetic-provider checks; real Google and deployment acceptance remain open.
 
 Primary API guidance: [React Router](https://reactrouter.com/start/declarative/routing),
 [TanStack query cancellation](https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation),

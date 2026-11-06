@@ -61,7 +61,15 @@ export const roomLabel = (room: {
   id?: number | null;
   view?: string | null;
   orientation?: string | null;
+  name?: string | null;
 }) =>
+  room.name ||
   [room.view || `Room ${room.id}`, room.orientation]
     .filter(Boolean)
     .join(" · ");
+export const validVersion = (value: unknown): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+
+export const roomChoiceLabel = (
+  room: Parameters<typeof roomLabel>[0] & { reference?: string | null },
+) => [roomLabel(room), room.reference].filter(Boolean).join(" · ");

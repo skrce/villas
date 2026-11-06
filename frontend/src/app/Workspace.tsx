@@ -50,6 +50,11 @@ const Rooms = lazy(() =>
     default: module.Rooms,
   })),
 );
+const RoomDetail = lazy(() =>
+  import("../features/rooms/Detail").then((module) => ({
+    default: module.RoomDetail,
+  })),
+);
 const Staff = lazy(() =>
   import("../features/staff/Staff").then((module) => ({
     default: module.Staff,
@@ -86,6 +91,8 @@ export default function Workspace() {
         apis.reservationApi,
         JSON.stringify([API_BASE, ownerId]),
         String(epoch),
+        apis.maintenanceApi,
+        apis.apartmentApi,
       ),
     };
   }, [ownerId, epoch]);
@@ -191,6 +198,7 @@ export default function Workspace() {
                     <Route path="/guests" element={<Guests />} />
                     <Route path="/guests/:guestId" element={<GuestDetail />} />
                     <Route path="/rooms" element={<Rooms />} />
+                    <Route path="/rooms/:roomId" element={<RoomDetail />} />
                     {session.permissions.includes("staff:manage") && (
                       <Route path="/settings/staff" element={<Staff />} />
                     )}

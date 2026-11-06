@@ -43,10 +43,14 @@ const session = () => ({
 });
 const responses = async (input: RequestInfo | URL) => {
   const url = String(input);
+  if (url.includes("/apartments/directory"))
+    return json({ items: [room], nextCursor: null });
   if (url.includes("/apartments")) return json([room]);
   if (url.includes("/reservations?"))
     return json({ items: [], nextCursor: null });
-  if (url.includes("/customers/search")) return json([guest]);
+  if (url.includes("/customers/query"))
+    return json({ items: [guest], nextCursor: null });
+  if (url.includes("/customers/duplicates")) return json([]);
   if (url.includes("/customers/5")) return json(guest);
   if (url.includes("/staff/invitations")) return json([]);
   if (url.endsWith("/staff")) return json([session().staff]);
@@ -125,7 +129,7 @@ describe("routed staff workspace", () => {
     );
     expect(
       await within(form).findAllByText("This field is required."),
-    ).toHaveLength(4);
+    ).toHaveLength(2);
     expect(within(form).getByLabelText("First name")).toHaveFocus();
     expect(
       api.mock.calls.some(([url]) => String(url) === "/api/v1/customers"),
@@ -175,8 +179,19 @@ describe("routed staff workspace", () => {
     expect(
       await screen.findByRole("cell", { name: "Test Guest" }),
     ).toBeInTheDocument();
-    const call = api.mock.calls.find(([input]) =>
-      String(input).endsWith("/customers/search"),
+    await waitFor(() =>
+      expect(
+        api.mock.calls.some(
+          ([input, init]) =>
+            String(input).endsWith("/customers/query") &&
+            JSON.parse(String(init?.body ?? "{}"))?.phone === "000",
+        ),
+      ).toBe(true),
+    );
+    const call = api.mock.calls.find(
+      ([input, init]) =>
+        String(input).endsWith("/customers/query") &&
+        JSON.parse(String(init?.body ?? "{}"))?.phone === "000",
     )!;
     expect(call[1]?.method).toBe("POST");
     expect(JSON.parse(String(call[1]?.body))).toMatchObject({ phone: "000" });
@@ -186,7 +201,7 @@ describe("routed staff workspace", () => {
     window.history.replaceState({}, "", "/guests");
     api.mockImplementation(() => new Promise<Response>(() => {}));
     await mount();
-    await userEvent.type(screen.getByLabelText("First name"), "Test");
+    await userEvent.type(screen.getByLabelText("Name"), "Test");
     await userEvent.click(
       screen.getByRole("button", { name: "Search guests" }),
     );
@@ -221,7 +236,7 @@ describe("routed staff workspace", () => {
     expect(
       screen.queryByRole("heading", { name: "Lake room · South" }),
     ).not.toBeInTheDocument();
-    api.mockResolvedValueOnce(json([]));
+    api.mockResolvedValueOnce(json({ items: [], nextCursor: null }));
     authenticated = true;
     await act(async () => {
       await refreshSession({ explicit: true });

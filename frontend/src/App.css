@@ -960,3 +960,111 @@ footer {
   flex-shrink: 0;
   accent-color: var(--brand);
 }
+
+.field textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.field textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.field textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.table-secondary,
+.record-list small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.full-width {
+  grid-column: 1 / -1;
+}
+.preserve-lines {
+  white-space: pre-wrap;
+}
+.duplicate-review {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--soft);
+}
+.duplicate-review h3 {
+  margin-top: 0;
+}
+.conflict-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-left: 20px;
+}
+.load-more {
+  margin-top: 20px;
+}
+.inline-action {
+  margin: 0 0 20px;
+}
+.record-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.record-columns .panel {
+  min-width: 0;
+}
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.record-actions button {
+  min-height: 44px;
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  font: inherit;
+  cursor: pointer;
+}
+.availability-note {
+  padding: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.room-card-body .section-heading {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.room-card-body h2 a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+@media (max-width: 960px) {
+  .record-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+.record-actions .text-link {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+}
+@media (max-width: 480px) {
+  .contact-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

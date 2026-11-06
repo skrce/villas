@@ -7,7 +7,7 @@ import {
   addDays,
   dateLabel,
   propertyToday,
-  roomLabel,
+  roomChoiceLabel,
   validDate,
 } from "../../shared/format";
 import {
@@ -138,7 +138,7 @@ export function Reservations() {
                   </td>
                   <td>
                     {rooms.data?.find((room) => room.id === booking.roomId)
-                      ? roomLabel(
+                      ? roomChoiceLabel(
                           rooms.data.find(
                             (room) => room.id === booking.roomId,
                           )!,
