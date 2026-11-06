@@ -1,5 +1,6 @@
 package com.villarosa.service
 
+import com.villarosa.exception.DomainException
 import com.villarosa.exception.ExceptionHandler
 import com.villarosa.repository.CustomerRepository
 import com.villarosa.repository.model.Customer
@@ -43,11 +44,11 @@ constructor(
     @Test
     fun createCustomer_throwsWhenParamEmpty() {
         val exception =
-            assertThrows<IllegalArgumentException> {
+            assertThrows<DomainException> {
                 customerService.createCustomer("", "Doe", "123", "Main")
             }
 
-        assertThat(exception.message).isEqualTo("All params should have value")
+        assertThat(exception.code).isEqualTo("INVALID_GUEST")
     }
 
     @Test
@@ -55,11 +56,11 @@ constructor(
         customerService.createCustomer("Jane", "Doe", "123", "Main")
 
         val exception =
-            assertThrows<ExceptionHandler.ClientException> {
+            assertThrows<DomainException> {
                 customerService.createCustomer("Jane", "Doe", "123", "Main")
             }
 
-        assertThat(exception.message).isEqualTo("Customer already exists!")
+        assertThat(exception.code).isEqualTo("POSSIBLE_DUPLICATE")
     }
 
     @Test
@@ -74,14 +75,13 @@ constructor(
     }
 
     @Test
-    fun searchCustomer_fallsBackToPhoneWhenFirstNameMisses() {
+    fun searchCustomer_combinesNameAndPhoneRatherThanFallingBack() {
         customerRepository.save(Customer.buildCustomer("Jane", "Doe", "123", "Main"))
         customerRepository.save(Customer.buildCustomer("John", "Doe", "456", "Other"))
 
         val results = customerService.searchCustomer("Nope", "123")
 
-        assertThat(results).hasSize(1)
-        assertThat(results[0].phone).isEqualTo("123")
+        assertThat(results).isEmpty()
     }
 
     @Test

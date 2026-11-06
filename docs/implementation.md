@@ -12,7 +12,7 @@ start are recorded in [decisions](decisions.md).
 | 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Implemented and locally verified; final review/merge evidence is in the linked issue |
 | 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Local implementation reviewed, verified and merged in PRs #18 and #19; live Google setup explicitly deferred |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | [Implemented and independently reviewed in PR #20](https://github.com/skrce/villas/pull/20); final merge/CI evidence is in the linked issue |
-| 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Planned |
+| 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Active. Guest APIs and native checks in progress; room administration and integrated screens follow |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Planned |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Planned |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Planned |
@@ -215,3 +215,13 @@ Frontend coverage excludes generated code. At this checkpoint it measures
 branch coverage, the session module 83.92%, and the mutation helper 75%.
 Session/mutation branches remain below the 90% critical-module target; required
 adversarial cases pass and the raw gap stays explicit during later qualification.
+
+## Milestone 5 delivery
+
+The owner confirmed required first/last names and optional contacts on November 6,
+2026. Guest work adds private full-name/phone queries, bounded directory/history pages,
+normalized optional contacts, duplicate review, optimistic profile changes and retained
+archive/restore. Inventory writes share a guest lock to prevent races with archival.
+The milestone issue records subsequent PRs, exact revisions and verification. Google
+setup remains explicitly deferred under milestone 3. Room and frontend acceptance
+remain pending until their implementing PRs demonstrate them.

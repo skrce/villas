@@ -7,8 +7,11 @@
 Name | Type
 ------------ | -------------
 `address` | string
+`allowDuplicate` | boolean
+`email` | string
 `firstName` | string
 `lastName` | string
+`notes` | string
 `phone` | string
 
 ## Example
@@ -19,8 +22,11 @@ import type { CustomerCreateRequest } from ''
 // TODO: Update the object below with actual values
 const example = {
   "address": null,
+  "allowDuplicate": null,
+  "email": null,
   "firstName": null,
   "lastName": null,
+  "notes": null,
   "phone": null,
 } satisfies CustomerCreateRequest
 

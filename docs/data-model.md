@@ -8,7 +8,7 @@ Property IDs are not client-controlled fields in the console.
 | Table | Main fields and invariants |
 | --- | --- |
 | `apartments` | Positive capacity, optional nonnegative legacy test price integers, active flag, optimistic version, and property scope |
-| `customers` | Existing required name/contact fields, optimistic version, and property scope. Guest-field policy D05 remains open for milestone 5. |
+| `customers` | Required first/last names, optional phone/email/address/notes, active/archive flag, optimistic version, and property scope. No uniqueness claim on shared contacts. |
 | `reservations` | Guest/room references, SQL DATE check-in/out, positive guest count, status/version, UTC creation instant, and property scope |
 | `maintenance_blocks` | Room reference, strict SQL DATE interval, reason, status/version, and property scope |
 | `inventory_operations` | Unique property/actor/kind/UUID claim, request hash, original JSON result, and UTC creation instant |
@@ -34,3 +34,9 @@ Legacy price integers have no production rate meaning. Exact EUR-cent rate and q
 records belong to milestone 6; no historical conversion is performed. Business
 initialization remains empty, and synthetic rooms require an explicit local fixture
 command.
+
+Guest changes retain reservations and write surrogate-only business audit events in
+the same transaction. Guest archival and inventory creation/edits share a guest row
+lock before apartment locks. An archived guest cannot acquire a new or extended
+reservation. Current/future active reservations must be resolved before archival.
+V8 adds optional guest fields without rewriting existing names or contacts.

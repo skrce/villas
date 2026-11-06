@@ -19,6 +19,11 @@ import type {
   CustomerCreateRequest,
   CustomerSearchRequest,
   ErrorResponse,
+  GuestPage,
+  GuestQueryRequest,
+  GuestUpdateRequest,
+  RecordStatusRequest,
+  ReservationPage,
 } from '../models/index';
 import {
     CustomerFromJSON,
@@ -29,18 +34,53 @@ import {
     CustomerSearchRequestToJSON,
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
+    GuestPageFromJSON,
+    GuestPageToJSON,
+    GuestQueryRequestFromJSON,
+    GuestQueryRequestToJSON,
+    GuestUpdateRequestFromJSON,
+    GuestUpdateRequestToJSON,
+    RecordStatusRequestFromJSON,
+    RecordStatusRequestToJSON,
+    ReservationPageFromJSON,
+    ReservationPageToJSON,
 } from '../models/index';
 
 export interface CreateCustomerRequest {
     customerCreateRequest: CustomerCreateRequest;
 }
 
+export interface CustomerDuplicatesRequest {
+    customerCreateRequest: CustomerCreateRequest;
+}
+
+export interface CustomerReservationsRequest {
+    customerId: number;
+    afterId?: number;
+    limit?: number;
+    status?: CustomerReservationsStatusEnum;
+}
+
 export interface GetCustomerRequest {
     customerId: number;
 }
 
+export interface QueryCustomersRequest {
+    guestQueryRequest: GuestQueryRequest;
+}
+
 export interface SearchCustomerRequest {
     customerSearchRequest: CustomerSearchRequest;
+}
+
+export interface SetCustomerStatusRequest {
+    customerId: number;
+    recordStatusRequest: RecordStatusRequest;
+}
+
+export interface UpdateCustomerRequest {
+    customerId: number;
+    guestUpdateRequest: GuestUpdateRequest;
 }
 
 /**
@@ -92,6 +132,94 @@ export class CustomerApi extends runtime.BaseAPI {
     }
 
     /**
+     * Review possible guest matches without merging identities
+     */
+    async customerDuplicatesRaw(requestParameters: CustomerDuplicatesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<Customer>>> {
+        if (requestParameters['customerCreateRequest'] == null) {
+            throw new runtime.RequiredError(
+                'customerCreateRequest',
+                'Required parameter "customerCreateRequest" was null or undefined when calling customerDuplicates().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/customers/duplicates`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CustomerCreateRequestToJSON(requestParameters['customerCreateRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(CustomerFromJSON));
+    }
+
+    /**
+     * Review possible guest matches without merging identities
+     */
+    async customerDuplicates(requestParameters: CustomerDuplicatesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<Customer>> {
+        const response = await this.customerDuplicatesRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read a bounded guest history including retained cancellations
+     */
+    async customerReservationsRaw(requestParameters: CustomerReservationsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ReservationPage>> {
+        if (requestParameters['customerId'] == null) {
+            throw new runtime.RequiredError(
+                'customerId',
+                'Required parameter "customerId" was null or undefined when calling customerReservations().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['afterId'] != null) {
+            queryParameters['afterId'] = requestParameters['afterId'];
+        }
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        if (requestParameters['status'] != null) {
+            queryParameters['status'] = requestParameters['status'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/customers/{customerId}/reservations`;
+        urlPath = urlPath.replace(`{${"customerId"}}`, encodeURIComponent(String(requestParameters['customerId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ReservationPageFromJSON(jsonValue));
+    }
+
+    /**
+     * Read a bounded guest history including retained cancellations
+     */
+    async customerReservations(requestParameters: CustomerReservationsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ReservationPage> {
+        const response = await this.customerReservationsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Read a property-scoped guest
      */
     async getCustomerRaw(requestParameters: GetCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Customer>> {
@@ -125,6 +253,45 @@ export class CustomerApi extends runtime.BaseAPI {
      */
     async getCustomer(requestParameters: GetCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Customer> {
         const response = await this.getCustomerRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * List or search guests with private combined criteria and a bounded cursor
+     */
+    async queryCustomersRaw(requestParameters: QueryCustomersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GuestPage>> {
+        if (requestParameters['guestQueryRequest'] == null) {
+            throw new runtime.RequiredError(
+                'guestQueryRequest',
+                'Required parameter "guestQueryRequest" was null or undefined when calling queryCustomers().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/customers/query`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: GuestQueryRequestToJSON(requestParameters['guestQueryRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GuestPageFromJSON(jsonValue));
+    }
+
+    /**
+     * List or search guests with private combined criteria and a bounded cursor
+     */
+    async queryCustomers(requestParameters: QueryCustomersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GuestPage> {
+        const response = await this.queryCustomersRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -167,4 +334,107 @@ export class CustomerApi extends runtime.BaseAPI {
         return await response.value();
     }
 
+    /**
+     * Archive or restore a guest without deleting history
+     */
+    async setCustomerStatusRaw(requestParameters: SetCustomerStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Customer>> {
+        if (requestParameters['customerId'] == null) {
+            throw new runtime.RequiredError(
+                'customerId',
+                'Required parameter "customerId" was null or undefined when calling setCustomerStatus().'
+            );
+        }
+
+        if (requestParameters['recordStatusRequest'] == null) {
+            throw new runtime.RequiredError(
+                'recordStatusRequest',
+                'Required parameter "recordStatusRequest" was null or undefined when calling setCustomerStatus().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/customers/{customerId}/status`;
+        urlPath = urlPath.replace(`{${"customerId"}}`, encodeURIComponent(String(requestParameters['customerId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: RecordStatusRequestToJSON(requestParameters['recordStatusRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CustomerFromJSON(jsonValue));
+    }
+
+    /**
+     * Archive or restore a guest without deleting history
+     */
+    async setCustomerStatus(requestParameters: SetCustomerStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Customer> {
+        const response = await this.setCustomerStatusRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Replace a guest profile using the reviewed version
+     */
+    async updateCustomerRaw(requestParameters: UpdateCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Customer>> {
+        if (requestParameters['customerId'] == null) {
+            throw new runtime.RequiredError(
+                'customerId',
+                'Required parameter "customerId" was null or undefined when calling updateCustomer().'
+            );
+        }
+
+        if (requestParameters['guestUpdateRequest'] == null) {
+            throw new runtime.RequiredError(
+                'guestUpdateRequest',
+                'Required parameter "guestUpdateRequest" was null or undefined when calling updateCustomer().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/customers/{customerId}`;
+        urlPath = urlPath.replace(`{${"customerId"}}`, encodeURIComponent(String(requestParameters['customerId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'PUT',
+            headers: headerParameters,
+            query: queryParameters,
+            body: GuestUpdateRequestToJSON(requestParameters['guestUpdateRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CustomerFromJSON(jsonValue));
+    }
+
+    /**
+     * Replace a guest profile using the reviewed version
+     */
+    async updateCustomer(requestParameters: UpdateCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Customer> {
+        const response = await this.updateCustomerRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
 }
+
+/**
+ * @export
+ */
+export const CustomerReservationsStatusEnum = {
+    Active: 'ACTIVE',
+    Cancelled: 'CANCELLED'
+} as const;
+export type CustomerReservationsStatusEnum = typeof CustomerReservationsStatusEnum[keyof typeof CustomerReservationsStatusEnum];

@@ -28,9 +28,8 @@ class InventoryWriter(
         guestCount: Int,
         key: String,
     ): OperationResult {
+        checkGuest(customerId)
         val room = lockRooms(listOf(roomId)).getValue(roomId)
-        if (guests.findByPropertyIdAndId(PropertyScope.ID, customerId) == null)
-            missing("Guest does not exist.")
         checkRoom(room, guestCount)
         checkAvailable(roomId, dates)
         val booking =
@@ -47,6 +46,9 @@ class InventoryWriter(
     }
 
     fun move(id: Int, destination: Int, expected: Long?, key: String): OperationResult {
+        checkGuest(
+            reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+        )
         val original =
             reservations.roomId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
         val locked = lockRooms(listOf(original, destination))
@@ -74,6 +76,9 @@ class InventoryWriter(
         expected: Long,
         key: String,
     ): OperationResult {
+        checkGuest(
+            reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+        )
         val roomId =
             reservations.roomId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
         val room = lockRooms(listOf(roomId)).getValue(roomId)
@@ -180,6 +185,12 @@ class InventoryWriter(
         if (guestCount > (room.capacity ?: 0))
             invalid("CAPACITY_EXCEEDED", "Guest count exceeds room capacity.")
         if (!room.active) conflict("ROOM_INACTIVE", "The room is inactive.")
+    }
+
+    private fun checkGuest(id: Int) {
+        val guest = guests.locked(PropertyScope.ID, id) ?: missing("Guest does not exist.")
+        if (!guest.active)
+            conflict("GUEST_ARCHIVED", "Restore this guest before making a reservation change.")
     }
 
     private fun checkAvailable(roomId: Int, dates: StayDates, excluded: Int = -1) {

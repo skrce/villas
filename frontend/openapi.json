@@ -43,7 +43,14 @@
       },
       "Customer": {
         "properties": {
+          "active": {
+            "type": "boolean"
+          },
           "address": {
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
             "nullable": true,
             "type": "string"
           },
@@ -57,6 +64,10 @@
             "type": "integer"
           },
           "lastName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "notes": {
             "nullable": true,
             "type": "string"
           },
@@ -74,8 +85,18 @@
       "CustomerCreateRequest": {
         "properties": {
           "address": {
-            "maxLength": 200,
+            "maxLength": 500,
             "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          },
+          "allowDuplicate": {
+            "type": "boolean"
+          },
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "nullable": true,
             "type": "string"
           },
           "firstName": {
@@ -88,17 +109,22 @@
             "minLength": 0,
             "type": "string"
           },
+          "notes": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          },
           "phone": {
             "maxLength": 200,
             "minLength": 0,
+            "nullable": true,
             "type": "string"
           }
         },
         "required": [
-          "address",
           "firstName",
-          "lastName",
-          "phone"
+          "lastName"
         ],
         "type": "object"
       },
@@ -137,6 +163,106 @@
         "required": [
           "code",
           "message"
+        ],
+        "type": "object"
+      },
+      "GuestPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Customer"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "GuestQueryRequest": {
+        "properties": {
+          "afterId": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "includeArchived": {
+            "type": "boolean"
+          },
+          "limit": {
+            "format": "int32",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 200,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "GuestUpdateRequest": {
+        "properties": {
+          "address": {
+            "maxLength": 500,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          },
+          "expectedVersion": {
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "firstName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "lastName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 200,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "firstName",
+          "lastName"
         ],
         "type": "object"
       },
@@ -346,6 +472,25 @@
           "key",
           "kind",
           "resourceId"
+        ],
+        "type": "object"
+      },
+      "RecordStatusRequest": {
+        "properties": {
+          "active": {
+            "nullable": true,
+            "type": "boolean"
+          },
+          "expectedVersion": {
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "active",
+          "expectedVersion"
         ],
         "type": "object"
       },
@@ -639,6 +784,91 @@
         ]
       }
     },
+    "/customers/duplicates": {
+      "post": {
+        "operationId": "customerDuplicates",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Customer"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Review possible guest matches without merging identities",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/customers/query": {
+      "post": {
+        "operationId": "queryCustomers",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "List or search guests with private combined criteria and a bounded cursor",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
     "/customers/search": {
       "post": {
         "operationId": "searchCustomer",
@@ -720,6 +950,182 @@
           }
         },
         "summary": "Read a property-scoped guest",
+        "tags": [
+          "Customer"
+        ]
+      },
+      "put": {
+        "operationId": "updateCustomer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GuestUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Replace a guest profile using the reviewed version",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/customers/{customerId}/reservations": {
+      "get": {
+        "operationId": "customerReservations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "afterId",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "ACTIVE",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read a bounded guest history including retained cancellations",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/customers/{customerId}/status": {
+      "post": {
+        "operationId": "setCustomerStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "customerId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Archive or restore a guest without deleting history",
         "tags": [
           "Customer"
         ]

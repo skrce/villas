@@ -21,10 +21,22 @@ import { mapValues } from '../runtime';
 export interface Customer {
     /**
      * 
+     * @type {boolean}
+     * @memberof Customer
+     */
+    active?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof Customer
      */
     address?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof Customer
+     */
+    email?: string | null;
     /**
      * 
      * @type {string}
@@ -43,6 +55,12 @@ export interface Customer {
      * @memberof Customer
      */
     lastName?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof Customer
+     */
+    notes?: string | null;
     /**
      * 
      * @type {string}
@@ -74,10 +92,13 @@ export function CustomerFromJSONTyped(json: any, ignoreDiscriminator: boolean): 
     }
     return {
         
+        'active': json['active'] == null ? undefined : json['active'],
         'address': json['address'] == null ? undefined : json['address'],
+        'email': json['email'] == null ? undefined : json['email'],
         'firstName': json['firstName'] == null ? undefined : json['firstName'],
         'id': json['id'] == null ? undefined : json['id'],
         'lastName': json['lastName'] == null ? undefined : json['lastName'],
+        'notes': json['notes'] == null ? undefined : json['notes'],
         'phone': json['phone'] == null ? undefined : json['phone'],
         'version': json['version'] == null ? undefined : json['version'],
     };
@@ -94,10 +115,13 @@ export function CustomerToJSONTyped(value?: Customer | null, ignoreDiscriminator
 
     return {
         
+        'active': value['active'],
         'address': value['address'],
+        'email': value['email'],
         'firstName': value['firstName'],
         'id': value['id'],
         'lastName': value['lastName'],
+        'notes': value['notes'],
         'phone': value['phone'],
         'version': value['version'],
     };

@@ -12,6 +12,20 @@ import org.springframework.stereotype.Repository
 
 @Repository
 interface ReservationRepository : JpaRepository<Reservation, Int> {
+    @Query("select r.customerId from Reservation r where r.propertyId=:property and r.id=:id")
+    fun customerId(property: String, id: Int): Int?
+
+    @Query(
+        "select r from Reservation r where r.propertyId=:property and r.customerId=:guest and (:after=0 or r.id<:after) and (:status is null or r.status=:status) order by r.id desc"
+    )
+    fun guestHistory(
+        property: String,
+        guest: Int,
+        after: Int,
+        status: ReservationStatus?,
+        pageable: Pageable,
+    ): List<Reservation>
+
     @Query("select r.roomId from Reservation r where r.propertyId=:property and r.id=:id")
     fun roomId(property: String, id: Int): Int?
 
