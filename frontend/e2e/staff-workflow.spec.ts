@@ -283,6 +283,18 @@ test("calendar selection creates a quoted stay that persists on the desktop grid
       exact: true,
     }),
   ).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 760 });
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("booking-review-phone.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page
     .getByRole("button", { name: "Confirm reservation · €130.00", exact: true })
     .click();
