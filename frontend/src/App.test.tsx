@@ -150,7 +150,7 @@ describe('staff console API integration', () => {
   it('hides loaded guest data on expiry and preserves entered form details for explicit review', async () => {
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([room]), { headers: { 'Content-Type': 'application/json' } }));
     render(<App />);
-    const form = screen.getByRole('form', { name: 'Create customer', exact: true });
+    const form = screen.getByRole('form', { name: 'Create customer' });
     await userEvent.type(within(form).getByLabelText('First name'), 'Retained');
     await userEvent.click(screen.getByRole('button', { name: 'Load apartments' }));
     await screen.findByRole('cell', { name: 'Lake' });
@@ -160,7 +160,7 @@ describe('staff console API integration', () => {
     expect(screen.getByRole('button', { name: 'Sign in to local demo' })).toBeInTheDocument();
     signedIn = true;
     await act(async () => { await refreshSession(); });
-    expect(within(screen.getByRole('form', { name: 'Create customer', exact: true })).getByLabelText('First name')).toHaveValue('Retained');
+    expect(within(screen.getByRole('form', { name: 'Create customer' })).getByLabelText('First name')).toHaveValue('Retained');
     expect(screen.queryByRole('cell', { name: 'Lake' })).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledOnce();
   });
