@@ -8,6 +8,8 @@ Name | Type
 ------------ | -------------
 `code` | string
 `message` | string
+`moreReservations` | boolean
+`relatedReservationIds` | Array&lt;number&gt;
 
 ## Example
 
@@ -18,6 +20,8 @@ import type { ErrorResponse } from ''
 const example = {
   "code": null,
   "message": null,
+  "moreReservations": null,
+  "relatedReservationIds": null,
 } satisfies ErrorResponse
 
 console.log(example)

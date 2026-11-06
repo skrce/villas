@@ -13,7 +13,7 @@ All URIs are relative to */api/v1*
 
 ## listMaintenanceBlocks
 
-> MaintenancePage listMaintenanceBlocks(startDate, endDate, status, afterId, limit)
+> MaintenancePage listMaintenanceBlocks(startDate, endDate, status, afterId, limit, roomId)
 
 Read a bounded maintenance calendar page
 
@@ -45,6 +45,8 @@ async function example() {
     afterId: 56,
     // number (optional)
     limit: 56,
+    // number (optional)
+    roomId: 56,
   } satisfies ListMaintenanceBlocksRequest;
 
   try {
@@ -69,6 +71,7 @@ example().catch(console.error);
 | **status** | `ACTIVE`, `CANCELLED` |  | [Optional] [Defaults to `undefined`] [Enum: ACTIVE, CANCELLED] |
 | **afterId** | `number` |  | [Optional] [Defaults to `0`] |
 | **limit** | `number` |  | [Optional] [Defaults to `100`] |
+| **roomId** | `number` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -95,7 +98,7 @@ example().catch(console.error);
 
 ## listReservations
 
-> ReservationPage listReservations(startDate, endDate, status, afterId, limit)
+> ReservationPage listReservations(startDate, endDate, status, afterId, limit, roomId)
 
 Read a bounded overlapping-stay calendar page
 
@@ -127,6 +130,8 @@ async function example() {
     afterId: 56,
     // number (optional)
     limit: 56,
+    // number (optional)
+    roomId: 56,
   } satisfies ListReservationsRequest;
 
   try {
@@ -151,6 +156,7 @@ example().catch(console.error);
 | **status** | `ACTIVE`, `CANCELLED` |  | [Optional] [Defaults to `undefined`] [Enum: ACTIVE, CANCELLED] |
 | **afterId** | `number` |  | [Optional] [Defaults to `0`] |
 | **limit** | `number` |  | [Optional] [Defaults to `100`] |
+| **roomId** | `number` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 

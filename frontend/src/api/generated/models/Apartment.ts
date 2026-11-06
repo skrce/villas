@@ -27,10 +27,28 @@ export interface Apartment {
     active?: boolean;
     /**
      * 
+     * @type {string}
+     * @memberof Apartment
+     */
+    bedConfiguration?: string | null;
+    /**
+     * 
      * @type {number}
      * @memberof Apartment
      */
     capacity?: number | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof Apartment
+     */
+    features?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof Apartment
+     */
+    floor?: string | null;
     /**
      * 
      * @type {number}
@@ -42,7 +60,19 @@ export interface Apartment {
      * @type {string}
      * @memberof Apartment
      */
+    name?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Apartment
+     */
     orientation?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof Apartment
+     */
+    reference?: string;
     /**
      * 
      * @type {number}
@@ -87,9 +117,14 @@ export function ApartmentFromJSONTyped(json: any, ignoreDiscriminator: boolean):
     return {
         
         'active': json['active'] == null ? undefined : json['active'],
+        'bedConfiguration': json['bedConfiguration'] == null ? undefined : json['bedConfiguration'],
         'capacity': json['capacity'] == null ? undefined : json['capacity'],
+        'features': json['features'] == null ? undefined : json['features'],
+        'floor': json['floor'] == null ? undefined : json['floor'],
         'id': json['id'] == null ? undefined : json['id'],
+        'name': json['name'] == null ? undefined : json['name'],
         'orientation': json['orientation'] == null ? undefined : json['orientation'],
+        'reference': json['reference'] == null ? undefined : json['reference'],
         'regularPrice': json['regularPrice'] == null ? undefined : json['regularPrice'],
         'topSeasonPrice': json['topSeasonPrice'] == null ? undefined : json['topSeasonPrice'],
         'version': json['version'] == null ? undefined : json['version'],
@@ -109,9 +144,14 @@ export function ApartmentToJSONTyped(value?: Apartment | null, ignoreDiscriminat
     return {
         
         'active': value['active'],
+        'bedConfiguration': value['bedConfiguration'],
         'capacity': value['capacity'],
+        'features': value['features'],
+        'floor': value['floor'],
         'id': value['id'],
+        'name': value['name'],
         'orientation': value['orientation'],
+        'reference': value['reference'],
         'regularPrice': value['regularPrice'],
         'topSeasonPrice': value['topSeasonPrice'],
         'version': value['version'],

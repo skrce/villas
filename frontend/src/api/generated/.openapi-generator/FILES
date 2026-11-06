@@ -29,6 +29,10 @@ docs/RecordStatusRequest.md
 docs/ReservationApi.md
 docs/ReservationInfo.md
 docs/ReservationPage.md
+docs/RoomBlockRequest.md
+docs/RoomCreateRequest.md
+docs/RoomPage.md
+docs/RoomUpdateRequest.md
 docs/SessionView.md
 docs/StaffApi.md
 docs/StaffVersionRequest.md
@@ -52,6 +56,10 @@ models/OperationResult.ts
 models/RecordStatusRequest.ts
 models/ReservationInfo.ts
 models/ReservationPage.ts
+models/RoomBlockRequest.ts
+models/RoomCreateRequest.ts
+models/RoomPage.ts
+models/RoomUpdateRequest.ts
 models/SessionView.ts
 models/StaffVersionRequest.ts
 models/StaffView.ts

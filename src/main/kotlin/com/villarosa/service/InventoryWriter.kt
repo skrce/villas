@@ -124,7 +124,8 @@ class InventoryWriter(
     }
 
     fun block(roomId: Int, dates: StayDates, reason: String, key: String): OperationResult {
-        lockRooms(listOf(roomId))
+        val room = lockRooms(listOf(roomId)).getValue(roomId)
+        if (!room.active) conflict("ROOM_INACTIVE", "Restore this room before adding maintenance.")
         checkAvailable(roomId, dates)
         val block =
             blocks.saveAndFlush(

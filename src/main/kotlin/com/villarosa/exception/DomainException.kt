@@ -2,8 +2,13 @@ package com.villarosa.exception
 
 import org.springframework.http.HttpStatus
 
-class DomainException(val code: String, val status: HttpStatus, override val message: String) :
-    RuntimeException(message)
+class DomainException(
+    val code: String,
+    val status: HttpStatus,
+    override val message: String,
+    val relatedReservationIds: List<Int>? = null,
+    val moreReservations: Boolean? = null,
+) : RuntimeException(message)
 
 fun invalid(code: String, message: String): Nothing =
     throw DomainException(code, HttpStatus.BAD_REQUEST, message)

@@ -26,7 +26,7 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(8)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(9)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
@@ -74,7 +74,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(7)
+            .isEqualTo(8)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement
@@ -333,7 +333,12 @@ class MigrationsIT {
             }
         }
         val flyway =
-            DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
+            DatabaseMigrations.configured(
+                database.jdbcUrl,
+                database.username,
+                database.password,
+                "8",
+            )
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         connection().use { connection ->
@@ -357,6 +362,60 @@ class MigrationsIT {
                 assertThrows<SQLException> {
                     statement.executeUpdate("UPDATE customers SET active=2 WHERE id=1")
                 }
+            }
+        }
+    }
+
+    @Test
+    fun roomDirectoryUpgradeResumesPartialDdlAndPreservesBookingsPricesAndExistingMetadata() {
+        DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "8")
+            .migrate()
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "INSERT INTO apartments (id, capacity, orientation, view, regular_price) VALUES (1, 3, 'South', 'Езеро', 123)"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO customers (id,first_name,last_name) VALUES (1,'Walk','In')"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO reservations (customer_id,room_id,start_date,end_date) VALUES (1,1,'2099-01-01','2099-01-03')"
+                )
+                statement.execute(
+                    "ALTER TABLE apartments ADD COLUMN name VARCHAR(200) NOT NULL DEFAULT 'Room', ADD COLUMN reference VARCHAR(32) NULL"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO apartments (id,capacity,name,reference) VALUES (2,2,'Custom studio','CUSTOM-2')"
+                )
+            }
+        }
+        val flyway =
+            DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
+        assertThat(flyway.migrate().migrationsExecuted).isZero()
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement
+                    .executeQuery(
+                        "SELECT a.name,a.reference,a.regular_price,r.start_date FROM apartments a JOIN reservations r ON r.room_id=a.id WHERE a.id=1"
+                    )
+                    .use { row ->
+                        assertThat(row.next()).isTrue()
+                        assertThat(row.getString(1)).isEqualTo("Езеро · South")
+                        assertThat(row.getString(2)).isEqualTo("ROOM-1")
+                        assertThat(row.getInt(3)).isEqualTo(123)
+                        assertThat(row.getString(4)).isEqualTo("2099-01-01")
+                    }
+                statement.executeQuery("SELECT name FROM apartments WHERE id=2").use { row ->
+                    row.next()
+                    assertThat(row.getString(1)).isEqualTo("Custom studio")
+                }
+                assertThrows<SQLException> {
+                    statement.executeUpdate("UPDATE apartments SET reference='ROOM-1' WHERE id=2")
+                }
+                statement.executeUpdate(
+                    "INSERT INTO apartments (capacity, property_id, reference) VALUES (2,'other','ROOM-1')"
+                )
             }
         }
     }

@@ -7,10 +7,10 @@ requires an explicit capability decision, server enforcement, and denial tests.
 | Capability | Owner |
 | --- | --- |
 | List/search/edit/archive/restore guests and use the implemented reservation workflows | Allowed |
-| Read rooms and manage dated maintenance | Allowed |
+| Read/create/edit/archive/restore rooms and manage dated maintenance | Allowed |
 | Invite another Owner, revoke invitations, deactivate accounts, revoke sessions | Allowed, with current membership and last-owner protection |
 | Read operational and staff audit history | Allowed |
-| Future room/rate configuration, payments, refunds, reports | Only after their domain implementation and policy gates |
+| Future rate configuration, payments, refunds, reports | Only after their domain implementation and policy gates |
 
 The account foundation validates current active membership, property scope, and a
 security generation in services. Administrative mutations serialize on the property
@@ -46,3 +46,8 @@ Every new guest query and mutation checks current membership and property scope.
 Housekeeping is not an available role and direct requests with that authority are
 rejected. Guest writes lock the Owner and affected guest, require CSRF/Origin at the
 HTTP boundary, and record surrogate IDs without copying contact fields into audit.
+
+The Owner session now advertises `rooms:write`. Room administration and JSON
+maintenance creation enforce current Owner membership/property scope in the backend.
+No housekeeping or front-desk role is introduced. The UI uses these capabilities for
+its controls and the server remains authoritative.

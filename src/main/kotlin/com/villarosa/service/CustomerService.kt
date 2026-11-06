@@ -10,11 +10,7 @@ import com.villarosa.repository.model.*
 import com.villarosa.security.BusinessAudit
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
-import java.time.Clock
-import java.time.LocalDate
-import java.time.ZoneId
 import org.springframework.data.domain.PageRequest
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Transactional
@@ -28,8 +24,7 @@ class CustomerService(
     private val audit: BusinessAudit,
     private val directory: GuestDirectory,
     private val reservations: ReservationRepository,
-    private val jdbc: JdbcTemplate,
-    private val clock: Clock,
+    private val protection: BookingProtection,
 ) {
     fun createCustomer(
         firstName: String,
@@ -79,20 +74,7 @@ class CustomerService(
             customerRepository.locked(PropertyScope.ID, id) ?: missing("Guest does not exist.")
         expected(guest.version, version)
         if (guest.active != active) {
-            if (
-                !active &&
-                    jdbc.queryForObject(
-                        "SELECT COUNT(*) FROM reservations WHERE property_id=? AND customer_id=? AND status='ACTIVE' AND end_date>?",
-                        Long::class.java,
-                        PropertyScope.ID,
-                        id,
-                        LocalDate.now(clock.withZone(ZoneId.of("Europe/Skopje"))),
-                    ) != 0L
-            )
-                conflict(
-                    "GUEST_HAS_BOOKINGS",
-                    "Cancel this guest's current and future reservations before archiving.",
-                )
+            if (!active) protection.guestArchive(id)
             guest.active = active
             customerRepository.saveAndFlush(guest)
             audit.record(

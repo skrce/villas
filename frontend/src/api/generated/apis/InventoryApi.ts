@@ -37,6 +37,7 @@ export interface ListMaintenanceBlocksRequest {
     status?: ListMaintenanceBlocksStatusEnum;
     afterId?: number;
     limit?: number;
+    roomId?: number;
 }
 
 export interface ListReservationsRequest {
@@ -45,6 +46,7 @@ export interface ListReservationsRequest {
     status?: ListReservationsStatusEnum;
     afterId?: number;
     limit?: number;
+    roomId?: number;
 }
 
 export interface MaintenanceHistoryRequest {
@@ -102,6 +104,10 @@ export class InventoryApi extends runtime.BaseAPI {
 
         if (requestParameters['limit'] != null) {
             queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        if (requestParameters['roomId'] != null) {
+            queryParameters['roomId'] = requestParameters['roomId'];
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
@@ -165,6 +171,10 @@ export class InventoryApi extends runtime.BaseAPI {
 
         if (requestParameters['limit'] != null) {
             queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        if (requestParameters['roomId'] != null) {
+            queryParameters['roomId'] = requestParameters['roomId'];
         }
 
         const headerParameters: runtime.HTTPHeaders = {};

@@ -225,3 +225,10 @@ archive/restore. Inventory writes share a guest lock to prevent races with archi
 The milestone issue records subsequent PRs, exact revisions and verification. Google
 setup remains explicitly deferred under milestone 3. Room and frontend acceptance
 remain pending until their implementing PRs demonstrate them.
+
+Room administration adds names/property-unique references, optional bed/features/floor
+attributes, bounded directory/detail APIs and private JSON maintenance creation. Room
+capacity/archive changes serialize with booking admission and reject affected stays
+with bounded surrogate links. Native checks cover competing Owners, rollback, room
+filters, Skopje checkout boundaries and partial V9 recovery. Integrated UI/browser
+acceptance and final review/CI are recorded by the following PR and milestone issue.
