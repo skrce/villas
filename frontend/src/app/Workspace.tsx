@@ -114,7 +114,7 @@ export default function Workspace() {
       : []),
   ];
   return (
-    <QueryClientProvider client={cache}>
+    <QueryClientProvider key={epoch} client={cache}>
       <WorkspaceContext.Provider value={context}>
         <DraftContext.Provider value={drafts}>
           <div className="workspace">

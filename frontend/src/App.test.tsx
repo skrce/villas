@@ -56,6 +56,7 @@ beforeEach(async () => {
   authenticated = true;
   ownerId = "owner-test";
   localStorage.clear();
+  sessionStorage.clear();
   window.history.replaceState({}, "", "/rooms");
   api.mockReset();
   api.mockImplementation(responses);
@@ -387,6 +388,126 @@ describe("routed staff workspace", () => {
     expect(await screen.findByRole("combobox", { name: "Guest" })).toHaveValue(
       "",
     );
+  });
+  it("reconciles a lost create after same-Owner recovery makes the committed room unavailable", async () => {
+    window.history.replaceState({}, "", "/reservations/new?guest=5");
+    let committed = false;
+    api.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), "http://test");
+      if (url.pathname === "/api/v1/reservations/available-apartments")
+        return json(committed ? [] : [room]);
+      if (url.pathname === "/api/v1/reservations" && init?.method === "POST") {
+        committed = true;
+        throw new TypeError("Response lost after commit");
+      }
+      if (url.pathname.startsWith("/api/v1/operations/"))
+        return json({
+          key: url.pathname.split("/").pop(),
+          kind: "CREATE",
+          resourceId: 42,
+        });
+      return responses(input);
+    });
+    await mount();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Guest" })).toHaveValue(
+        "Test Guest",
+      ),
+    );
+    await userEvent.selectOptions(await screen.findByLabelText("Room"), "7");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create reservation" }),
+    );
+    expect(
+      await screen.findByText(/The result could not be confirmed/),
+    ).toBeInTheDocument();
+    expect(
+      sessionStorage.getItem("villarosa.ownPendingOperations.v2"),
+    ).toContain("key");
+    authenticated = false;
+    await act(async () => {
+      await refreshSession();
+    });
+    authenticated = true;
+    await act(async () => {
+      await refreshSession({ explicit: true });
+    });
+    expect(
+      await screen.findByText("No rooms currently available"),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create reservation" }),
+    );
+    await waitFor(() =>
+      expect(
+        api.mock.calls.filter(([url]) =>
+          String(url).includes("/api/v1/operations/"),
+        ),
+      ).toHaveLength(1),
+    );
+  });
+  it("refreshes current reservation after a confirmed write in a new same-Owner login generation", async () => {
+    window.history.replaceState({}, "", "/reservations/42");
+    let cancelled = false;
+    api.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), "http://test");
+      if (url.pathname === "/api/v1/reservations/42/events")
+        return json({ items: [], nextCursor: null });
+      if (url.pathname === "/api/v1/reservations/42")
+        return json({
+          id: 42,
+          customerId: 5,
+          roomId: 7,
+          startDate: "2026-11-06",
+          endDate: "2026-11-09",
+          guestCount: 1,
+          nights: 3,
+          status: cancelled ? "CANCELLED" : "ACTIVE",
+          version: cancelled ? 1 : 0,
+        });
+      if (init?.method === "DELETE") {
+        cancelled = true;
+        return new Response(null, { status: 200 });
+      }
+      if (url.pathname.startsWith("/api/v1/operations/"))
+        return json({
+          key: url.pathname.split("/").pop(),
+          kind: "CANCEL",
+          resourceId: 42,
+        });
+      return responses(input);
+    });
+    await mount();
+    await screen.findByRole("button", { name: "Cancel reservation" });
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).endsWith("/auth/session")
+        ? Promise.resolve(
+            json({ ...session(), generation: "fresh-login-with-same-owner" }),
+          )
+        : api(input, init),
+    );
+    await act(async () => {
+      await refreshSession({ explicit: true });
+    });
+    await waitFor(() =>
+      expect(
+        api.mock.calls.filter(
+          ([input]) => String(input) === "/api/v1/reservations/42",
+        ),
+      ).toHaveLength(2),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Cancel reservation" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Confirm cancellation" }),
+    );
+    await screen.findByText(
+      "Request confirmed. Review the current reservation below.",
+    );
+    expect(
+      await screen.findByText("Cancelled", { exact: true }),
+    ).toBeInTheDocument();
   });
 });
 function guestSchemaFields() {

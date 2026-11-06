@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
@@ -9,6 +9,7 @@ import { bookingSchema, staySchema } from "../../shared/schemas";
 import { addDays, propertyToday, roomLabel } from "../../shared/format";
 import { useDraft } from "../../shared/useDraft";
 import { useSave } from "../../shared/useSave";
+import { useRooms } from "../rooms/queries";
 import { GuestPicker } from "../../shared/GuestPicker";
 import {
   Empty,
@@ -86,6 +87,23 @@ export function NewReservation() {
       ),
     enabled: valid,
   });
+  const inventory = useRooms();
+  const [includeUnavailable, setIncludeUnavailable] = useState(false);
+  const available = (rooms.data ?? []).filter((room) => room.active !== false);
+  const choices = [
+    ...(includeUnavailable ? (inventory.data ?? available) : available),
+  ];
+  if (
+    values.roomId &&
+    !choices.some((room) => room.id === Number(values.roomId))
+  ) {
+    choices.push(
+      inventory.data?.find((room) => room.id === Number(values.roomId)) ?? {
+        id: Number(values.roomId),
+        view: "Previous room choice",
+      },
+    );
+  }
   const mutation = useSave<Values>(
     (value) =>
       booking.create({
@@ -113,15 +131,7 @@ export function NewReservation() {
         <form
           aria-label="New reservation"
           noValidate
-          onSubmit={form.handleSubmit(async (value) => {
-            if (!rooms.data?.some((room) => room.id === Number(value.roomId))) {
-              form.setError("roomId", {
-                message: "Choose an available room for these dates.",
-              });
-              return;
-            }
-            await mutation.submit(value);
-          })}
+          onSubmit={form.handleSubmit(mutation.submit)}
         >
           <h2>Stay details</h2>
           <div className="form-grid">
@@ -173,42 +183,67 @@ export function NewReservation() {
           </p>
           {!valid ? (
             <p className="hint">Enter valid stay dates to see rooms.</p>
-          ) : rooms.isPending ? (
-            <Pending label="Checking room availability…" />
-          ) : rooms.isError ? (
-            <QueryError retry={() => void rooms.refetch()} />
-          ) : !rooms.data.length ? (
-            <Empty title="No rooms available">
-              Try another period or fewer guests.
-            </Empty>
           ) : (
-            <SelectField
-              label="Available room"
-              error={errors.roomId?.message}
-              {...form.register("roomId")}
-            >
-              <option value="">Choose a room</option>
-              {rooms.data
-                .filter((room) => room.active !== false)
-                .map((room) => (
+            <>
+              {rooms.isPending ? (
+                <Pending label="Checking room availability…" />
+              ) : rooms.isError ? (
+                <QueryError retry={() => void rooms.refetch()} />
+              ) : (
+                !available.length && (
+                  <Empty title="No rooms currently available">
+                    Change the dates or check an interrupted save.
+                  </Empty>
+                )
+              )}
+              <label className="checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={includeUnavailable}
+                  onChange={(event) =>
+                    setIncludeUnavailable(event.target.checked)
+                  }
+                />
+                Include unavailable rooms for an interrupted save
+              </label>
+              {includeUnavailable && inventory.isPending && (
+                <Pending label="Loading room inventory…" />
+              )}
+              {includeUnavailable && inventory.isError && (
+                <QueryError retry={() => void inventory.refetch()} />
+              )}
+              <SelectField
+                label="Room"
+                error={errors.roomId?.message}
+                hint="For an interrupted save, use the same details to check for an existing result. Availability is checked again when you save."
+                {...form.register("roomId")}
+              >
+                <option value="">Choose a room</option>
+                {choices.map((room) => (
                   <option key={room.id} value={room.id!}>
-                    {roomLabel(room)} · up to {room.capacity} guests
+                    {roomLabel(room)}
+                    {room.capacity ? ` · up to ${room.capacity} guests` : ""}
+                    {room.active === false
+                      ? " (inactive)"
+                      : rooms.data
+                        ? !available.some((item) => item.id === room.id)
+                          ? " (not currently available)"
+                          : ""
+                        : " (availability not confirmed)"}
                   </option>
                 ))}
-            </SelectField>
-          )}
-          {rooms.isFetching && !rooms.isPending && (
-            <Pending label="Updating room availability…" />
+              </SelectField>
+              {rooms.isFetching && !rooms.isPending && (
+                <Pending label="Updating room availability…" />
+              )}
+            </>
           )}
           {mutation.message && <Notice error>{mutation.message}</Notice>}
           <div className="form-actions">
             <Link className="button secondary" to="/reservations">
               Back to reservations
             </Link>
-            <button
-              className="button"
-              disabled={mutation.isPending || rooms.isFetching}
-            >
+            <button className="button" disabled={mutation.isPending}>
               {mutation.isPending ? "Saving…" : "Create reservation"}
             </button>
           </div>

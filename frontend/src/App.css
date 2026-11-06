@@ -944,3 +944,19 @@ footer {
   flex-shrink: 0;
   white-space: nowrap;
 }
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 12px;
+  margin: 12px 0;
+  line-height: 1.6;
+}
+.checkbox-field input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--brand);
+}

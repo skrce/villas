@@ -31,8 +31,9 @@ milestones; this checkpoint does not replace their policy gates.
 
 Each query/mutation has its own pending/error state. Query functions pass cancellation
 signals through the generated client. Keys contain the resource and its filters.
-A query client belongs to one login generation and is cancelled/cleared when that
-boundary changes. Protected API records and form drafts have no browser persistence
+A query client belongs to one login generation. Its provider subtree is keyed by
+that generation so observers remount with the new client; the old client is cancelled
+and cleared. Protected API records and form drafts have no browser persistence
 or service-worker cache. Drafts remain in memory for the same Owner across navigation
 and session recovery. Logout/account changes clear them. A fresh login never submits
 an old form automatically. Unmounted pages do not redirect after a late write result.
@@ -49,6 +50,10 @@ cannot erase its recovery key. Both stores contain only a SHA-256 identity, rand
 operation key and optional expected version. They contain no raw guest IDs, dates,
 contacts, session cookies or CSRF/provider tokens. The fingerprint includes the canonical
 Owner and operation. In-flight promises also include the current login generation.
+Reconciliation runs before current availability checks. A retained room selection
+remains available to the form after session recovery; after reload, the Owner can
+explicitly include unavailable inventory and re-enter the same details to check the
+saved result. Server transactions remain authoritative for new writes.
 No mutation retries automatically. Browsers need Web Locks over HTTPS or localhost.
 
 Guest creation has no idempotency contract yet. Its unconfirmed-result message directs
@@ -92,7 +97,9 @@ demo with a loopback identity provider, generated private client configuration, 
 own MariaDB project and two synthetic rooms. It does not read `.env.local`, provision
 the real Owner or call Google. Production rejects the synthetic provider. Ctrl+C stops
 only the demo's child process groups and database; its volume/state remain available.
-It never stops a process occupying a port.
+It never stops a process occupying a port. Owned process groups remain tracked if
+a launcher exits while descendants survive. Shutdown verifies the groups exit and
+escalates within a bounded grace period; an unconfirmed shutdown fails the launcher.
 
 Defaults are UI5173, API19098 and identity provider19108. Optional `VILLAS_DEMO_UI_PORT`,
 `VILLAS_DEMO_API_PORT` and `VILLAS_DEMO_IDP_PORT` must be distinct loopback ports. A demo
