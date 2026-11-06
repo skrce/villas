@@ -94,6 +94,29 @@ describe('staff session boundaries', () => {
     expect(session.getSession().status).toBe('unavailable');
     await expect(session.sessionFetch('/api/v1/customers', { method: 'POST' })).rejects.toThrow('session changed');
   });
+  it('keeps an unconfirmed logout hidden through its own cross-tab notification and focus events', async () => {
+    const channels = new Set<{ listeners: Set<(event: { data: unknown }) => void> }>();
+    class Channel {
+      listeners = new Set<(event: { data: unknown }) => void>();
+      constructor() { channels.add(this); }
+      addEventListener(_name: string, callback: (event: { data: unknown }) => void) { this.listeners.add(callback); }
+      removeEventListener(_name: string, callback: (event: { data: unknown }) => void) { this.listeners.delete(callback); }
+      postMessage(data: unknown) { for (const channel of channels) if (channel !== this) queueMicrotask(() => channel.listeners.forEach((listener) => listener({ data }))); }
+      close() { channels.delete(this); }
+    }
+    vi.stubGlobal('BroadcastChannel', Channel);
+    const session = await load();
+    fetchMock.mockResolvedValueOnce(json(payload()));
+    const dispose = session.installSessionEvents();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    fetchMock.mockRejectedValueOnce(new TypeError('Lost request'));
+    await session.logout(); await Promise.resolve();
+    window.dispatchEvent(new Event('focus')); await Promise.resolve();
+    expect(session.getSession()).toMatchObject({ status: 'anonymous', reason: 'logout-unconfirmed' });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    fetchMock.mockResolvedValueOnce(json(payload())); await session.refreshSession({ explicit: true });
+    expect(session.getSession().status).toBe('authenticated'); dispose();
+  });
   it('deletes legacy credentials and raw pending payloads on startup', async () => {
     const session = await import('./session');
     localStorage.setItem('villarosa.apiConfig', '{"password":"old"}');

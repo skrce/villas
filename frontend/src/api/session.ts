@@ -13,6 +13,7 @@ let csrf: string | undefined;
 let epoch = 0;
 let refreshSequence = 0;
 let logoutInProgress = false;
+let locallyLocked = false;
 let ownerKey = 'anonymous';
 const listeners = new Set<() => void>();
 const notify = (next: SessionState) => {
@@ -72,8 +73,9 @@ const readSession = async () => {
   return body as Record<string, unknown> & { authenticated: boolean };
 };
 
-export const refreshSession = async () => {
-  if (logoutInProgress) return;
+export const refreshSession = async (options?: { explicit: boolean }) => {
+  if (logoutInProgress || (locallyLocked && !options?.explicit)) return;
+  if (options?.explicit) locallyLocked = false;
   const sequence = ++refreshSequence;
   try {
     const body = await readSession();
@@ -98,6 +100,7 @@ export const refreshSession = async () => {
 export const logout = async () => {
   if (logoutInProgress) return;
   logoutInProgress = true;
+  locallyLocked = true;
   ++refreshSequence;
   const token = csrf;
   const provider = state.status === 'loading' ? 'google' : state.provider;
@@ -112,7 +115,7 @@ export const logout = async () => {
     notify({ status: 'anonymous', reason: 'logout-unconfirmed', provider });
   } finally {
     logoutInProgress = false;
-    const channel = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel('villas.session'); channel?.postMessage('changed'); channel?.close();
+    const channel = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel('villas.session'); channel?.postMessage({ type: 'signed-out', confirmed: state.status === 'anonymous' && state.reason === 'logout' }); channel?.close();
   }
 };
 
@@ -126,7 +129,14 @@ export const installSessionEvents = () => {
   localStorage.removeItem('villarosa.pendingOperations.v1');
   const channel = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel('villas.session');
   const refresh = () => { void refreshSession(); };
-  const changed = (event: MessageEvent) => { if (event.data === 'changed') void refreshSession().then(() => channel?.postMessage('received')); };
+  const changed = (event: MessageEvent) => {
+    if (event.data === 'signed-in') void refreshSession({ explicit: true }).then(() => channel?.postMessage('received'));
+    if (event.data?.type === 'signed-out') {
+      locallyLocked = true; ++refreshSequence; csrf = undefined;
+      const provider = state.status === 'loading' ? 'google' : state.provider;
+      notify({ status: 'anonymous', reason: event.data.confirmed ? 'logout' : 'logout-unconfirmed', provider });
+    }
+  };
   channel?.addEventListener('message', changed);
   window.addEventListener('focus', refresh);
   refresh();
