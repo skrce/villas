@@ -312,6 +312,10 @@ async function mount(path: string) {
   await act(async () => {
     render(<App />);
   });
+  if (path.startsWith("/reservations/new"))
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Show all steps" }),
+    );
 }
 async function guestDialog() {
   await userEvent.click(
@@ -328,6 +332,10 @@ async function navigate(path: string) {
     window.history.pushState({}, "", path);
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
+  if (path.startsWith("/reservations/new")) {
+    const show = await screen.findByRole("button", { name: "Show all steps" });
+    await userEvent.click(show);
+  }
 }
 
 describe("guest and room workflows", () => {

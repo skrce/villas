@@ -196,6 +196,9 @@ async function enter(recover = false) {
   await act(async () => {
     render(<App />);
   });
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Show all steps" }),
+  );
   await waitFor(() =>
     expect(screen.getByRole("combobox", { name: "Guest" })).toHaveValue(
       "Walk In",
@@ -219,6 +222,225 @@ async function review() {
   await userEvent.click(screen.getByRole("button", { name: "Review price" }));
   return screen.findByRole("button", { name: /Confirm reservation/ });
 }
+
+async function wizard() {
+  window.history.replaceState({}, "", "/reservations/new?guest=5");
+  await act(async () => {
+    render(<App />);
+  });
+  await screen.findByRole("heading", { name: "1. Stay details" });
+  await userEvent.clear(screen.getByLabelText("Check-in"));
+  await userEvent.type(screen.getByLabelText("Check-in"), input.startDate);
+  await userEvent.clear(screen.getByLabelText("Check-out"));
+  await userEvent.type(screen.getByLabelText("Check-out"), input.endDate);
+  await userEvent.clear(screen.getByLabelText("Guests"));
+  await userEvent.type(screen.getByLabelText("Guests"), "2");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Continue to room & guest" }),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("combobox", { name: "Guest" })).toHaveValue(
+      "Walk In",
+    ),
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: /Garden studio.*Choose room/ }),
+  );
+}
+
+describe("guided booking steps", () => {
+  it("keeps calendar intents separate during a held availability read and browser Back", async () => {
+    let finish!: (response: Response) => void;
+    api.mockImplementation((url, init) => {
+      const u = new URL(String(url), "http://localhost");
+      if (
+        u.pathname.endsWith("/available-apartments") &&
+        u.searchParams.get("startDate") === "2030-01-01"
+      )
+        return new Promise<Response>((resolve) => {
+          finish = resolve;
+        });
+      if (
+        u.pathname.endsWith("/available-apartments") &&
+        u.searchParams.get("startDate") === "2030-02-01"
+      )
+        return Promise.resolve(json([allRooms[1]]));
+      return responses(url, init);
+    });
+    window.history.replaceState(
+      {},
+      "",
+      "/reservations/new?guest=5&room=7&from=2030-01-01&to=2030-01-03",
+    );
+    await act(async () => {
+      render(<App />);
+    });
+    await screen.findByRole("heading", { name: "1. Stay details" });
+    await waitFor(() => expect(finish).toBeTypeOf("function"));
+    await userEvent.clear(screen.getByLabelText("Guests"));
+    await userEvent.type(screen.getByLabelText("Guests"), "3");
+    await act(async () => {
+      window.history.pushState(
+        {},
+        "",
+        "/reservations/new?guest=5&room=8&from=2030-02-01&to=2030-02-03",
+      );
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Check-in")).toHaveValue("2030-02-01"),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Continue to room & guest" }),
+    );
+    await screen.findByRole("button", { name: /Lake annex.*Selected/ });
+    await act(async () => {
+      finish(json([room]));
+    });
+    expect(
+      screen.queryByRole("button", { name: /Garden studio.*Choose room/ }),
+    ).not.toBeInTheDocument();
+    await act(async () => {
+      window.history.back();
+    });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Check-in")).toHaveValue("2030-01-01"),
+    );
+    expect(screen.getByLabelText("Guests")).toHaveValue(3);
+    expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(0);
+  });
+  it("requires valid dates and capacity before moving to named room choices", async () => {
+    window.history.replaceState({}, "", "/reservations/new");
+    await act(async () => {
+      render(<App />);
+    });
+    await screen.findByRole("heading", { name: "1. Stay details" });
+    await userEvent.clear(screen.getByLabelText("Guests"));
+    await userEvent.type(screen.getByLabelText("Guests"), "1001");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Continue to room & guest" }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "1. Stay details" }),
+    ).toHaveFocus();
+    expect(
+      screen.queryByRole("combobox", { name: "Guest" }),
+    ).not.toBeInTheDocument();
+    expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(0);
+    expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(0);
+  });
+  it("guides dates to room and guest, then focuses an explicit quote review before confirmation", async () => {
+    await wizard();
+    expect(
+      screen.getByRole("heading", { name: "2. Choose room & guest" }),
+    ).toBeInTheDocument();
+    const confirm = await review();
+    expect(
+      screen.getByRole("heading", { name: "3. Review & confirm" }),
+    ).toHaveFocus();
+    expect(
+      screen.getByRole("region", { name: "Booking review" }),
+    ).toHaveTextContent("Walk In");
+    expect(
+      screen.getByRole("region", { name: "Booking review" }),
+    ).toHaveTextContent("Garden studio");
+    expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(0);
+    await userEvent.dblClick(confirm);
+    await screen.findByRole("heading", { name: "Agreed accommodation price" });
+    expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(1);
+  });
+  it("returns a contested room to refreshed alternatives without losing guest or stay", async () => {
+    let contested = false;
+    api.mockImplementation((url, init) => {
+      if (path(url) === "/api/v1/reservations/quoted" && !contested) {
+        contested = true;
+        return Promise.resolve(
+          json(
+            { code: "INVENTORY_CONFLICT", message: "The room is occupied." },
+            409,
+          ),
+        );
+      }
+      if (
+        path(url) === "/api/v1/reservations/available-apartments" &&
+        contested
+      )
+        return Promise.resolve(json([allRooms[1]]));
+      return responses(url, init);
+    });
+    await wizard();
+    await userEvent.click(await review());
+    await screen.findByText(/The selected room was taken or blocked/);
+    expect(
+      screen.getByRole("heading", { name: "2. Choose room & guest" }),
+    ).toHaveFocus();
+    expect(screen.getByRole("combobox", { name: "Guest" })).toHaveValue(
+      "Walk In",
+    );
+    expect(screen.getByLabelText("Check-in")).toHaveValue(input.startDate);
+    expect(
+      screen.queryByRole("button", { name: /Confirm reservation/ }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Lake annex.*Choose room/ }),
+    );
+    await userEvent.click(await review());
+    await screen.findByRole("heading", { name: "Agreed accommodation price" });
+    expect(
+      body(calls("/api/v1/reservations/quoted", "POST")[1][1]),
+    ).toMatchObject({ ...input, roomId: 8, customerId: 5 });
+  });
+  it("retains the review step across same-Owner reauthentication and requires a new explicit offer", async () => {
+    await wizard();
+    await review();
+    generation = "wizard-recovered-login";
+    await act(async () => {
+      await refreshSession({ explicit: true });
+    });
+    await screen.findByRole("heading", { name: "3. Review & confirm" });
+    expect(
+      screen.queryByRole("button", { name: /Confirm reservation/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Booking review" }),
+    ).toHaveTextContent("Walk In");
+    expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(0);
+    expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(1);
+    await review();
+    expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(2);
+  });
+  it("does not queue a confirmation while offline or automatically submit on reconnection", async () => {
+    await wizard();
+    const confirm = await review();
+    let online = false;
+    const getter = vi
+      .spyOn(navigator, "onLine", "get")
+      .mockImplementation(() => online);
+    try {
+      await act(async () => {
+        window.dispatchEvent(new Event("offline"));
+      });
+      expect(confirm).toBeDisabled();
+      expect(
+        screen.getByText(/You're offline. Your draft is kept here/),
+      ).toBeInTheDocument();
+      online = true;
+      await act(async () => {
+        window.dispatchEvent(new Event("online"));
+      });
+      expect(confirm).toBeEnabled();
+      expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(0);
+      await userEvent.click(confirm);
+      await screen.findByRole("heading", {
+        name: "Agreed accommodation price",
+      });
+      expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(1);
+    } finally {
+      getter.mockRestore();
+    }
+  });
+});
+
 describe("reviewed quote booking workflow", () => {
   it.each(["stay", "move"] as const)(
     "keeps read-only edit recovery available after another Owner cancels a lost edit (%s)",

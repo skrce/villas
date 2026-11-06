@@ -75,6 +75,7 @@ export function useSave<T>(
       }
     },
     retry: false,
+    networkMode: "always",
   });
   return {
     ...mutation,
