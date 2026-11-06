@@ -132,6 +132,7 @@ class StaffDirectory(
                 )
             } else {
                 existing.active = true
+                existing.email = email
                 existing.securityVersion = Math.incrementExact(existing.securityVersion)
                 staff.saveAndFlush(existing)
             }

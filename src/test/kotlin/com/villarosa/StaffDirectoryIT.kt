@@ -257,6 +257,26 @@ constructor(
     }
 
     @Test
+    fun reactivationRetainsTheSubjectAndAdoptsTheNewlyVerifiedEmail() {
+        val owner = owner()
+        directory.invite(owner.identity(), "second@example.test")
+        val second = directory.accept(verified("second@example.test"))
+        directory.deactivate(owner.identity(), second.id, second.version)
+        directory.invite(owner.identity(), "renamed@example.test")
+        val reactivated = directory.accept(verified("renamed@example.test", "second@example.test"))
+        assertThat(reactivated.id).isEqualTo(second.id)
+        assertThat(reactivated.email).isEqualTo("renamed@example.test")
+        assertThat(staff.findByPropertyIdAndEmail("villa-rosa", "second@example.test")).isNull()
+        assertThat(
+                assertThrows<DomainException> {
+                        directory.accept(verified("second@example.test", "different"))
+                    }
+                    .code
+            )
+            .isEqualTo("STAFF_NOT_ALLOWED")
+    }
+
+    @Test
     fun sessionRevocationInvalidatesEveryOldIdentityWithoutDeactivatingTheAccount() {
         val owner = owner()
         val old = owner.identity()
