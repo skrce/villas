@@ -245,8 +245,12 @@ async function responses(
     return json({
       items: blocks.filter(
         (block) =>
-          !url.searchParams.get("status") ||
-          block.status === url.searchParams.get("status"),
+          (!url.searchParams.get("status") ||
+            block.status === url.searchParams.get("status")) &&
+          (!url.searchParams.get("roomId") ||
+            block.roomId === Number(url.searchParams.get("roomId"))) &&
+          block.startDate < url.searchParams.get("endDate")! &&
+          block.endDate > url.searchParams.get("startDate")!,
       ),
       nextCursor: null,
     });
@@ -339,6 +343,32 @@ async function navigate(path: string) {
 }
 
 describe("guest and room workflows", () => {
+  it("fails an offline guest submission immediately and never queues it for reconnect", async () => {
+    api.mockImplementation((input, init) =>
+      parsed(input).pathname === "/api/v1/customers" && init?.method === "POST"
+        ? Promise.reject(new TypeError("Offline request"))
+        : responses(input, init),
+    );
+    await mount("/guests");
+    const dialog = await guestDialog();
+    await enterName(dialog, "Offline synthetic", "Guest");
+    try {
+      onlineManager.setOnline(false);
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Save guest" }),
+      );
+      await within(dialog).findByText(/The result could not be confirmed/);
+      expect(calls("/api/v1/customers", "POST")).toHaveLength(1);
+      await act(async () => {
+        onlineManager.setOnline(true);
+      });
+      expect(calls("/api/v1/customers", "POST")).toHaveLength(1);
+      expect(dialog).toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
   it("keeps an open recovery check read-only when another Owner restores the room and reconnect refreshes it", async () => {
     rooms.set(7, { ...roomFixture, active: false, version: 1 });
     await mount("/rooms/7?from=2030-02-01&to=2030-02-03");
@@ -1015,14 +1045,15 @@ describe("guest and room workflows", () => {
       within(dialog).getByRole("button", { name: "Save maintenance" }),
     );
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
-    await screen.findByRole("button", {
+    await waitFor(() =>
+      expect(window.location.search).toContain("from=2030-01-10"),
+    );
+    const cancelBlock = await screen.findByRole("button", {
       name: /Cancel block for Synthetic repair/,
     });
     expect(window.location.search).not.toContain("Synthetic");
     expect(JSON.stringify(localStorage)).not.toContain("Synthetic repair");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Cancel block for Synthetic repair/ }),
-    );
+    await userEvent.click(cancelBlock);
     const cancel = screen.getByRole("dialog", { name: "Cancel maintenance?" });
     await userEvent.click(
       within(cancel).getByRole("button", {

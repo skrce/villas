@@ -249,6 +249,72 @@ async function wizard() {
 }
 
 describe("guided booking steps", () => {
+  it("recovers a lost collapsed-wizard confirmation after same-Owner reauthentication without reviewing another quote", async () => {
+    let lost = true;
+    api.mockImplementation(async (url, init) => {
+      const result = await responses(url, init);
+      if (path(url) === "/api/v1/reservations/quoted" && lost) {
+        lost = false;
+        throw new TypeError("Lost confirmation response");
+      }
+      return result;
+    });
+    await wizard();
+    await userEvent.click(await review());
+    await screen.findByText(/The result could not be confirmed/);
+    generation = "wizard-unknown-recovered-session";
+    await act(async () => {
+      await refreshSession({ explicit: true });
+    });
+    await screen.findByRole("heading", { name: "3. Review & confirm" });
+    expect(
+      screen.queryByRole("button", { name: /Confirm reservation/ }),
+    ).not.toBeInTheDocument();
+    const offersBefore = calls("/api/v1/booking-quotes", "POST").length;
+    await userEvent.click(
+      screen.getByRole("button", { name: "Check previous save" }),
+    );
+    await screen.findByRole("heading", { name: "Agreed accommodation price" });
+    expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(offersBefore);
+    expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(1);
+    expect(sessionStorage.getItem("villarosa.ownPendingOperations.v2")).toBe(
+      "{}",
+    );
+  });
+
+  it("does not advance the wizard with an offer for a guest choice that changed while the quote loaded", async () => {
+    let finish: (result: Response) => void = () => {};
+    api.mockImplementation((url, init) =>
+      path(url) === "/api/v1/booking-quotes"
+        ? new Promise<Response>((resolve) => {
+            finish = resolve;
+          })
+        : responses(url, init),
+    );
+    await wizard();
+    await userEvent.click(screen.getByRole("button", { name: "Review price" }));
+    await userEvent.clear(screen.getByRole("combobox", { name: "Guest" }));
+    await userEvent.type(
+      screen.getByRole("combobox", { name: "Guest" }),
+      "Another synthetic guest",
+    );
+    await act(async () => {
+      finish(json(testQuote(input)));
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Review price" }),
+      ).toBeEnabled(),
+    );
+    expect(
+      screen.getByRole("heading", { name: "2. Choose room & guest" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Confirm reservation/ }),
+    ).not.toBeInTheDocument();
+    expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(0);
+  });
+
   it("keeps calendar intents separate during a held availability read and browser Back", async () => {
     let finish!: (response: Response) => void;
     api.mockImplementation((url, init) => {

@@ -1,213 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-test("two independent Owners race for one calendar stay, retain the losing draft, and confirm an alternative", async ({
-  page,
-  browser,
-}, testInfo) => {
-  test.setTimeout(90_000);
-  await signIn(page);
-  const headers = await headersFor(page);
-  const invitation = await page.request.post("/api/v1/staff/invitations", {
-    headers,
-    data: { email: "second-owner@example.test" },
-  });
-  if (!invitation.ok())
-    expect(await invitation.json()).toMatchObject({
-      code: "STAFF_ALREADY_ACTIVE",
-    });
-  const secondContext = await browser.newContext({
-    baseURL: "http://127.0.0.1:15073",
-    viewport: { width: 1440, height: 1000 },
-  });
-  try {
-    const second = await secondContext.newPage();
-    await signIn(second, "Second synthetic Owner");
-    const ownerA = await (
-      await page.request.get("/api/v1/auth/session")
-    ).json();
-    const ownerB = await (
-      await second.request.get("/api/v1/auth/session")
-    ).json();
-    expect(ownerA.staff.id).not.toBe(ownerB.staff.id);
-    const roomIds: number[] = [];
-    for (const [name, reference] of [
-      ["Race terrace", "RACE-7"],
-      ["Race garden", "RACE-ALT-7"],
-    ]) {
-      const created = await page.request.post("/api/v1/apartments", {
-        headers,
-        data: { name, reference, capacity: 2 },
-      });
-      expect(created.ok()).toBe(true);
-      const room = await created.json();
-      roomIds.push(room.id);
-      expect(
-        (
-          await page.request.put(`/api/v1/apartments/${room.id}/rates`, {
-            headers,
-            data: {
-              expectedVersion: 0,
-              currency: "EUR",
-              baseNightlyCents: 5001,
-              seasons: [],
-            },
-          })
-        ).ok(),
-      ).toBe(true);
-    }
-    for (const firstName of ["RaceAlpha", "RaceBeta"])
-      expect(
-        (
-          await page.request.post("/api/v1/customers", {
-            headers,
-            data: { firstName, lastName: "Synthetic" },
-          })
-        ).ok(),
-      ).toBe(true);
-    for (const [client, name] of [
-      [page, "RaceAlpha"],
-      [second, "RaceBeta"],
-    ] as const) {
-      await client.setViewportSize({ width: 1440, height: 1000 });
-      await client.goto("/calendar?from=2038-05-01");
-      await client
-        .getByRole("button", {
-          name: "Select Race terrace, night of 2 May 2038",
-        })
-        .click();
-      await client
-        .getByRole("button", {
-          name: "Select Race terrace, night of 3 May 2038",
-        })
-        .click();
-      await client
-        .getByRole("link", { name: "Create reservation", exact: true })
-        .click();
-      await client
-        .getByRole("button", { name: "Continue to room & guest", exact: true })
-        .click();
-      await client
-        .getByRole("combobox", { name: "Guest", exact: true })
-        .fill(name);
-      await client
-        .getByRole("option", { name: new RegExp(`${name} Synthetic`) })
-        .click();
-      await client
-        .getByRole("button", { name: "Review price", exact: true })
-        .click();
-      await expect(
-        client.getByRole("button", { name: /^Confirm reservation ·/ }),
-      ).toBeVisible();
-    }
-    const held: import("@playwright/test").Route[] = [];
-    let release!: () => void;
-    const both = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    for (const client of [page, second])
-      await client.route("**/api/v1/reservations/quoted", async (route) => {
-        held.push(route);
-        if (held.length === 2) release();
-        await both;
-        await route.continue();
-      });
-    const responses = [page, second].map((client) =>
-      client.waitForResponse(
-        (r) =>
-          new URL(r.url()).pathname === "/api/v1/reservations/quoted" &&
-          r.request().method() === "POST",
-      ),
-    );
-    await Promise.all(
-      [page, second].map((client) =>
-        client.getByRole("button", { name: /^Confirm reservation ·/ }).click(),
-      ),
-    );
-    const outcomes = await Promise.all(responses);
-    expect(outcomes.map((r) => r.status()).sort()).toEqual([200, 409]);
-    const loser = outcomes[0].status() === 409 ? page : second;
-    const winner = loser === page ? second : page;
-    const losingName = loser === page ? "RaceAlpha" : "RaceBeta";
-    await expect(
-      loser.getByRole("heading", { name: "2. Choose room & guest" }),
-    ).toBeFocused();
-    await expect(
-      loser.getByRole("combobox", { name: "Guest", exact: true }),
-    ).toHaveValue(`${losingName} Synthetic`);
-    await expect(loser.getByLabel("Check-in", { exact: true })).toHaveValue(
-      "2038-05-02",
-    );
-    await expect(loser.getByLabel("Check-out", { exact: true })).toHaveValue(
-      "2038-05-04",
-    );
-    await expect(
-      loser.getByText(/The selected room was taken or blocked/),
-    ).toBeVisible();
-    await expect(
-      loser.getByRole("button", { name: /^Confirm reservation ·/ }),
-    ).toHaveCount(0);
-    const onlyOne = await (
-      await winner.request.get(
-        `/api/v1/reservations?startDate=2038-05-01&endDate=2038-05-08&roomId=${roomIds[0]}&status=ACTIVE`,
-      )
-    ).json();
-    expect(onlyOne.items).toHaveLength(1);
-    await winner.goto("/calendar?from=2038-05-01");
-    await expect(
-      winner
-        .locator(".calendar-desktop")
-        .getByRole("link", { name: new RegExp(`${losingName} Synthetic`) }),
-    ).toHaveCount(0);
-    await loser.unroute("**/api/v1/reservations/quoted");
-    await loser
-      .getByRole("button", { name: /Race garden.*Choose room/ })
-      .click();
-    await loser
-      .getByRole("button", { name: "Review price", exact: true })
-      .click();
-    await loser.getByRole("button", { name: /^Confirm reservation ·/ }).click();
-    await expect(loser.getByRole("heading", { level: 1 })).toHaveText(
-      /^Reservation #\d+$/,
-    );
-    await winner.context().setOffline(true);
-    await expect(winner.getByText(/You're offline. Reconnect/)).toBeVisible();
-    await winner.context().setOffline(false);
-    await expect(
-      winner
-        .locator(".calendar-desktop")
-        .getByRole("link", { name: new RegExp(`${losingName} Synthetic`) }),
-    ).toBeVisible();
-    const final = await (
-      await winner.request.get(
-        "/api/v1/reservations?startDate=2038-05-01&endDate=2038-05-08&status=ACTIVE",
-      )
-    ).json();
-    expect(
-      final.items.filter((r: { roomId: number }) => roomIds.includes(r.roomId)),
-    ).toHaveLength(2);
-    await loser.setViewportSize({ width: 320, height: 760 });
-    await loser.goto(`/reservations/new?guest=${onlyOne.items[0].customerId}`);
-    await loser
-      .getByRole("button", { name: "Continue to room & guest", exact: true })
-      .click();
-    expect(
-      (await new AxeBuilder({ page: loser }).analyze()).violations,
-    ).toEqual([]);
-    expect(
-      await loser.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
-    await loser.screenshot({
-      path: testInfo.outputPath("booking-wizard-phone.png"),
-      fullPage: true,
-    });
-  } finally {
-    await secondContext.close();
-  }
-});
-
 test("calendar selection creates a quoted stay that persists on the desktop grid and phone agenda", async ({
   page,
 }, testInfo) => {
@@ -1687,4 +1480,211 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
     path: screenshot,
     contentType: "image/png",
   });
+});
+
+test("two independent Owners race for one calendar stay, retain the losing draft, and confirm an alternative", async ({
+  page,
+  browser,
+}, testInfo) => {
+  test.setTimeout(90_000);
+  await signIn(page);
+  const headers = await headersFor(page);
+  const invitation = await page.request.post("/api/v1/staff/invitations", {
+    headers,
+    data: { email: "second-owner@example.test" },
+  });
+  if (!invitation.ok())
+    expect(await invitation.json()).toMatchObject({
+      code: "STAFF_ALREADY_ACTIVE",
+    });
+  const secondContext = await browser.newContext({
+    baseURL: "http://127.0.0.1:15073",
+    viewport: { width: 1440, height: 1000 },
+  });
+  try {
+    const second = await secondContext.newPage();
+    await signIn(second, "Second synthetic Owner");
+    const ownerA = await (
+      await page.request.get("/api/v1/auth/session")
+    ).json();
+    const ownerB = await (
+      await second.request.get("/api/v1/auth/session")
+    ).json();
+    expect(ownerA.staff.id).not.toBe(ownerB.staff.id);
+    const roomIds: number[] = [];
+    for (const [name, reference] of [
+      ["Race terrace", "RACE-7"],
+      ["Race garden", "RACE-ALT-7"],
+    ]) {
+      const created = await page.request.post("/api/v1/apartments", {
+        headers,
+        data: { name, reference, capacity: 2 },
+      });
+      expect(created.ok()).toBe(true);
+      const room = await created.json();
+      roomIds.push(room.id);
+      expect(
+        (
+          await page.request.put(`/api/v1/apartments/${room.id}/rates`, {
+            headers,
+            data: {
+              expectedVersion: 0,
+              currency: "EUR",
+              baseNightlyCents: 5001,
+              seasons: [],
+            },
+          })
+        ).ok(),
+      ).toBe(true);
+    }
+    for (const firstName of ["RaceAlpha", "RaceBeta"])
+      expect(
+        (
+          await page.request.post("/api/v1/customers", {
+            headers,
+            data: { firstName, lastName: "Synthetic" },
+          })
+        ).ok(),
+      ).toBe(true);
+    for (const [client, name] of [
+      [page, "RaceAlpha"],
+      [second, "RaceBeta"],
+    ] as const) {
+      await client.setViewportSize({ width: 1440, height: 1000 });
+      await client.goto("/calendar?from=2038-05-01");
+      await client
+        .getByRole("button", {
+          name: "Select Race terrace, night of 2 May 2038",
+        })
+        .click();
+      await client
+        .getByRole("button", {
+          name: "Select Race terrace, night of 3 May 2038",
+        })
+        .click();
+      await client
+        .getByRole("link", { name: "Create reservation", exact: true })
+        .click();
+      await client
+        .getByRole("button", { name: "Continue to room & guest", exact: true })
+        .click();
+      await client
+        .getByRole("combobox", { name: "Guest", exact: true })
+        .fill(name);
+      await client
+        .getByRole("option", { name: new RegExp(`${name} Synthetic`) })
+        .click();
+      await client
+        .getByRole("button", { name: "Review price", exact: true })
+        .click();
+      await expect(
+        client.getByRole("button", { name: /^Confirm reservation ·/ }),
+      ).toBeVisible();
+    }
+    const held: import("@playwright/test").Route[] = [];
+    let release!: () => void;
+    const both = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    for (const client of [page, second])
+      await client.route("**/api/v1/reservations/quoted", async (route) => {
+        held.push(route);
+        if (held.length === 2) release();
+        await both;
+        await route.continue();
+      });
+    const responses = [page, second].map((client) =>
+      client.waitForResponse(
+        (r) =>
+          new URL(r.url()).pathname === "/api/v1/reservations/quoted" &&
+          r.request().method() === "POST",
+      ),
+    );
+    await Promise.all(
+      [page, second].map((client) =>
+        client.getByRole("button", { name: /^Confirm reservation ·/ }).click(),
+      ),
+    );
+    const outcomes = await Promise.all(responses);
+    expect(outcomes.map((r) => r.status()).sort()).toEqual([200, 409]);
+    const loser = outcomes[0].status() === 409 ? page : second;
+    const winner = loser === page ? second : page;
+    const losingName = loser === page ? "RaceAlpha" : "RaceBeta";
+    await expect(
+      loser.getByRole("heading", { name: "2. Choose room & guest" }),
+    ).toBeFocused();
+    await expect(
+      loser.getByRole("combobox", { name: "Guest", exact: true }),
+    ).toHaveValue(`${losingName} Synthetic`);
+    await expect(loser.getByLabel("Check-in", { exact: true })).toHaveValue(
+      "2038-05-02",
+    );
+    await expect(loser.getByLabel("Check-out", { exact: true })).toHaveValue(
+      "2038-05-04",
+    );
+    await expect(
+      loser.getByText(/The selected room was taken or blocked/),
+    ).toBeVisible();
+    await expect(
+      loser.getByRole("button", { name: /^Confirm reservation ·/ }),
+    ).toHaveCount(0);
+    const onlyOne = await (
+      await winner.request.get(
+        `/api/v1/reservations?startDate=2038-05-01&endDate=2038-05-08&roomId=${roomIds[0]}&status=ACTIVE`,
+      )
+    ).json();
+    expect(onlyOne.items).toHaveLength(1);
+    await winner.goto("/calendar?from=2038-05-01");
+    await expect(
+      winner
+        .locator(".calendar-desktop")
+        .getByRole("link", { name: new RegExp(`${losingName} Synthetic`) }),
+    ).toHaveCount(0);
+    await loser.unroute("**/api/v1/reservations/quoted");
+    await loser
+      .getByRole("button", { name: /Race garden.*Choose room/ })
+      .click();
+    await loser
+      .getByRole("button", { name: "Review price", exact: true })
+      .click();
+    await loser.getByRole("button", { name: /^Confirm reservation ·/ }).click();
+    await expect(loser.getByRole("heading", { level: 1 })).toHaveText(
+      /^Reservation #\d+$/,
+    );
+    await winner.context().setOffline(true);
+    await expect(winner.getByText(/You're offline. Reconnect/)).toBeVisible();
+    await winner.context().setOffline(false);
+    await expect(
+      winner
+        .locator(".calendar-desktop")
+        .getByRole("link", { name: new RegExp(`${losingName} Synthetic`) }),
+    ).toBeVisible();
+    const final = await (
+      await winner.request.get(
+        "/api/v1/reservations?startDate=2038-05-01&endDate=2038-05-08&status=ACTIVE",
+      )
+    ).json();
+    expect(
+      final.items.filter((r: { roomId: number }) => roomIds.includes(r.roomId)),
+    ).toHaveLength(2);
+    await loser.setViewportSize({ width: 320, height: 760 });
+    await loser.goto(`/reservations/new?guest=${onlyOne.items[0].customerId}`);
+    await loser
+      .getByRole("button", { name: "Continue to room & guest", exact: true })
+      .click();
+    expect(
+      (await new AxeBuilder({ page: loser }).analyze()).violations,
+    ).toEqual([]);
+    expect(
+      await loser.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await loser.screenshot({
+      path: testInfo.outputPath("booking-wizard-phone.png"),
+      fullPage: true,
+    });
+  } finally {
+    await secondContext.close();
+  }
 });
