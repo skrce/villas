@@ -375,14 +375,22 @@ export function BookingCalendar() {
     </>
   );
 }
-function CalendarCard({ event }: { event: CalendarEvent }) {
+function CalendarCard({
+  event,
+  from,
+  to,
+}: {
+  event: CalendarEvent;
+  from: string;
+  to: string;
+}) {
   return (
     <Link
       className={`calendar-event ${event.kind}`}
       to={
         event.kind === "stay"
           ? `/reservations/${event.id}`
-          : `/rooms/${event.roomId}#maintenance`
+          : `/rooms/${event.roomId}?${new URLSearchParams({ from, to, history: "1" })}#maintenance`
       }
     >
       <strong>{event.kind === "stay" ? event.guestName : "Maintenance"}</strong>
@@ -391,7 +399,7 @@ function CalendarCard({ event }: { event: CalendarEvent }) {
       </span>
       <small>
         {event.kind === "stay"
-          ? `${event.guestCount} guests · #${event.id}`
+          ? `${event.guestCount} ${event.guestCount === 1 ? "guest" : "guests"} · #${event.id}`
           : event.reason}
       </small>
       <Status value={event.status} />
@@ -422,7 +430,7 @@ function CalendarCells({
       const span = (Date.parse(end) - Date.parse(day)) / 86400000;
       cells.push(
         <td key={day} colSpan={span}>
-          <CalendarCard event={event} />
+          <CalendarCard event={event} from={data.startDate} to={data.endDate} />
         </td>,
       );
       i += span;

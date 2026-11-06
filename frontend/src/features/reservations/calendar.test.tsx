@@ -180,3 +180,68 @@ it("keeps bounded reservation room filters in the request and URL", async () => 
     expect(screen.getByLabelText("Room", { exact: true })).toHaveValue("7"),
   );
 });
+
+it("retains the selected room label when metadata fails instead of showing all rooms", async () => {
+  api.mockImplementation((url) =>
+    new URL(String(url), "http://localhost").pathname === "/api/v1/apartments"
+      ? Promise.resolve(json({ code: "FAILED" }, 503))
+      : response(url),
+  );
+  await open("/reservations?from=2030-01-01&to=2030-01-08&room=7");
+  await screen.findByText(/Room names could not be loaded/);
+  expect(screen.getByLabelText("Room", { exact: true })).toHaveValue("7");
+  expect(
+    screen.getByRole("option", { selected: true, name: /Room #7/ }),
+  ).toBeInTheDocument();
+});
+
+it("opens a maintenance block in its selected historical period with a real anchor", async () => {
+  api.mockImplementation((url) => {
+    const u = new URL(String(url), "http://localhost");
+    if (u.pathname === "/api/v1/calendar")
+      return Promise.resolve(
+        json({
+          startDate: "2030-01-01",
+          endDate: "2030-01-08",
+          rooms: [room],
+          stays: [],
+          maintenance: [
+            {
+              id: 9,
+              roomId: 7,
+              startDate: "2030-01-02",
+              endDate: "2030-01-04",
+              reason: "Historical repair",
+              version: 0,
+              status: "ACTIVE",
+            },
+          ],
+          nextRoomCursor: null,
+        }),
+      );
+    if (u.pathname === "/api/v1/apartments/7")
+      return Promise.resolve(json(room));
+    if (u.pathname === "/api/v1/maintenance-blocks")
+      return Promise.resolve(json({ items: [], nextCursor: null }));
+    return response(url);
+  });
+  await open();
+  const links = await screen.findAllByRole("link", {
+    name: /Historical repair/,
+  });
+  expect(links[0]).toHaveAttribute(
+    "href",
+    "/rooms/7?from=2030-01-01&to=2030-01-08&history=1#maintenance",
+  );
+  await userEvent.click(links[0]);
+  await screen.findByRole("heading", { name: "Availability & maintenance" });
+  expect(document.getElementById("maintenance")).toBeInTheDocument();
+  expect(
+    api.mock.calls.some(
+      ([u]) =>
+        String(u).includes("/maintenance-blocks?") &&
+        new URL(String(u), "http://localhost").searchParams.get("startDate") ===
+          "2030-01-01",
+    ),
+  ).toBe(true);
+});

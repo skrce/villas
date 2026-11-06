@@ -114,6 +114,12 @@ export function Reservations() {
             value={selectedRoom}
           >
             <option value="">All rooms</option>
+            {selectedRoom &&
+              !rooms.data?.some((room) => room.id === Number(selectedRoom)) && (
+                <option value={selectedRoom}>
+                  Room #{selectedRoom} (name unavailable)
+                </option>
+              )}
             {rooms.data?.map((room) => (
               <option key={room.id} value={room.id!}>
                 {roomChoiceLabel(room)}
@@ -123,6 +129,14 @@ export function Reservations() {
           <button className="button secondary">Apply filters</button>
         </form>
       </section>
+      {rooms.isError && (
+        <Notice error>
+          Room names could not be loaded. Your room filter is retained.{" "}
+          <button className="text-button" onClick={() => void rooms.refetch()}>
+            Reload room names
+          </button>
+        </Notice>
+      )}
       <section className="panel">
         <div className="section-heading">
           <h2>Stays in this period</h2>
