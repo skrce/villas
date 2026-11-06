@@ -32,6 +32,9 @@ constructor(
     @BeforeEach
     fun fixtures() {
         TestData.reset(jdbc)
+        jdbc.update(
+            "INSERT INTO apartments (id,name,reference,capacity,active,version,property_id) VALUES (1,'Room','R-1',4,TRUE,0,'villa-rosa')"
+        )
         browser = TestHttpSession.create(sessions, mvc)
     }
 
@@ -116,6 +119,72 @@ constructor(
                     .content("""{"details":{"name":"Room","reference":"R-1","capacity":2}}""")
             )
             .andExpect(status().isBadRequest)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["1.5", "1000.9", "-0.5", "\"3\""])
+    fun capacityRequiresJsonIntegersForBothCreateAndUpdate(capacity: String) {
+        val details = """{"name":"Changed","reference":"NEW","capacity":$capacity}"""
+        mvc.perform(
+                post("/api/v1/apartments")
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
+                    .contentType("application/json")
+                    .content(details)
+            )
+            .andExpect(status().isBadRequest)
+        mvc.perform(
+                put("/api/v1/apartments/1")
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
+                    .contentType("application/json")
+                    .content("""{"details":$details,"expectedVersion":0}""")
+            )
+            .andExpect(status().isBadRequest)
+        org.assertj.core.api.Assertions.assertThat(
+                jdbc.queryForObject("SELECT capacity FROM apartments WHERE id=1", Int::class.java)
+            )
+            .isEqualTo(4)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["-0.5", "0.9", "1.0", "\"0\""])
+    fun reviewedRoomVersionsAreNeverTruncatedOrCoerced(version: String) {
+        mvc.perform(
+                put("/api/v1/apartments/1")
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
+                    .contentType("application/json")
+                    .content(
+                        """{"details":{"name":"Changed","reference":"R-1","capacity":4},"expectedVersion":$version}"""
+                    )
+            )
+            .andExpect(status().isBadRequest)
+        org.assertj.core.api.Assertions.assertThat(
+                jdbc.queryForObject("SELECT name FROM apartments WHERE id=1", String::class.java)
+            )
+            .isEqualTo("Room")
+    }
+
+    @Test
+    fun integerVersionedReplacementPreservesTheRoomIdentity() {
+        mvc.perform(
+                put("/api/v1/apartments/1")
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
+                    .contentType("application/json")
+                    .content(
+                        """{"details":{"name":"Renamed","reference":"R-1","capacity":4},"expectedVersion":0}"""
+                    )
+            )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(1))
+            .andExpect(jsonPath("$.version").value(1))
+            .andExpect(jsonPath("$.name").value("Renamed"))
     }
 
     @ParameterizedTest
