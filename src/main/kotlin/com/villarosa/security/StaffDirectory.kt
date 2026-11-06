@@ -64,6 +64,14 @@ class StaffDirectory(
         return inviteRecord(normalized, null, "OWNER_BOOTSTRAP").view()
     }
 
+    fun recover(suppliedEmail: String): InvitationView {
+        propertyLock()
+        val normalized = email(suppliedEmail)
+        if (staff.findByPropertyIdAndEmail(PropertyScope.ID, normalized)?.active == true)
+            conflict("STAFF_ALREADY_ACTIVE", "This active account can sign in through Google.")
+        return (pending(normalized) ?: inviteRecord(normalized, null, "OWNER_RECOVERY")).view()
+    }
+
     fun invite(actor: StaffIdentity, suppliedEmail: String): InvitationView {
         propertyLock()
         val owner = access.lockOwner(actor)

@@ -4,6 +4,8 @@ import com.villarosa.exception.invalid
 import com.villarosa.exception.missing
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
+import com.villarosa.security.CurrentStaff
+import com.villarosa.security.StaffAccess
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -14,6 +16,8 @@ class InventoryQueries(
     private val reservations: ReservationRepository,
     private val blocks: MaintenanceRepository,
     private val events: InventoryEventRepository,
+    private val current: CurrentStaff,
+    private val access: StaffAccess,
 ) {
     fun reservations(
         start: String,
@@ -22,6 +26,7 @@ class InventoryQueries(
         after: Int,
         limit: Int,
     ): ReservationPage {
+        access.current(current.identity())
         val dates = window(start, end)
         val rows =
             reservations.calendar(
@@ -46,6 +51,7 @@ class InventoryQueries(
         after: Int,
         limit: Int,
     ): MaintenancePage {
+        access.current(current.identity())
         val dates = window(start, end)
         val rows =
             blocks.calendar(
@@ -61,6 +67,7 @@ class InventoryQueries(
     }
 
     fun reservationEvents(id: Int, after: String, limit: Int): InventoryEventPage {
+        access.current(current.identity())
         if (reservations.findByPropertyIdAndId(PropertyScope.ID, id) == null)
             missing("Reservation does not exist.")
         return history(
@@ -70,6 +77,7 @@ class InventoryQueries(
     }
 
     fun maintenanceEvents(id: Int, after: String, limit: Int): InventoryEventPage {
+        access.current(current.identity())
         if (blocks.findByPropertyIdAndId(PropertyScope.ID, id) == null)
             missing("Maintenance block does not exist.")
         return history(

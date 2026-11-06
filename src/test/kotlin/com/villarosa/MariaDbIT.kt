@@ -4,14 +4,16 @@ import com.villarosa.repository.ApartmentRepository
 import com.villarosa.repository.CustomerRepository
 import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.Apartment
+import java.net.CookieManager
+import java.net.CookiePolicy
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.sql.DriverManager
-import java.util.Base64
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -26,7 +28,7 @@ import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @ActiveProfiles("test")
 @Testcontainers
 class MariaDbIT
@@ -38,11 +40,38 @@ constructor(
     private val reservations: ReservationRepository,
     @LocalServerPort private val port: Int,
 ) {
-    private val http = HttpClient.newHttpClient()
+    private lateinit var http: HttpClient
+    private var csrf: String = ""
 
     @BeforeEach
     fun clearPrivateContainerFixtures() {
-        TestData.reset(jdbc, database.jdbcUrl)
+        TestData.reset(jdbc, database.jdbcUrl, ownerIssuer = provider.issuer)
+        http =
+            HttpClient.newBuilder()
+                .cookieHandler(CookieManager(null, CookiePolicy.ACCEPT_ALL))
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build()
+        var path = "$BASE/oauth2/authorization/google"
+        repeat(3) {
+            val response =
+                http.send(
+                    HttpRequest.newBuilder(URI(path)).GET().build(),
+                    HttpResponse.BodyHandlers.ofString(),
+                )
+            assertThat(response.statusCode()).isEqualTo(302)
+            path = response.headers().firstValue("Location").get()
+        }
+        val session =
+            http.send(
+                HttpRequest.newBuilder(URI("$BASE/api/v1/auth/session")).GET().build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+        csrf =
+            tools.jackson.databind.json.JsonMapper.builder()
+                .build()
+                .readTree(session.body())
+                .get("csrfToken")
+                .asString()
     }
 
     @Test
@@ -71,6 +100,9 @@ constructor(
                 "--spring.datasource.username=${database.username}",
                 "--spring.datasource.password=${database.password}",
                 "--villas.mode=production",
+                "--villas.public-url=https://villas.example.test",
+                "--villas.google.client-id=123456-test.apps.googleusercontent.com",
+                "--villas.google.client-secret=private-production-fixture",
                 "--server.port=0",
             )
             .use { production ->
@@ -99,7 +131,9 @@ constructor(
         val guest =
             request(
                 "POST",
-                "/api/v1/customers?firstName=Test&lastName=%D0%93%D0%BE%D1%81%D1%82%D0%B8%D0%BD&phone=000&address=Synthetic",
+                "/api/v1/customers",
+                body =
+                    """{"firstName":"Test","lastName":"Гостин","phone":"000","address":"Synthetic"}""",
             )
         assertThat(guest.statusCode()).isEqualTo(200)
         val first = apartments.save(Apartment(null, 2, "South", "Езеро", 100, 150))
@@ -112,7 +146,11 @@ constructor(
         assertThat(created.statusCode()).isEqualTo(200)
         val id = created.body().toInt()
 
-        assertThat(request("GET", "/api/v1/customers?firstName=Test").body()).contains("Гостин")
+        assertThat(
+                request("POST", "/api/v1/customers/search", body = """{"firstName":"Test"}""")
+                    .body()
+            )
+            .contains("Гостин")
         assertThat(request("GET", "/api/v1/apartments").body()).contains("Езеро")
         val moved =
             request(
@@ -135,10 +173,12 @@ constructor(
         val response =
             request(
                 "POST",
-                "/api/v1/customers?firstName=&lastName=Example&phone=000&address=Synthetic",
+                "/api/v1/customers",
+                body =
+                    """{"firstName":"","lastName":"Example","phone":"000","address":"Synthetic"}""",
             )
         assertThat(response.statusCode()).isEqualTo(400)
-        assertThat(response.body()).contains("INVALID_REQUEST").doesNotContain("stackTrace")
+        assertThat(response.body()).contains("HTTP_400").doesNotContain("stackTrace")
     }
 
     @Test
@@ -345,26 +385,39 @@ constructor(
         path: String,
         credentials: String? = "test:test",
         operationKey: String? = java.util.UUID.randomUUID().toString(),
+        body: String? = null,
     ): HttpResponse<String> {
-        val request =
-            HttpRequest.newBuilder(URI("http://127.0.0.1:$port$path"))
-                .apply {
-                    if (credentials != null)
-                        header(
-                            "Authorization",
-                            "Basic ${Base64.getEncoder().encodeToString(credentials.toByteArray(StandardCharsets.UTF_8))}",
-                        )
-                }
-                .apply {
-                    if (method in listOf("POST", "PATCH", "DELETE") && operationKey != null)
-                        header("Idempotency-Key", operationKey)
-                }
-                .method(method, HttpRequest.BodyPublishers.noBody())
-                .build()
-        return http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
+        val builder = HttpRequest.newBuilder(URI("$BASE$path"))
+        if (credentials != "test:test" && credentials != null)
+            builder.header("Authorization", "Basic dGVzdDppbmNvcnJlY3Q=")
+        if (method in listOf("POST", "PATCH", "DELETE")) {
+            builder.header("Origin", BASE).header("X-CSRF-TOKEN", csrf)
+            if (operationKey != null) builder.header("Idempotency-Key", operationKey)
+        }
+        if (body != null) builder.header("Content-Type", "application/json")
+        builder.method(
+            method,
+            if (body == null) HttpRequest.BodyPublishers.noBody()
+            else HttpRequest.BodyPublishers.ofString(body),
+        )
+        val client = if (credentials == "test:test") http else HttpClient.newHttpClient()
+        return client.send(
+            builder.build(),
+            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8),
+        )
     }
 
     companion object {
+        private val PORT = java.net.ServerSocket(0).use { it.localPort }
+        private val BASE = "http://127.0.0.1:$PORT"
+        private val provider = TestOidcProvider("$BASE/login/oauth2/code/google")
+
+        @JvmStatic
+        @AfterAll
+        fun stopProvider() {
+            provider.close()
+        }
+
         private lateinit var bootstrapRows: Map<String, Long>
 
         @JvmStatic
@@ -406,6 +459,10 @@ constructor(
             properties.add("spring.datasource.username", database::getUsername)
             properties.add("spring.datasource.password", database::getPassword)
             properties.add("spring.datasource.driver-class-name", database::getDriverClassName)
+            properties.add("server.port") { PORT }
+            properties.add("villas.public-url") { BASE }
+            properties.add("villas.auth.synthetic-issuer") { provider.issuer }
+            properties.add("spring.session.jdbc.initialize-schema") { "never" }
             properties.add("spring.jpa.hibernate.ddl-auto") { "validate" }
         }
     }

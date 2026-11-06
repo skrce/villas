@@ -1,5 +1,6 @@
 package com.villarosa.controller
 
+import com.villarosa.TestHttpSession
 import com.villarosa.repository.ApartmentRepository
 import com.villarosa.repository.CustomerRepository
 import com.villarosa.repository.ReservationRepository
@@ -18,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.session.jdbc.JdbcIndexedSessionRepository
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
@@ -39,13 +41,15 @@ constructor(
     private val apartments: ApartmentRepository,
     private val customers: CustomerRepository,
     private val jdbc: JdbcTemplate,
+    private val sessions: JdbcIndexedSessionRepository,
 ) {
     @BeforeEach
     fun resetData() {
         com.villarosa.TestData.reset(jdbc)
+        browser = TestHttpSession.create(sessions, mvc)
     }
 
-    private val authorization = "Basic dGVzdDp0ZXN0"
+    private lateinit var browser: TestHttpSession
 
     @ParameterizedTest
     @ValueSource(strings = ["/reservation", "/reservation/", "/api/v1/reservations"])
@@ -54,7 +58,9 @@ constructor(
 
         mvc.perform(
                 delete(path)
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
                     .param("reservationId", booking.id.toString())
@@ -73,7 +79,9 @@ constructor(
 
         mvc.perform(
                 patch(path)
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
                     .param("reservationId", booking.id.toString())
@@ -88,23 +96,27 @@ constructor(
     fun emptyCustomerFieldReturnsBadRequest() {
         mvc.perform(
                 post("/customer")
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
-                    .param("firstName", "")
-                    .param("lastName", "Example")
-                    .param("phone", "000")
-                    .param("address", "Synthetic address")
+                    .contentType("application/json")
+                    .content(
+                        """{"firstName":"","lastName":"Example","phone":"000","address":"Synthetic address"}"""
+                    )
             )
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.message").value("All params should have value"))
+            .andExpect(jsonPath("$.code").value("HTTP_400"))
     }
 
     @Test
     fun emptyReservationDatesReturnBadRequest() {
         mvc.perform(
                 post("/reservation")
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
                     .param("customerId", "1")
@@ -120,7 +132,9 @@ constructor(
     fun missingReservationReturnsTheExistingClientError() {
         mvc.perform(
                 delete("/reservation/")
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
                     .param("reservationId", Int.MAX_VALUE.toString())
@@ -133,7 +147,9 @@ constructor(
     fun malformedReservationIdReturnsBadRequest() {
         mvc.perform(
                 delete("/reservation/")
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
                     .param("reservationId", "not-an-integer")
@@ -158,7 +174,9 @@ constructor(
     fun malformedCanonicalRequestHasASafeErrorEnvelope() {
         mvc.perform(
                 delete("/api/v1/reservations")
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
                     .param("reservationId", "sensitive-invalid-value")
@@ -175,7 +193,9 @@ constructor(
 
         mvc.perform(
                 get(path)
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
                     .param("firstName", "Unicode")
@@ -191,7 +211,9 @@ constructor(
 
         mvc.perform(
                 get(path)
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
             )
@@ -205,13 +227,15 @@ constructor(
         val result =
             mvc.perform(
                     post(path)
-                        .header(HttpHeaders.AUTHORIZATION, authorization)
+                        .cookie(browser.cookie)
+                        .header("X-CSRF-TOKEN", browser.csrf)
+                        .header("Origin", "http://localhost:5173")
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .param("expectedVersion", "0")
-                        .param("firstName", "Test")
-                        .param("lastName", "Guest")
-                        .param("phone", "000")
-                        .param("address", "Synthetic address")
+                        .contentType("application/json")
+                        .content(
+                            """{"firstName":"Test","lastName":"Guest","phone":"000","address":"Synthetic address"}"""
+                        )
                 )
                 .andExpect(status().isOk)
                 .andReturn()
@@ -226,7 +250,9 @@ constructor(
         val result =
             mvc.perform(
                     post(path)
-                        .header(HttpHeaders.AUTHORIZATION, authorization)
+                        .cookie(browser.cookie)
+                        .header("X-CSRF-TOKEN", browser.csrf)
+                        .header("Origin", "http://localhost:5173")
                         .header("Idempotency-Key", UUID.randomUUID().toString())
                         .param("expectedVersion", "0")
                         .param("customerId", existing.customerId.toString())
@@ -254,7 +280,9 @@ constructor(
 
         mvc.perform(
                 get(path)
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
                     .param("startDate", "2026-11-10")
@@ -274,7 +302,9 @@ constructor(
 
         mvc.perform(
                 get(path)
-                    .header(HttpHeaders.AUTHORIZATION, authorization)
+                    .cookie(browser.cookie)
+                    .header("X-CSRF-TOKEN", browser.csrf)
+                    .header("Origin", "http://localhost:5173")
                     .header("Idempotency-Key", UUID.randomUUID().toString())
                     .param("expectedVersion", "0")
                     .param("customerId", booking.customerId.toString())

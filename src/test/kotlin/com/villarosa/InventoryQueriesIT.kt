@@ -147,12 +147,14 @@ constructor(
             assertThat(list).hasSize(100)
             assertThat(list.first().startDate).isEqualTo(start.plusDays(104).toString())
             assertThat(list.last().startDate).isEqualTo(start.plusDays(5).toString())
-            assertThat(statistics.entityLoadCount).isEqualTo(100)
+            assertThat(statistics.getEntityStatistics(Reservation::class.java.name).loadCount)
+                .isEqualTo(100)
             statistics.clear()
             val page = queries.reservations("2026-01-01", "2027-01-01", null, 0, 2)
             assertThat(page.items).hasSize(2)
             assertThat(page.nextCursor).isNotNull()
-            assertThat(statistics.entityLoadCount).isEqualTo(3)
+            assertThat(statistics.getEntityStatistics(Reservation::class.java.name).loadCount)
+                .isEqualTo(3)
         } finally {
             statistics.isStatisticsEnabled = false
         }
@@ -237,6 +239,7 @@ constructor(
         @JvmStatic
         @DynamicPropertySource
         fun properties(registry: DynamicPropertyRegistry) {
+            registry.add("spring.session.jdbc.initialize-schema") { "never" }
             registry.add("spring.datasource.url", database::getJdbcUrl)
             registry.add("spring.datasource.username", database::getUsername)
             registry.add("spring.datasource.password", database::getPassword)

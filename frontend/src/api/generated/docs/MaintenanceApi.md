@@ -27,9 +27,8 @@ import type { CancelMaintenanceBlockRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new MaintenanceApi(config);
 
@@ -69,7 +68,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -104,9 +103,8 @@ import type { CreateMaintenanceBlockRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new MaintenanceApi(config);
 
@@ -152,7 +150,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 

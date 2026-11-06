@@ -3,8 +3,13 @@ import { randomBytes } from 'node:crypto';
 import { rmSync } from 'node:fs';
 
 process.env.VILLAS_LOCAL_INSTANCE = `e2e-${randomBytes(6).toString('hex')}`;
-process.env.VILLAS_LOCAL_USERNAME = 'test';
-process.env.VILLAS_LOCAL_PASSWORD = randomBytes(24).toString('hex');
+process.env.VILLAS_MODE = 'local';
+process.env.VILLAS_AUTH_PROVIDER = 'synthetic';
+process.env.VILLAS_GOOGLE_CLIENT_ID = 'villas-test';
+process.env.VILLAS_GOOGLE_CLIENT_SECRET = randomBytes(24).toString('hex');
+process.env.VILLAS_PUBLIC_URL = 'http://127.0.0.1:15073';
+process.env.VILLAS_SYNTHETIC_ISSUER = 'http://localhost:19108';
+process.env.VILLAS_INITIAL_OWNER_EMAIL = 'owner@example.test';
 process.env.VILLAS_PORT = '19098';
 process.env.VILLAS_API_TARGET = 'http://127.0.0.1:19098';
 const { localDatabase, root } = await import('./local-db.mjs');
@@ -47,6 +52,7 @@ try {
   await run(['scripts/dev-db.mjs', 'start']);
   await run(['scripts/run-api.mjs', '--migrate']);
   await run(['scripts/dev-db.mjs', 'fixtures']);
+  await run(['scripts/run-api.mjs', '--bootstrap-owner']);
   await run(['node_modules/@playwright/test/cli.js', 'test'], `${root}/frontend`);
 } catch (error) {
   if (!interruptedBy) console.error(error.message);

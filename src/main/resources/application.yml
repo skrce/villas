@@ -19,8 +19,14 @@ spring:
       mode: never
   flyway:
     enabled: false
+  session:
+    timeout: 3d
+    jdbc:
+      initialize-schema: never
   jackson:
     time-zone: UTC
+    deserialization:
+      fail-on-unknown-properties: true
 
 server:
   address: ${VILLAS_BIND_ADDRESS:127.0.0.1}
@@ -43,3 +49,9 @@ villas:
   mode: ${VILLAS_MODE:production}
   currency: EUR
   property-timezone: Europe/Skopje
+  public-url: ${VILLAS_PUBLIC_URL:}
+  google:
+    client-id: ${VILLAS_GOOGLE_CLIENT_ID:}
+    client-secret: ${VILLAS_GOOGLE_CLIENT_SECRET:}
+  auth:
+    provider: ${VILLAS_AUTH_PROVIDER:google}

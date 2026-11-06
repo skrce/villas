@@ -6,6 +6,8 @@ import com.villarosa.repository.ApartmentRepository
 import com.villarosa.repository.InventoryAvailability
 import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.*
+import com.villarosa.security.CurrentStaff
+import com.villarosa.security.StaffAccess
 import java.util.UUID
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
@@ -19,6 +21,8 @@ class ReservationService(
     private val reservations: ReservationRepository,
     private val rooms: ApartmentRepository,
     private val availability: InventoryAvailability,
+    private val current: CurrentStaff,
+    private val access: StaffAccess,
 ) {
     fun create(
         customerId: Int,
@@ -94,10 +98,12 @@ class ReservationService(
     fun operation(kind: OperationKind, key: String): OperationResult = operations.find(kind, key)
 
     @Transactional(readOnly = true)
-    fun reservation(id: Int): ReservationInfo =
-        (reservations.findByPropertyIdAndId(PropertyScope.ID, id)
+    fun reservation(id: Int): ReservationInfo {
+        access.current(current.identity())
+        return (reservations.findByPropertyIdAndId(PropertyScope.ID, id)
                 ?: missing("Reservation does not exist."))
             .toReservationInfo()
+    }
 
     @Transactional(readOnly = true)
     fun findAvailableApartments(
@@ -105,6 +111,7 @@ class ReservationService(
         endDateString: String,
         guestCount: Int = 1,
     ): List<Apartment> {
+        access.current(current.identity())
         val dates = StayDates.parse(startDateString, endDateString)
         if (guestCount <= 0) invalid("INVALID_GUEST_COUNT", "Guest count must be positive.")
         return rooms.findByPropertyId(PropertyScope.ID).filter {
@@ -113,8 +120,9 @@ class ReservationService(
     }
 
     @Transactional(readOnly = true)
-    fun findReservationsByCustomer(customerId: Int): List<ReservationInfo> =
-        reservations
+    fun findReservationsByCustomer(customerId: Int): List<ReservationInfo> {
+        access.current(current.identity())
+        return reservations
             .findByPropertyIdAndCustomerIdAndStatus(
                 PropertyScope.ID,
                 customerId,
@@ -126,6 +134,7 @@ class ReservationService(
                 ),
             )
             .map { it.toReservationInfo() }
+    }
 
     fun createReservation(
         customerId: Int,

@@ -3,24 +3,23 @@ import {
   Configuration,
   CustomerApi,
   ReservationApi,
+  StaffApi,
+  InventoryApi,
 } from './generated';
+import { API_BASE, scopedSessionFetch } from './session';
 
-export type ApiConfig = {
-  basePath: string;
-  username: string;
-  password: string;
-};
-
-export const buildApis = (config: ApiConfig) => {
+export const buildApis = (staffId: string, epoch: number) => {
   const configuration = new Configuration({
-    basePath: config.basePath,
-    username: config.username,
-    password: config.password,
+    basePath: API_BASE,
+    fetchApi: scopedSessionFetch(staffId, epoch),
+    credentials: 'same-origin',
   });
 
   return {
     apartmentApi: new ApartmentApi(configuration),
     customerApi: new CustomerApi(configuration),
     reservationApi: new ReservationApi(configuration),
+    staffApi: new StaffApi(configuration),
+    inventoryApi: new InventoryApi(configuration),
   };
 };

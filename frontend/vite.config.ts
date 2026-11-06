@@ -7,9 +7,11 @@ export default defineConfig({
     host: '127.0.0.1',
     strictPort: true,
     proxy: {
+      '/oauth2': { target: process.env.VILLAS_API_TARGET ?? 'http://127.0.0.1:9098', changeOrigin: false },
+      '/login/oauth2': { target: process.env.VILLAS_API_TARGET ?? 'http://127.0.0.1:9098', changeOrigin: false },
       '/api': {
         target: process.env.VILLAS_API_TARGET ?? 'http://127.0.0.1:9098',
-        changeOrigin: true,
+        changeOrigin: false,
       },
     },
   },
@@ -17,9 +19,11 @@ export default defineConfig({
     host: '127.0.0.1',
     strictPort: true,
     proxy: {
+      '/oauth2': { target: process.env.VILLAS_API_TARGET ?? 'http://127.0.0.1:9098', changeOrigin: false },
+      '/login/oauth2': { target: process.env.VILLAS_API_TARGET ?? 'http://127.0.0.1:9098', changeOrigin: false },
       '/api': {
         target: process.env.VILLAS_API_TARGET ?? 'http://127.0.0.1:9098',
-        changeOrigin: true,
+        changeOrigin: false,
       },
     },
   },

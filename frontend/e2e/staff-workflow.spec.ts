@@ -1,15 +1,23 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-test('staff can create a guest and move and cancel a persisted booking', async ({ page, request }) => {
-  const password = process.env.VILLAS_LOCAL_PASSWORD;
-  if (!password || !process.env.VILLAS_LOCAL_INSTANCE?.startsWith('e2e-')) {
-    throw new Error('Run npm run test:e2e to use a disposable Villas database.');
-  }
-  const headers = { Authorization: `Basic ${Buffer.from(`test:${password}`).toString('base64')}` };
+
+async function signIn(page: Page, identity = 'Synthetic Owner') {
   await page.goto('/');
-  const settings = page.getByRole('form', { name: 'API settings' });
-  await settings.getByLabel('Password').fill(password);
-  await settings.getByRole('button', { name: 'Apply settings' }).click();
+  const popupPromise = page.waitForEvent('popup');
+  await page.getByRole('button', { name: 'Sign in to local demo' }).click();
+  const popup = await popupPromise;
+  await popup.getByRole('button', { name: identity, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+}
+async function headersFor(page: Page) {
+  const response = await page.request.get('/api/v1/auth/session');
+  return { 'X-CSRF-TOKEN': (await response.json()).csrfToken, Origin: 'http://127.0.0.1:15073' };
+}
+
+test('staff can create a guest and move and cancel a persisted booking', async ({ page }) => {
+  await signIn(page);
+  const request = page.request;
+  const headers = await headersFor(page);
   await page.getByRole('button', { name: 'Load apartments' }).click();
   await expect(page.getByRole('cell', { name: 'Synthetic lake room' })).toBeVisible();
 
@@ -55,23 +63,18 @@ test('staff can create a guest and move and cancel a persisted booking', async (
   await expect(page.getByRole('cell', { name: 'Гостин', exact: true })).toBeVisible();
 });
 
-test('separate tabs share a pending booking key when one response is lost', async ({ page, context, request }) => {
-  const password = process.env.VILLAS_LOCAL_PASSWORD;
-  if (!password || !process.env.VILLAS_LOCAL_INSTANCE?.startsWith('e2e-')) {
-    throw new Error('Run npm run test:e2e to use a disposable Villas database.');
-  }
-  const headers = { Authorization: `Basic ${Buffer.from(`test:${password}`).toString('base64')}` };
+test('separate tabs share a pending booking key when one response is lost', async ({ page, context }) => {
+  await signIn(page);
+  const request = page.request;
+  const headers = await headersFor(page);
   const guest = await request.post('/api/v1/customers', {
-    headers, params: { firstName: 'TabTest', lastName: 'Synthetic', phone: '000', address: 'Synthetic' },
+    headers, data: { firstName: 'TabTest', lastName: 'Synthetic', phone: '000', address: 'Synthetic' },
   });
   expect(guest.ok()).toBeTruthy();
   const customerId: number = await guest.json();
   const rooms = await request.get('/api/v1/apartments', { headers });
   const roomId: number = (await rooms.json())[0].id;
   await page.goto('/');
-  const settings = page.getByRole('form', { name: 'API settings' });
-  await settings.getByLabel('Password').fill(password);
-  await settings.getByRole('button', { name: 'Apply settings' }).click();
   const other = await context.newPage();
   await other.goto('/');
   for (const tab of [page, other]) {
@@ -118,4 +121,18 @@ test('separate tabs share a pending booking key when one response is lost', asyn
     releaseFirst();
     await other.close();
   }
+});
+
+
+test('logout clears access in another tab and storage contains no credentials or guest details', async ({ page, context }) => {
+  await page.addInitScript(() => localStorage.setItem('villarosa.apiConfig', '{"username":"test","password":"obsolete"}'));
+  await signIn(page);
+  const other = await context.newPage();
+  await other.goto('/');
+  await expect(other.getByRole('button', { name: 'Sign out' })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('villarosa.apiConfig'))).toBeNull();
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByRole('button', { name: 'Sign in to local demo' })).toBeVisible();
+  await expect(other.getByRole('button', { name: 'Sign in to local demo' })).toBeVisible();
+  expect((await page.request.get('/api/v1/apartments')).status()).toBe(401);
 });

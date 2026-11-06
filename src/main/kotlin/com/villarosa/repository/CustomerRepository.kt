@@ -1,6 +1,7 @@
 package com.villarosa.repository
 
 import com.villarosa.repository.model.Customer
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
@@ -11,9 +12,14 @@ interface CustomerRepository : JpaRepository<Customer, Int> {
     fun findByPropertyIdAndFirstNameContaining(
         propertyId: String,
         firstName: String,
+        pageable: Pageable,
     ): List<Customer>
 
-    fun findByPropertyIdAndPhoneContaining(propertyId: String, phone: String): List<Customer>
+    fun findByPropertyIdAndPhoneContaining(
+        propertyId: String,
+        phone: String,
+        pageable: Pageable,
+    ): List<Customer>
 
     fun findByPropertyIdAndFirstNameAndLastNameAndPhone(
         propertyId: String,

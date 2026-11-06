@@ -11,7 +11,7 @@ milestone active unless the owner requests otherwise.
 
 The release is staff-only. Production authentication is invitation-only Google OIDC
 with server-side sessions. Never add production password login, public signup, or a
-fallback administrator password. The local/test Basic Auth adapter is temporary.
+fallback administrator password. Synthetic OIDC is allowed only with explicit loopback local/test configuration.
 
 Use EUR integer cents for new money contracts, `Europe/Skopje` for property calendar
 dates, and UTC instants for events. Production starts empty. Synthetic fixtures are

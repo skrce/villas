@@ -1,81 +1,189 @@
 package com.villarosa
 
-import jakarta.servlet.http.HttpServletResponse
+import com.villarosa.security.*
+import jakarta.servlet.DispatcherType
+import java.time.Clock
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
-import org.springframework.security.core.userdetails.User
-import org.springframework.security.core.userdetails.UserDetailsService
-import org.springframework.security.core.userdetails.UsernameNotFoundException
-import org.springframework.security.provisioning.InMemoryUserDetailsManager
-import org.springframework.security.web.AuthenticationEntryPoint
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository
+import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.context.DelegatingSecurityContextRepository
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository
+import org.springframework.security.web.context.SecurityContextHolderFilter
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository
+import org.springframework.session.web.http.DefaultCookieSerializer
 
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 class SecurityConfiguration {
     @Bean
-    fun staffUsers(environment: Environment): UserDetailsService {
-        val mode = environment.getProperty("villas.mode", "production")
-        require(mode in setOf("local", "test", "production")) { "Invalid Villas runtime mode." }
-        if (mode == "production") {
-            require(
-                !environment.containsProperty("villas.local-auth.username") &&
-                    !environment.containsProperty("villas.local-auth.password")
-            ) {
-                "Development authentication must not be configured in production."
-            }
-            return UserDetailsService {
-                throw UsernameNotFoundException("Staff login is not configured.")
-            }
-        }
-        val username = environment.getRequiredProperty("villas.local-auth.username")
-        val password = environment.getRequiredProperty("villas.local-auth.password")
-        require(username.isNotBlank() && password.isNotBlank()) {
-            "Development credentials are required."
-        }
-        return InMemoryUserDetailsManager(
-            User.withUsername(username).password("{noop}$password").roles("USER").build()
-        )
-    }
+    fun staffAuthenticationSettings(environment: Environment) = AuthenticationSettings(environment)
 
     @Bean
-    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-    fun staffSecurity(http: HttpSecurity, environment: Environment): SecurityFilterChain {
-        val development = environment.getProperty("villas.mode", "production") != "production"
-        val authenticationRequired = AuthenticationEntryPoint { _, response, _ ->
-            response.status = HttpServletResponse.SC_UNAUTHORIZED
-            response.contentType = "application/json"
-            response.writer.write(
-                """{"code":"AUTHENTICATION_REQUIRED","message":"Authentication required."}"""
-            )
+    fun clientRegistrations(settings: AuthenticationSettings) =
+        InMemoryClientRegistrationRepository(settings.registration())
+
+    @Bean
+    fun staffSecurityContexts() =
+        DelegatingSecurityContextRepository(
+            RequestAttributeSecurityContextRepository(),
+            object : HttpSessionSecurityContextRepository() {
+                override fun saveContext(
+                    context: org.springframework.security.core.context.SecurityContext,
+                    request: jakarta.servlet.http.HttpServletRequest,
+                    response: jakarta.servlet.http.HttpServletResponse,
+                ) {
+                    if (
+                        context.authentication == null ||
+                            context.authentication is StaffAuthentication
+                    )
+                        super.saveContext(context, request, response)
+                }
+            },
+        )
+
+    @Bean fun staffCsrfTokens() = HttpSessionCsrfTokenRepository()
+
+    @Bean
+    fun staffCookieSerializer(settings: AuthenticationSettings) =
+        DefaultCookieSerializer().apply {
+            setCookieName(settings.cookieName)
+            setCookiePath("/")
+            setUseHttpOnlyCookie(true)
+            setUseSecureCookie(settings.secureCookie)
+            setSameSite("Lax")
+            setCookieMaxAge(AuthenticationSettings.ABSOLUTE_LIMIT.seconds.toInt())
         }
+
+    @Bean
+    fun staffSecurity(
+        http: HttpSecurity,
+        settings: AuthenticationSettings,
+        access: StaffAccess,
+        directory: StaffDirectory,
+        clock: Clock,
+        contexts: DelegatingSecurityContextRepository,
+        csrf: HttpSessionCsrfTokenRepository,
+        authorizedClients: OAuth2AuthorizedClientService,
+    ): SecurityFilterChain {
+        val oidc = OidcUserService().apply { setRetrieveUserInfo { false } }
         http
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .exceptionHandling {
-                it.authenticationEntryPoint(authenticationRequired)
-                it.accessDeniedHandler { _, response, _ ->
-                    response.status = HttpServletResponse.SC_FORBIDDEN
-                    response.contentType = "application/json"
-                    response.writer.write("""{"code":"ACCESS_DENIED","message":"Access denied."}""")
+            .httpBasic { it.disable() }
+            .formLogin { it.disable() }
+            .logout { it.disable() }
+            .requestCache { it.disable() }
+            .sessionManagement {
+                it.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED).sessionFixation {
+                    protection ->
+                    protection.newSession()
                 }
             }
-        if (development) {
-            // The legacy console uses Basic Auth only in explicit local/test modes.
-            http
-                .csrf { it.disable() }
-                .authorizeHttpRequests {
+            .securityContext { it.securityContextRepository(contexts).requireExplicitSave(true) }
+            .csrf { it.csrfTokenRepository(csrf) }
+            .exceptionHandling {
+                it.authenticationEntryPoint { _, response, _ ->
+                    response.status = 401
+                    response.contentType = "application/json"
+                    response.writer.write(
+                        """{"code":"AUTHENTICATION_REQUIRED","message":"Sign in to continue."}"""
+                    )
+                }
+                it.accessDeniedHandler { _, response, _ ->
+                    response.status = 403
+                    response.contentType = "application/json"
+                    response.writer.write(
+                        """{"code":"ACCESS_DENIED","message":"Access denied or session security token missing."}"""
+                    )
+                }
+            }
+            .authorizeHttpRequests {
+                it.dispatcherTypeMatchers(DispatcherType.ERROR)
+                    .permitAll()
+                    .requestMatchers(
+                        "/api/v1/auth/session",
+                        "/oauth2/authorization/google",
+                        "/login/oauth2/code/google",
+                    )
+                    .permitAll()
+                if (settings.mode != "production")
                     it.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
-                        .anyRequest()
-                        .authenticated()
-                }
-                .httpBasic { it.authenticationEntryPoint(authenticationRequired) }
-        } else {
-            http.authorizeHttpRequests { it.anyRequest().denyAll() }
-        }
+                it.anyRequest().hasRole("OWNER")
+            }
+            .oauth2Login {
+                it.loginPage("${settings.publicOrigin}/login")
+                    .authorizationEndpoint { endpoint ->
+                        endpoint.authorizationRequestRepository(StaffAuthorizationRequests(clock))
+                    }
+                    .userInfoEndpoint { endpoint -> endpoint.oidcUserService(oidc) }
+                    .successHandler { request, response, authentication ->
+                        val oauth = authentication as OAuth2AuthenticationToken
+                        val user = oauth.principal as OidcUser
+                        authorizedClients.removeAuthorizedClient(
+                            oauth.authorizedClientRegistrationId,
+                            oauth.name,
+                        )
+                        try {
+                            val account =
+                                directory.accept(
+                                    VerifiedStaffIdentity(
+                                        user.idToken.issuer.toString(),
+                                        user.subject.orEmpty(),
+                                        user.email ?: "",
+                                        user.emailVerified == true,
+                                    )
+                                )
+                            val context = SecurityContextHolder.createEmptyContext()
+                            context.authentication = StaffAuthentication(account.identity())
+                            SecurityContextHolder.setContext(context)
+                            val session = request.getSession(true)
+                            session.maxInactiveInterval =
+                                AuthenticationSettings.IDLE_LIMIT.seconds.toInt()
+                            session.setAttribute(
+                                StaffSessionFilter.AUTHENTICATED_AT,
+                                clock.millis(),
+                            )
+                            session.setAttribute(StaffSessionFilter.LAST_SEEN_AT, clock.millis())
+                            session.setAttribute(
+                                StaffSessionFilter.GENERATION,
+                                java.util.UUID.randomUUID().toString(),
+                            )
+                            csrf.saveToken(csrf.generateToken(request), request, response)
+                            contexts.saveContext(context, request, response)
+                            response.sendRedirect("${settings.publicOrigin}/auth/complete")
+                        } catch (_: Exception) {
+                            request.getSession(false)?.invalidate()
+                            SecurityContextHolder.clearContext()
+                            response.sendRedirect(
+                                "${settings.publicOrigin}/login?error=sign_in_denied"
+                            )
+                        }
+                    }
+                    .failureHandler { request, response, _ ->
+                        val session = request.getSession(false)
+                        val saved =
+                            session?.getAttribute(
+                                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY
+                            ) as? org.springframework.security.core.context.SecurityContext
+                        if (saved?.authentication !is StaffAuthentication) session?.invalidate()
+                        SecurityContextHolder.clearContext()
+                        response.sendRedirect("${settings.publicOrigin}/login?error=sign_in_denied")
+                    }
+            }
+            .addFilterAfter(
+                StaffSessionFilter(settings, access, clock),
+                SecurityContextHolderFilter::class.java,
+            )
         return http.build()
     }
 }

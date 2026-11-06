@@ -75,10 +75,12 @@ page and a durable key across tabs. The console confirms the committed operation
 after a successful mutation response as well as before a retry, so an HTML page or
 malformed 200 cannot erase recovery state. A browser without Web Locks cannot submit
 booking changes; use a supported browser over HTTPS or localhost.
-Its storage scope uses the local API and development username. Milestone 3
-must replace the server's temporary `development` actor and this client scope with
-verified staff identity, and handle logout/account changes, before enabling
-production access. The current production mode denies all business requests.
+Its storage identity hashes the local API, canonical Owner ID, operation and normalized
+input. Storage contains only that hash, the random operation key and a prepared version;
+raw booking/guest details and tokens are not persisted. The server binds operations and
+events to the verified canonical Owner. A different Owner cannot recover the original
+Owner's operation. Session changes invalidate old API continuations and never trigger
+an automatic write after reauthentication.
 
 Legacy aliases enforce the same inventory transaction and validation. Callers may
 send keys and expected versions, but both remain optional there for compatibility.

@@ -29,14 +29,11 @@ record an explicit decision before shipping the corresponding feature.
 
 ## Development compatibility
 
-Milestone 1 preserves the basic console with Basic Auth only in explicit local/test
-modes. The default production mode denies business access and rejects development
-authentication properties. This adapter is temporary until D01 is implemented.
-Local docs are enabled for contract generation; production docs are disabled.
-
-Milestone 3 is implementing D09/D10 in sequence. The staff-account foundation does
-not itself enable HTTP sign-in. Real Google client configuration, the initial owner
-email, and live-provider verification remain open until supplied and demonstrated.
+Google OIDC and server-side sessions now replace the temporary Basic Auth adapter.
+Synthetic OIDC is available only in explicit loopback local/test modes. Production
+rejects it and legacy password settings. The initial owner email was supplied
+privately. The owner deferred Google client creation and live-provider acceptance;
+those gates remain open while the verified local implementation enables milestone 4.
 
 The current schema and fixtures preserve legacy integer price fields. They do not
 establish a production price unit. Milestone 6 introduces the EUR-cent contract

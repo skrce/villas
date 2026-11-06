@@ -21,22 +21,23 @@ class OpenApiConfiguration {
                     .title("Villarosa API")
                     .version("1.0.0")
                     .description(
-                        "Staff API. Basic Auth is available only for local development and tests."
+                        "Owner staff API. Google OIDC establishes a server-side session. Unsafe requests require the current CSRF header."
                     )
             )
             .components(
                 Components()
                     .addSecuritySchemes(
-                        "basicAuth",
+                        "staffSession",
                         SecurityScheme()
-                            .type(SecurityScheme.Type.HTTP)
-                            .scheme("basic")
+                            .type(SecurityScheme.Type.APIKEY)
+                            .`in`(SecurityScheme.In.COOKIE)
+                            .name("__Host-villas")
                             .description(
-                                "Local/test compatibility only. Production access is disabled pending staff Google login."
+                                "HttpOnly, host-scoped session cookie. Local HTTP uses VILLAS_LOCAL_SESSION. Browser requests use same-origin credentials; never read or copy this cookie in JavaScript."
                             ),
                     )
             )
-            .addSecurityItem(SecurityRequirement().addList("basicAuth"))
+            .addSecurityItem(SecurityRequirement().addList("staffSession"))
 
     @Bean
     fun canonicalPaths(): OpenApiCustomizer = OpenApiCustomizer { api ->

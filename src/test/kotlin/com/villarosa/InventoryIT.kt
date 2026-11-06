@@ -50,15 +50,8 @@ constructor(
 
     @BeforeEach
     fun fixtures() {
-        for (table in
-            listOf(
-                "inventory_events",
-                "inventory_operations",
-                "reservations",
-                "maintenance_blocks",
-                "customers",
-                "apartments",
-            )) jdbc.update("DELETE FROM $table WHERE id IS NOT NULL")
+        TestData.reset(jdbc, database.jdbcUrl)
+        TestData.seedOwner(jdbc, index = 1)
         guest =
             guests.saveAndFlush(Customer.buildCustomer("Concurrent", "Test", "000", "Synthetic"))
         first = rooms.saveAndFlush(Apartment(null, 2, "South", "Lake", 100, 150))
@@ -74,13 +67,26 @@ constructor(
         operation: String = key(),
     ) = service.create(guest.id!!, room.id!!, start, end, count, operation)
 
-    private fun race(vararg actions: () -> OperationResult): List<String> {
+    private fun race(
+        vararg actions: () -> OperationResult,
+        sameOwner: Boolean = false,
+    ): List<String> {
         val start = CountDownLatch(1)
         val ready = CountDownLatch(actions.size)
         val executor = Executors.newFixedThreadPool(actions.size)
         try {
-            val results = actions.map { action ->
+            val results = actions.mapIndexed { index, action ->
                 executor.submit<String> {
+                    val context =
+                        org.springframework.security.core.context.SecurityContextHolder
+                            .createEmptyContext()
+                    context.authentication =
+                        com.villarosa.security.StaffAuthentication(
+                            TestData.ownerIdentity(if (sameOwner) 0 else index)
+                        )
+                    org.springframework.security.core.context.SecurityContextHolder.setContext(
+                        context
+                    )
                     ready.countDown()
                     check(start.await(10, TimeUnit.SECONDS))
                     try {
@@ -88,6 +94,9 @@ constructor(
                         "COMMITTED"
                     } catch (error: DomainException) {
                         error.code
+                    } finally {
+                        org.springframework.security.core.context.SecurityContextHolder
+                            .clearContext()
                     }
                 }
             }
@@ -238,7 +247,13 @@ constructor(
     @Test
     fun duplicateKeysReturnOneSavedOutcomeEvenWhenRequestsRace() {
         val operation = key()
-        assertThat(race({ create(operation = operation) }, { create(operation = operation) }))
+        assertThat(
+                race(
+                    { create(operation = operation) },
+                    { create(operation = operation) },
+                    sameOwner = true,
+                )
+            )
             .containsOnly("COMMITTED")
         val saved = service.operation(OperationKind.CREATE, operation)
         assertThat(create(operation = operation)).isEqualTo(saved)
@@ -621,6 +636,73 @@ constructor(
         assertThat(events.count()).isZero()
     }
 
+    @Test
+    fun operationRecoveryIsScopedToTheCanonicalOwner() {
+        val operation = key()
+        val committed = create(operation = operation)
+        org.springframework.security.core.context.SecurityContextHolder.getContext()
+            .authentication = com.villarosa.security.StaffAuthentication(TestData.ownerIdentity(1))
+        assertThat(
+                assertThrows<DomainException> { service.operation(OperationKind.CREATE, operation) }
+                    .code
+            )
+            .isEqualTo("OPERATION_NOT_COMMITTED")
+        val other = create(second, operation = operation)
+        assertThat(other.resourceId).isNotEqualTo(committed.resourceId)
+        assertThat(events.findAll().map { it.actorId })
+            .containsExactlyInAnyOrder(TestData.ownerIdentity().id, TestData.ownerIdentity(1).id)
+    }
+
+    @Test
+    fun aWriteWaitingForTheOwnerLockRechecksDeactivationBeforeChangingInventory() {
+        val executor = Executors.newSingleThreadExecutor()
+        val ready = CountDownLatch(1)
+        lateinit var future: java.util.concurrent.Future<String>
+        try {
+            TransactionTemplate(transactionManager).executeWithoutResult {
+                jdbc.queryForObject(
+                    "SELECT id FROM staff_accounts WHERE id = ? FOR UPDATE",
+                    String::class.java,
+                    TestData.ownerIdentity().id,
+                )
+                future =
+                    executor.submit<String> {
+                        org.springframework.security.core.context.SecurityContextHolder.getContext()
+                            .authentication =
+                            com.villarosa.security.StaffAuthentication(TestData.ownerIdentity())
+                        ready.countDown()
+                        try {
+                            create()
+                            "COMMITTED"
+                        } catch (error: DomainException) {
+                            error.code
+                        } finally {
+                            org.springframework.security.core.context.SecurityContextHolder
+                                .clearContext()
+                        }
+                    }
+                check(ready.await(10, TimeUnit.SECONDS))
+                jdbc.update(
+                    "UPDATE staff_accounts SET active = FALSE, security_version = security_version + 1 WHERE id = ?",
+                    TestData.ownerIdentity().id,
+                )
+            }
+            assertThat(future.get(15, TimeUnit.SECONDS)).isEqualTo("SESSION_REVOKED")
+            assertThat(reservations.count()).isZero()
+            assertThat(events.count()).isZero()
+            assertThat(
+                    jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM inventory_operations",
+                        Long::class.java,
+                    )
+                )
+                .isZero()
+        } finally {
+            executor.shutdownNow()
+            check(executor.awaitTermination(10, TimeUnit.SECONDS))
+        }
+    }
+
     companion object {
         @Container @JvmField val database = TestDatabases.mariaDb()
 
@@ -633,6 +715,7 @@ constructor(
         @JvmStatic
         @DynamicPropertySource
         fun properties(properties: DynamicPropertyRegistry) {
+            properties.add("spring.session.jdbc.initialize-schema") { "never" }
             properties.add("spring.datasource.url", database::getJdbcUrl)
             properties.add("spring.datasource.username", database::getUsername)
             properties.add("spring.datasource.password", database::getPassword)

@@ -13,6 +13,7 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
+    { command: 'node ../scripts/test-identity-provider.mjs', url: 'http://127.0.0.1:19108/jwks', reuseExistingServer: false, gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 } },
     {
       command: 'node ../scripts/run-api.mjs --packaged',
       url: 'http://127.0.0.1:19098/v3/api-docs',

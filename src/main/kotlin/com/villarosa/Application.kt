@@ -7,6 +7,10 @@ import org.springframework.boot.runApplication
 @SpringBootApplication class Application
 
 fun main(args: Array<String>) {
+    if (args.contentEquals(arrayOf("recover-owner"))) {
+        OwnerBootstrap.run(false, recovery = true)
+        return
+    }
     if (args.firstOrNull() == "bootstrap-owner") {
         require(args.size == 1 || (args.size == 2 && args[1] == "--replace-pending")) {
             "Use bootstrap-owner with an optional --replace-pending flag."

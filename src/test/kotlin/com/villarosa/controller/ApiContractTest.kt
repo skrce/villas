@@ -26,7 +26,8 @@ class ApiContractTest @Autowired constructor(private val mvc: MockMvc) {
                     jsonPath("$.paths['/apartments'].get.operationId").value("listApartments")
                 )
                 .andExpect(
-                    jsonPath("$.paths['/customers'].get.operationId").value("searchCustomer")
+                    jsonPath("$.paths['/customers/search'].post.operationId")
+                        .value("searchCustomer")
                 )
                 .andExpect(
                     jsonPath("$.paths['/reservations'].post.operationId").value("createReservation")
