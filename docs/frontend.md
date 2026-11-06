@@ -23,6 +23,7 @@ original record. Room date filters do not change the room's edit identity.
 | `/guests/:id` | Optional contacts/notes, versioned profile edit, archive/restore, complete paginated history and new-stay link |
 | `/rooms` | Searchable bounded room directory, unique references, active/archive status and room creation |
 | `/rooms/:id` | Editable metadata, versioned archive/restore, bounded dated availability, maintenance create/cancel and retained event history |
+| `/rooms/:id#rates` | Exact EUR base/seasonal rate configuration, missing-rate state and reviewed-version editing |
 | `/settings/staff` | Owner invitations, revocation, deactivation and session revocation, with current versions |
 
 Owner settings requires the server-provided `staff:manage` capability. Every supported

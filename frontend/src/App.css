@@ -636,6 +636,30 @@ td .subline {
   min-height: 44px;
   overflow-wrap: anywhere;
 }
+.base-rate {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.base-rate > strong {
+  font-size: 28px;
+}
+.season-list {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.season-fields {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+.season-fields legend {
+  padding: 0 6px;
+  font-size: 13px;
+}
 dialog {
   border: 1px solid var(--border);
   border-radius: 14px;

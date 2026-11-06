@@ -9,6 +9,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.Version
 import java.util.UUID
+import org.hibernate.annotations.ColumnDefault
 
 @Entity
 @Table(name = "apartments")
@@ -33,4 +34,13 @@ data class Apartment(
     @Column(name = "bed_configuration", length = 200) var bedConfiguration: String? = null,
     @Column(length = 1000) var features: String? = null,
     @Column(length = 50) var floor: String? = null,
+    @JsonIgnore @Column(name = "base_rate_cents") var baseRateCents: Long? = null,
+    @JsonIgnore
+    @ColumnDefault("0")
+    @Column(name = "rate_version", nullable = false)
+    var rateVersion: Long = 0,
+    @JsonIgnore
+    @ColumnDefault("'EUR'")
+    @Column(name = "rate_currency", nullable = false, length = 3)
+    var rateCurrency: String = "EUR",
 )

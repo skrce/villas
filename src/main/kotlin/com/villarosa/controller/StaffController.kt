@@ -66,6 +66,8 @@ class StaffController(
                 "guests:write",
                 "rooms:read",
                 "rooms:write",
+                "rates:read",
+                "rates:write",
                 "reservations:read",
                 "reservations:write",
                 "maintenance:read",

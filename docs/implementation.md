@@ -13,7 +13,7 @@ start are recorded in [decisions](decisions.md).
 | 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Local implementation reviewed, verified and merged in PRs #18 and #19; live Google setup explicitly deferred |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | [Implemented and independently reviewed in PR #20](https://github.com/skrce/villas/pull/20); final merge/CI evidence is in the linked issue |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Backend PRs #21/#22 merged after review and CI; integrated UI verified locally, final review/merge evidence is in the linked issue |
-| 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Planned |
+| 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Active: confirmed room-night pricing, exact-cent rates and administration; quote acceptance/booking repricing still in progress |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Planned |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Planned |
 | 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Planned |
@@ -275,3 +275,28 @@ exact-head CI evidence are recorded in the milestone issue before closure.
 Real Google setup/acceptance remains explicitly deferred in milestone 3. Seasonal
 rates, complete calendar/lifecycle, settlement/reporting and deployment/pilot remain
 milestones 6-10. Milestone 5 introduces no new role, pricing, refund or hosting policy.
+
+## Milestone 6 rates checkpoint
+
+The owner approved D11's simple room-night pricing model. V10 introduces explicit
+EUR base/seasonal rates without converting the old example price fields. Rates use
+independent reviewed versions and the existing room lock. Configuration, seasonal
+replacement and audit commit together. The calculator uses exact integer cents,
+calendar nights and bounded date segments across seasons, leap days and DST.
+
+The room page now has explicit rate configuration, exact decimal entry, seasonal
+editing and stale-edit reload/review. Financial success responses must match the
+submitted configuration. Drafts retain their reviewed version across same-Owner
+session recovery and never persist raw prices in browser storage.
+
+Scoped checks pass 39 unit/HTTP cases and nine native MariaDB cases, including audit
+rollback, concurrent Owner edits and every V10 DDL prefix. The frontend passes 106
+cases with lint/build. Its money parser/formatter has 100% line/branch coverage;
+rate validation has 97.14% line/95.45% branch and the editor has 94.33% line/90%
+branch. Current full frontend coverage is 84.05% line/78.08% branch. Complete-gate,
+browser, independent-review and merge evidence belong in the milestone issue/PR.
+
+Manual override and booking-change repricing decisions remain pending. Stable quotes,
+expiry and rate-change refresh, accepted immutable reservation prices and the stay
+summary are remaining milestone 6 work. This rates checkpoint does not close #7,
+enable unapproved overrides or claim a complete priced booking workflow.

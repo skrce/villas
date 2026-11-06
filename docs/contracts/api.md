@@ -32,6 +32,8 @@ edits require expected versions. The generated client and console send both.
 | `getApartment` / `updateApartment` | `GET` / `PUT /api/v1/apartments/{id}` | None | Room details and reviewed-version edit |
 | `setApartmentStatus` | `POST /api/v1/apartments/{id}/status` | None | Retained room archive/restore |
 | `blockApartment` | `POST /api/v1/apartments/{id}/maintenance` | Existing query-based maintenance creation | Private JSON inventory block |
+| `roomRates` / `updateRoomRates` | `GET` / `PUT /api/v1/apartments/{id}/rates` | None | Reviewed exact EUR base and seasonal rates |
+| `previewRoomRates` | `POST /api/v1/apartments/{id}/rates/preview` | None | Private accommodation price breakdown, without accepting a quote |
 | `createReservation` | `POST /api/v1/reservations` | `POST /reservation` | Bookings, milestones 2 and 7 |
 | `findAvailableApartments` | `GET /api/v1/reservations/available-apartments` | `GET /reservation/available-apartments` | Availability, milestones 2 and 7 |
 | `findReservationsByCustomer` | `GET /api/v1/reservations/customer` | `GET /reservation/customer` | Bookings, milestone 7 |
@@ -145,3 +147,8 @@ JSON create/versioned replace/status and private JSON maintenance creation. Opti
 `roomId` filters narrow existing reservation/maintenance calendar reads in SQL.
 Reference/capacity/archive errors and surrogate conflict links are defined in
 [guests and rooms](guests-and-rooms.md). No price fields are accepted by room writes.
+
+Room rate configuration uses its own version and private JSON amounts in exact EUR
+cents. The preview has no quote identity and reserves no inventory. Missing prices
+are configuration errors. See [pricing](pricing.md) for seasonal boundaries, checked
+arithmetic, supported amounts, concurrency and remaining quote work.

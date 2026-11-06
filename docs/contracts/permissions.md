@@ -10,7 +10,8 @@ requires an explicit capability decision, server enforcement, and denial tests.
 | Read/create/edit/archive/restore rooms and manage dated maintenance | Allowed |
 | Invite another Owner, revoke invitations, deactivate accounts, revoke sessions | Allowed, with current membership and last-owner protection |
 | Read operational and staff audit history | Allowed |
-| Future rate configuration, payments, refunds, reports | Only after their domain implementation and policy gates |
+| Read/configure room base and seasonal EUR rates and preview accommodation totals | Allowed |
+| Future price overrides, payments, refunds, reports | Only after their domain implementation and policy gates |
 
 The account foundation validates current active membership, property scope, and a
 security generation in services. Administrative mutations serialize on the property

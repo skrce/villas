@@ -15,6 +15,7 @@ import {
 import { dateSchema } from "../../shared/schemas";
 import { RecordStatusDialog } from "../../shared/RecordStatusDialog";
 import { RoomEditor } from "./Form";
+import { RoomRatesPanel } from "./Rates";
 import {
   CancelMaintenance,
   MaintenanceForm,
@@ -242,6 +243,7 @@ export function RoomDetail() {
               </div>
             </dl>
           </section>
+          <RoomRatesPanel roomId={id} />
           <section className="panel">
             <div className="section-heading">
               <h2>Availability & maintenance</h2>

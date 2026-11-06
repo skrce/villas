@@ -505,6 +505,88 @@
         ],
         "type": "object"
       },
+      "PriceLine": {
+        "properties": {
+          "endDate": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nightlyCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "nights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "subtotalCents": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "RatePreviewRequest": {
+        "properties": {
+          "endDate": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "guestCount": {
+            "format": "int32",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "startDate": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endDate",
+          "startDate"
+        ],
+        "type": "object"
+      },
+      "RateUpdateRequest": {
+        "properties": {
+          "baseNightlyCents": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "seasons": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonRateRequest"
+            },
+            "maxItems": 200,
+            "minItems": 0,
+            "type": "array"
+          }
+        },
+        "required": [
+          "baseNightlyCents",
+          "expectedVersion"
+        ],
+        "type": "object"
+      },
       "RecordStatusRequest": {
         "properties": {
           "active": {
@@ -688,6 +770,33 @@
         ],
         "type": "object"
       },
+      "RoomRates": {
+        "properties": {
+          "baseNightlyCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "seasons": {
+            "items": {
+              "$ref": "#/components/schemas/SeasonRate"
+            },
+            "type": "array"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "RoomUpdateRequest": {
         "properties": {
           "details": {
@@ -702,6 +811,55 @@
         },
         "required": [
           "expectedVersion"
+        ],
+        "type": "object"
+      },
+      "SeasonRate": {
+        "properties": {
+          "endDate": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "nightlyCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "startDate": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "SeasonRateRequest": {
+        "properties": {
+          "endDate": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "nightlyCents": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "startDate": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endDate",
+          "name",
+          "nightlyCents",
+          "startDate"
         ],
         "type": "object"
       },
@@ -775,6 +933,32 @@
             "type": "string"
           },
           "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "StayPrice": {
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PriceLine"
+            },
+            "type": "array"
+          },
+          "nights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "rateVersion": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalCents": {
             "format": "int64",
             "type": "integer"
           }
@@ -1090,6 +1274,150 @@
         "summary": "Add a dated maintenance block using a private JSON body",
         "tags": [
           "Apartment"
+        ]
+      }
+    },
+    "/apartments/{apartmentId}/rates": {
+      "get": {
+        "operationId": "roomRates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "apartmentId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomRates"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read configured EUR rates or an explicit unconfigured state",
+        "tags": [
+          "Rates"
+        ]
+      },
+      "put": {
+        "operationId": "updateRoomRates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "apartmentId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomRates"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Replace a reviewed room's base and non-overlapping seasonal rates",
+        "tags": [
+          "Rates"
+        ]
+      }
+    },
+    "/apartments/{apartmentId}/rates/preview": {
+      "post": {
+        "operationId": "previewRoomRates",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "apartmentId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StayPrice"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Explain the accommodation price without reserving inventory or accepting a quote",
+        "tags": [
+          "Rates"
         ]
       }
     },
