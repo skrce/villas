@@ -27,6 +27,7 @@ pending versions. No guest, room, booking, rate, or payment demo data is inserte
 | V2 | Room active state, entity versions, reservation guest count/status, and range checks |
 | V3 | Maintenance blocks, transactional operation claims/results, and inventory events with subject/version and property-scoped reference constraints |
 | V4 | Calendar, guest-list, and event-history read indexes; no business data changes |
+| V5 | Empty staff accounts, expiring invitations, staff events, and a property coordination row; Owner is the only supported role |
 
 V1 to latest and V3 to V4 upgrade tests preserve synthetic Unicode guests, bookings,
 operation results, and events. Runtime
