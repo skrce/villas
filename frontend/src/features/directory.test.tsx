@@ -316,6 +316,10 @@ async function mount(path: string) {
   await act(async () => {
     render(<App />);
   });
+  if (path.startsWith("/reservations/new"))
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Show all steps" }),
+    );
 }
 async function guestDialog() {
   await userEvent.click(
@@ -332,9 +336,39 @@ async function navigate(path: string) {
     window.history.pushState({}, "", path);
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
+  if (path.startsWith("/reservations/new")) {
+    const show = await screen.findByRole("button", { name: "Show all steps" });
+    await userEvent.click(show);
+  }
 }
 
 describe("guest and room workflows", () => {
+  it("fails an offline guest submission immediately and never queues it for reconnect", async () => {
+    api.mockImplementation((input, init) =>
+      parsed(input).pathname === "/api/v1/customers" && init?.method === "POST"
+        ? Promise.reject(new TypeError("Offline request"))
+        : responses(input, init),
+    );
+    await mount("/guests");
+    const dialog = await guestDialog();
+    await enterName(dialog, "Offline synthetic", "Guest");
+    try {
+      onlineManager.setOnline(false);
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Save guest" }),
+      );
+      await within(dialog).findByText(/The result could not be confirmed/);
+      expect(calls("/api/v1/customers", "POST")).toHaveLength(1);
+      await act(async () => {
+        onlineManager.setOnline(true);
+      });
+      expect(calls("/api/v1/customers", "POST")).toHaveLength(1);
+      expect(dialog).toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
   it("keeps an open recovery check read-only when another Owner restores the room and reconnect refreshes it", async () => {
     rooms.set(7, { ...roomFixture, active: false, version: 1 });
     await mount("/rooms/7?from=2030-02-01&to=2030-02-03");

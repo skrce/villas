@@ -6,9 +6,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { useWorkspace } from "../../app/context";
 import { bookingSchema, staySchema } from "../../shared/schemas";
-import { propertyToday, roomChoiceLabel, euros } from "../../shared/format";
+import {
+  propertyToday,
+  roomChoiceLabel,
+  euros,
+  dateLabel,
+} from "../../shared/format";
 import { bookingSeed } from "./calendarData";
 import { useDraft } from "../../shared/useDraft";
+import { useOnline } from "../../shared/useOnline";
 import { useSave } from "../../shared/useSave";
 import { useRooms } from "../rooms/queries";
 import { GuestForm } from "../guests/Form";
@@ -47,6 +53,22 @@ export function NewReservation() {
     endDate: seed.endDate,
     guestCount: 1,
   });
+  const viewDraft = useDraft<{ step: number; expanded: boolean }>(
+    `${seed.key}-view`,
+    { step: 1, expanded: false },
+  );
+  const [step, setStep] = useState(viewDraft.initial.step);
+  const [expanded, setExpanded] = useState(viewDraft.initial.expanded);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const online = useOnline();
+  const goStep = (next: number) => {
+    stepHeading.current?.focus();
+    setStep(next);
+    viewDraft.save({ step: next, expanded });
+  };
+  useEffect(() => {
+    stepHeading.current?.focus();
+  }, [step]);
   const linkedGuestApplied = useRef(!!draft.initial.customerId);
   const [creatingGuest, setCreatingGuest] = useState(false);
   const [guestBusy, setGuestBusy] = useState(false);
@@ -162,10 +184,12 @@ export function NewReservation() {
     },
     (result) => {
       const received = result as NonNullable<typeof quote>;
-      if (received.identity === stayIdentity(inputFor(form.getValues())))
+      if (received.identity === stayIdentity(inputFor(form.getValues()))) {
         setQuote(received);
+        goStep(3);
+      }
     },
-    { invalidate: false },
+    { invalidate: false, repeatable: true },
   );
   const mutation = useSave<Values>(
     async (value) => {
@@ -178,12 +202,22 @@ export function NewReservation() {
     },
     (result) => {
       draft.clear();
+      viewDraft.clear();
       navigate(`/reservations/${result}`);
     },
     {
       onError: (body) => {
         const input = inputFor(form.getValues());
         const fresh = refreshedQuote(body, input);
+        if (
+          body &&
+          typeof body === "object" &&
+          "code" in body &&
+          body.code === "INVENTORY_CONFLICT"
+        ) {
+          setQuote(undefined);
+          goStep(2);
+        }
         if (
           body &&
           typeof body === "object" &&
@@ -206,19 +240,38 @@ export function NewReservation() {
     (value) => booking.recoverCreate(inputFor(value)),
     (result) => {
       draft.clear();
+      viewDraft.clear();
       navigate(`/reservations/${result}`);
     },
   );
   const saving = mutation.isPending || recovery.isPending;
   const busy = saving || review.isPending;
   const errors = form.formState.errors;
+  const invalidStep = (errors: typeof form.formState.errors) =>
+    goStep(errors.startDate || errors.endDate || errors.guestCount ? 1 : 2);
+  const continueToChoices = () => {
+    const parsed = staySchema.safeParse(form.getValues());
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues)
+        form.setError(issue.path[0] as keyof Values, {
+          message: issue.message,
+        });
+      goStep(1);
+    } else {
+      form.clearErrors();
+      goStep(2);
+    }
+  };
+  const selectedRoom = choices.find(
+    (room) => room.id === Number(values.roomId),
+  );
   return (
     <>
       <Link className="back-link" to="/reservations">
         ← Reservations
       </Link>
       <PageHead title="New reservation">
-        Choose a guest, dates and an available room.
+        Dates, room and guest, then one reviewed confirmation.
       </PageHead>
       {!seed.valid && (
         <Notice error>
@@ -227,14 +280,59 @@ export function NewReservation() {
           to the calendar.
         </Notice>
       )}
-      <section className="panel form-panel">
+      <div className="booking-progress">
+        <ol aria-label="Booking progress">
+          {["Dates & party", "Room & guest", "Review & confirm"].map(
+            (name, i) => (
+              <li key={name} aria-current={step === i + 1 ? "step" : undefined}>
+                <span>{i + 1}</span>
+                {name}
+              </li>
+            ),
+          )}
+        </ol>
+        <button
+          className="text-button"
+          disabled={busy}
+          onClick={() => {
+            const next = !expanded;
+            setExpanded(next);
+            viewDraft.save({ step, expanded: next });
+          }}
+        >
+          {expanded ? "Use step-by-step form" : "Show all steps"}
+        </button>
+      </div>
+      {!online && (
+        <Notice>
+          You're offline. Your draft is kept here. Reconnect, then explicitly
+          review or check the previous save to continue.
+        </Notice>
+      )}
+      <section className="panel form-panel booking-wizard">
         <form
           aria-label="New reservation"
           noValidate
-          onSubmit={form.handleSubmit(review.submit)}
+          onSubmit={(event) => {
+            if (!expanded && step === 1) {
+              event.preventDefault();
+              continueToChoices();
+            } else void form.handleSubmit(review.submit, invalidStep)(event);
+          }}
         >
-          <fieldset className="stay-fields" disabled={saving || !seed.valid}>
-            <h2>Stay details</h2>
+          <h2 className="wizard-heading" ref={stepHeading} tabIndex={-1}>
+            {step === 1
+              ? "1. Stay details"
+              : step === 2
+                ? "2. Choose room & guest"
+                : "3. Review & confirm"}
+          </h2>
+          <fieldset
+            hidden={!expanded && step !== 1}
+            className="stay-fields"
+            disabled={saving || !seed.valid}
+          >
+            <legend className="sr-only">Dates and party size</legend>
             <div className="form-grid">
               <Field
                 label="Check-in"
@@ -261,8 +359,14 @@ export function NewReservation() {
                 error={errors.guestCount?.message}
               />
             </div>
-            <hr />
-            <h2>Guest & room</h2>
+          </fieldset>
+          <fieldset
+            hidden={!expanded && step !== 2}
+            className="stay-fields"
+            disabled={saving || !seed.valid}
+          >
+            <legend className="sr-only">Room and guest</legend>
+            <h3>Guest</h3>
             <GuestPicker
               value={values.customerId}
               label={values.guestLabel}
@@ -294,11 +398,17 @@ export function NewReservation() {
                 interrupted save with its original details.
               </Notice>
             )}
+            <h3>Available rooms</h3>
             {!valid ? (
               <p className="hint">Enter valid stay dates to see rooms.</p>
             ) : (
               <>
-                {rooms.isPending ? (
+                {rooms.isPaused ? (
+                  <Notice>
+                    Availability is waiting for a connection. Your room choice
+                    is retained.
+                  </Notice>
+                ) : rooms.isPending ? (
                   <Pending label="Checking room availability…" />
                 ) : rooms.isError ? (
                   <QueryError retry={() => void rooms.refetch()} />
@@ -309,6 +419,41 @@ export function NewReservation() {
                     </Empty>
                   )
                 )}
+                {!rooms.isFetching &&
+                  !rooms.isError &&
+                  !rooms.isPaused &&
+                  available.length > 0 && (
+                    <div
+                      className="room-choices"
+                      aria-label="Available room choices"
+                    >
+                      {available.map((room) => (
+                        <button
+                          className="room-choice"
+                          type="button"
+                          key={room.id}
+                          aria-pressed={values.roomId === String(room.id)}
+                          onClick={() =>
+                            form.setValue("roomId", String(room.id), {
+                              shouldValidate: true,
+                            })
+                          }
+                        >
+                          <strong>
+                            {room.name || room.view || `Room ${room.id}`}
+                          </strong>
+                          <span>
+                            {room.reference} · up to {room.capacity} guests
+                          </span>
+                          <small>
+                            {values.roomId === String(room.id)
+                              ? "Selected"
+                              : "Choose room"}
+                          </small>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 <label className="checkbox-field">
                   <input
                     type="checkbox"
@@ -352,7 +497,62 @@ export function NewReservation() {
               </>
             )}
           </fieldset>
-          {visibleQuote && <QuoteSummary quote={visibleQuote.value} />}
+          <section hidden={!expanded && step !== 3} aria-label="Booking review">
+            <div className="booking-review-details">
+              <h3>Your reservation</h3>
+              <dl>
+                <div>
+                  <dt>Guest</dt>
+                  <dd>{values.guestLabel || "Choose a guest"}</dd>
+                </div>
+                <div>
+                  <dt>Room</dt>
+                  <dd>
+                    {selectedRoom
+                      ? roomChoiceLabel(selectedRoom)
+                      : "Choose a room"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Stay</dt>
+                  <dd>
+                    {dateLabel(values.startDate)} to {dateLabel(values.endDate)}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Party</dt>
+                  <dd>
+                    {values.guestCount}{" "}
+                    {values.guestCount === 1 ? "guest" : "guests"}
+                  </dd>
+                </div>
+              </dl>
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => goStep(1)}
+              >
+                Edit stay details
+              </button>
+              {" · "}
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => goStep(2)}
+              >
+                Change room or guest
+              </button>
+            </div>
+            {visibleQuote ? (
+              <QuoteSummary quote={visibleQuote.value} />
+            ) : (
+              <p className="hint">
+                Review a current server quote before confirming these details.
+              </p>
+            )}
+          </section>
           {visibleQuote?.refreshed && (
             <Notice>
               The quote was refreshed. Review the new total before confirming
@@ -369,34 +569,70 @@ export function NewReservation() {
             </p>
           )}
           <MutationNotice save={mutation} />
+          {mutation.code === "INVENTORY_CONFLICT" && (
+            <Notice>
+              The selected room was taken or blocked. Your guest and stay
+              details are retained. Choose a refreshed alternative or change
+              dates, then review a new price.
+            </Notice>
+          )}
           <MutationNotice save={recovery} />
           <button
             type="button"
             className="button quiet"
-            disabled={busy || !seed.valid}
-            onClick={() => void form.handleSubmit(recovery.submit)()}
+            disabled={busy || !seed.valid || !online}
+            onClick={() =>
+              void form.handleSubmit(recovery.submit, invalidStep)()
+            }
           >
             Check previous save
           </button>
+          <p className="hint">
+            Unsure whether a confirmation saved? Use the original guest, room,
+            dates and party, then check. This finds the previous result without
+            creating a booking. Show all steps to enter those details together.
+          </p>
           <div className="form-actions">
             <Link className="button secondary" to="/reservations">
               Back to reservations
             </Link>
-            <button
-              className={visibleQuote ? "button secondary" : "button"}
-              disabled={busy || !seed.valid}
-            >
-              {review.isPending
-                ? "Loading price…"
-                : visibleQuote
-                  ? "Refresh quote"
-                  : "Review price"}
-            </button>
-            {visibleQuote && (
+            {!expanded && step > 1 && (
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => goStep(step - 1)}
+              >
+                Previous step
+              </button>
+            )}
+            {!expanded && step === 1 && (
+              <button
+                className="button"
+                type="button"
+                disabled={saving || !seed.valid}
+                onClick={continueToChoices}
+              >
+                Continue to room & guest
+              </button>
+            )}
+            {(expanded || step > 1) && (
+              <button
+                className={visibleQuote ? "button secondary" : "button"}
+                disabled={busy || !seed.valid || !online}
+              >
+                {review.isPending
+                  ? "Loading price…"
+                  : visibleQuote
+                    ? "Refresh quote"
+                    : "Review price"}
+              </button>
+            )}
+            {visibleQuote && (expanded || step === 3) && (
               <button
                 type="button"
                 className="button"
-                disabled={busy || !seed.valid}
+                disabled={busy || !seed.valid || !online}
                 onClick={() => void form.handleSubmit(mutation.submit)()}
               >
                 {mutation.isPending

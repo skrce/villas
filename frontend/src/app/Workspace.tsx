@@ -144,7 +144,7 @@ export default function Workspace() {
               Skip to content
             </a>
             <aside className="sidebar">
-              <NavLink to="/reservations" className="brand">
+              <NavLink to="/calendar" className="brand">
                 <span className="brand-mark" aria-hidden="true">
                   V
                 </span>
@@ -195,11 +195,11 @@ export default function Workspace() {
                   <Routes>
                     <Route
                       path="/"
-                      element={<Navigate replace to="/reservations" />}
+                      element={<Navigate replace to="/calendar" />}
                     />
                     <Route
                       path="/login"
-                      element={<Navigate replace to="/reservations" />}
+                      element={<Navigate replace to="/calendar" />}
                     />
                     <Route path="/calendar" element={<Calendar />} />
                     <Route path="/reservations" element={<Reservations />} />

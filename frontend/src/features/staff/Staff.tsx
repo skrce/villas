@@ -55,6 +55,7 @@ export function Staff() {
       form.reset({ email: "" });
       setSaved(true);
     },
+    { repeatable: true },
   );
   const change = useSave<void>(
     async () => {

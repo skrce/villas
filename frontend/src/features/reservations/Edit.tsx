@@ -163,7 +163,7 @@ function PriceEdit({
       const offered = result as NonNullable<typeof quote>;
       if (offered.identity === identity()) setQuote(offered);
     },
-    { invalidate: false },
+    { invalidate: false, repeatable: true },
   );
   const saved = () => {
     draft.clear();
@@ -275,7 +275,7 @@ function PriceEdit({
       review.resetStatus();
       recovery.resetStatus();
     },
-    { invalidate: false },
+    { invalidate: false, repeatable: true },
   );
   const busy =
     mutation.isPending ||

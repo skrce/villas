@@ -94,6 +94,9 @@ it("selects a free keyboard period and opens a draft with its room and dates", a
     screen.getByRole("link", { name: "Create reservation" }),
   );
   await screen.findByRole("heading", { name: "New reservation" });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Continue to room & guest" }),
+  );
   expect(screen.getByLabelText("Check-in")).toHaveValue("2030-01-03");
   expect(screen.getByLabelText("Check-out")).toHaveValue("2030-01-06");
   await waitFor(() =>
@@ -160,7 +163,9 @@ it.each([
 it("rejects an invalid prefilled stay instead of silently using another date", async () => {
   await open("/reservations/new?room=7&from=2030-02-30&to=2030-03-04");
   await screen.findByText(/This booking link has invalid/);
-  expect(screen.getByRole("button", { name: "Review price" })).toBeDisabled();
+  expect(
+    screen.getByRole("button", { name: "Continue to room & guest" }),
+  ).toBeDisabled();
   expect(
     api.mock.calls.some(([u]) => String(u).includes("available-apartments")),
   ).toBe(false);

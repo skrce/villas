@@ -10,14 +10,15 @@ owned by runtime OpenAPI and the pinned generator.
 `App.tsx` installs session events and chooses the authentication return or workspace.
 `app/Workspace.tsx` owns the session boundary, layout, navigation, query provider and
 route focus. Feature pages load as separate chunks under `features/`.
-Changing a record path or a linked-guest booking intent remounts the page's local
+Changing a record path or a guest/room/date booking intent remounts the page's local
 forms and dialogs. The Owner's draft store stays above that boundary, keyed by its
 original record. Room date filters do not change the room's edit identity.
 
 | Route | Implemented behavior |
 | --- | --- |
-| `/reservations` | Bounded period/status query, URL filters/cursor, empty/error/retry states and record links |
-| `/reservations/new` | Full-name/phone guest combobox, inline guest creation/selection, reference-labelled room choices, strict stays and reconciled creation |
+| `/calendar` | Default landing, weekly room grid, phone agenda, active stays/maintenance, keyboard date selection and seeded booking links |
+| `/reservations` | Bounded period/status/room query, URL filters/cursor, empty/error/retry states and record links |
+| `/reservations/new` | Guided dates/party, room/guest and exact quote review, full-form option, inline guest creation, retained drafts and reconciled confirmation |
 | `/reservations/:id` | Current guest/room/stay, versioned move/date/cancellation confirmation and paged history |
 | `/guests` | Bounded private combined search, archived toggle, optional-contact creation and duplicate review |
 | `/guests/:id` | Optional contacts/notes, versioned profile edit, archive/restore, complete paginated history and new-stay link |
@@ -27,10 +28,9 @@ original record. Room date filters do not change the room's edit identity.
 | `/settings/staff` | Owner invitations, revocation, deactivation and session revocation, with current versions |
 
 Owner settings requires the server-provided `staff:manage` capability. Every supported
-staff account is currently an Owner. Unknown routes have a recovery link. Calendar,
-Today, rates, reports and financial workflows are not linked before implementation.
-Guest/room management is implemented. Seasonal rates, the complete calendar and
-later booking/finance workflows remain their own milestones and policy gates.
+staff account is currently an Owner. Unknown routes have a recovery link. The calendar,
+guest/room management and room rate configuration are implemented. Daily operations,
+settlement and reporting remain milestones 8 and 9, with their own policy gates.
 
 ## Requests, edits and recovery
 
@@ -183,3 +183,32 @@ room states are explicit. Availability is advisory and rechecked atomically at s
 participate in the query key and pagination URL. Calendar, list and availability
 reads refresh when the window regains focus or reconnects. Protected data remains
 inside the session-scoped query cache and Owner memory drafts.
+
+
+## Guided booking
+
+The default booking form has three steps: dates and party, room and guest, then
+quote review and explicit confirmation. Invalid dates/party counts stay on the first
+step. Named room cards and a select share one choice. Existing guest lookup and
+inline guest creation retain the stay. The final review names the guest and room
+alongside dates, party and the exact server price. Step changes move keyboard focus
+to their heading. Show all steps exposes the same fields for fast entry and for
+re-entering an interrupted request. It does not change validation or save contracts.
+
+A definite inventory conflict returns to room selection, discards that offer and
+refreshes alternatives while retaining the guest, dates and party. Unknown outcomes
+retain the stable operation/quote and the read-only Check previous save action.
+The check never needs a new quote or available room. A confirmation never occurs
+because the Owner changed steps, signed in again, refreshed or reconnected.
+The booking step/expanded preference stays in Owner memory with its draft; quotes
+are deliberately re-reviewed after a recovered session. Every save runs immediately
+or reports its failure instead of joining an offline mutation queue. Booking
+confirmation/review buttons are disabled while offline, and reconnection alone sends
+no write.
+
+
+A confirmed final save remains completed until its form closes or a new intent is
+explicitly opened/reset. This blocks a second click after a fast successful response
+but before React finishes navigation. Read-only quote/reload actions and the reusable
+invitation form opt into repeatable execution; failures retain deliberate retry and
+operation-reconciliation behavior. No time-based debounce is used.

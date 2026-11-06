@@ -14,7 +14,7 @@ start are recorded in [decisions](decisions.md).
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | [Implemented and independently reviewed in PR #20](https://github.com/skrce/villas/pull/20); final merge/CI evidence is in the linked issue |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Implemented and independently reviewed in PRs #21, #22 and #23; merge/CI evidence is in the linked issue |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Implemented and independently reviewed in PRs #24 and #25; final merge/CI evidence is in the linked issue |
-| 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | In progress: calendar, filtered list and prefilled drafts |
+| 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Implemented and independently reviewed in PRs #26 and #27; verification and merge evidence is in #8 |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Planned |
 | 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Planned |
 | 10 | [Verify production deployment, recovery, and the staff pilot](https://github.com/skrce/villas/issues/11) | 1-9 | Planned |
@@ -397,3 +397,32 @@ The final frontend suite has 198 cases plus lint/build; a focused Chromium rerun
 checks both booking persistence and the actual historical phone maintenance target.
 An idle cached calendar now disables selection immediately on going offline.
 Final review, exact-head CI and merge evidence are recorded in PR #26 and #8.
+
+
+## Milestone 7 guided booking
+
+The default new-booking screen now guides dates/party, named room and guest selection,
+and exact server-quote review before a separate confirmation. A full-form option
+keeps quick entry and original-details recovery available. Owner memory retains the
+step and fields across navigation or same-Owner reauthentication; no quote is
+accepted automatically. Definite inventory conflicts return to freshly fetched room
+alternatives with the entered guest and stay intact. Offline state blocks explicit
+booking actions, and shared mutations no longer pause into a reconnection queue.
+The calendar is the signed-in landing page.
+
+New frontend cases cover the default wizard, invalid party size, double clicks,
+conflict alternatives, session recovery, offline confirmation and held availability
+across separate calendar intents and browser Back. The real-browser checkpoint uses
+two separately authenticated Owners and a request barrier: exactly one same-room
+confirmation succeeds, the loser retains its draft and confirms an alternative,
+and reconnection refreshes the other Owner's calendar. The calendar-to-inline-guest
+path and desktop/320px accessibility also run against MariaDB and synthetic OIDC.
+See #8 and PRs #26/#27 for complete-gate, coverage, independent-review and merge evidence. Real Google and deployed acceptance remain separate.
+
+
+Independent review cleared the guided workflow and added three retained regressions:
+collapsed-wizard recovery after a lost confirmation and same-Owner reauthentication,
+a guest changing during a held quote, and an offline guest save failing immediately
+without a reconnection retry. The complete suite also keeps the existing price,
+version, session and operation-recovery regressions. Local verification and exact-head
+CI are recorded independently from actual Google and deployed/pilot acceptance.

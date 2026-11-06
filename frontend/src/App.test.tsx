@@ -256,6 +256,9 @@ describe("routed staff workspace", () => {
   it("preserves entered booking input in memory after expiry without repeating a write", async () => {
     window.history.replaceState({}, "", "/reservations/new");
     await mount();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Show all steps" }),
+    );
     await userEvent.type(
       screen.getByRole("combobox", { name: "Guest" }),
       "Retained",
@@ -284,6 +287,9 @@ describe("routed staff workspace", () => {
   it("selects a guest through keyboard interaction and never asks for a manual ID", async () => {
     window.history.replaceState({}, "", "/reservations/new");
     await mount();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Show all steps" }),
+    );
     const input = screen.getByRole("combobox", { name: "Guest" });
     await userEvent.type(input, "Tes");
     await screen.findByRole("option", { name: /Test Guest/ });
@@ -399,6 +405,9 @@ describe("routed staff workspace", () => {
   it("starts a new empty draft when another Owner signs in", async () => {
     window.history.replaceState({}, "", "/reservations/new");
     await mount();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Show all steps" }),
+    );
     await userEvent.type(
       screen.getByRole("combobox", { name: "Guest" }),
       "Private draft",
@@ -407,6 +416,9 @@ describe("routed staff workspace", () => {
     await act(async () => {
       await refreshSession({ explicit: true });
     });
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Show all steps" }),
+    );
     expect(await screen.findByRole("combobox", { name: "Guest" })).toHaveValue(
       "",
     );
@@ -443,6 +455,9 @@ describe("routed staff workspace", () => {
       return responses(input, init);
     });
     await mount();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Show all steps" }),
+    );
     await waitFor(() =>
       expect(screen.getByRole("combobox", { name: "Guest" })).toHaveValue(
         "Test Guest",
