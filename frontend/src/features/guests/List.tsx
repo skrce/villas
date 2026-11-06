@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import type { z } from "zod";
 import { useWorkspace } from "../../app/context";
-import { guestSchema, guestSearchSchema } from "../../shared/schemas";
+import { guestSearchSchema } from "../../shared/schemas";
 import { useDraft } from "../../shared/useDraft";
-import { useSave } from "../../shared/useSave";
+import { GuestForm } from "./Form";
 import {
   Dialog,
   Empty,
@@ -16,37 +16,45 @@ import {
   PageHead,
   Pending,
   QueryError,
+  RecordState,
   Table,
 } from "../../shared/ui";
 
-type GuestFields = z.infer<typeof guestSchema>;
 type SearchFields = z.infer<typeof guestSearchSchema>;
 export function Guests() {
   const { apis } = useWorkspace();
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState<number>();
-  const draft = useDraft("guest-search", { firstName: "", phone: "" });
+  const draft = useDraft<SearchFields>("guest-search", {
+    name: "",
+    phone: "",
+    includeArchived: false,
+  });
   const form = useForm<SearchFields>({
     defaultValues: draft.initial,
     resolver: zodResolver(guestSearchSchema),
   });
-  useEffect(() => {
-    return form.subscribe({
-      formState: { values: true },
-      callback: ({ values }) => draft.save(values),
-    });
-  }, [form, draft]);
-  const [criteria, setCriteria] = useState<SearchFields>();
-  const query = useQuery({
-    queryKey: ["guests", "search", criteria],
-    queryFn: ({ signal }) =>
-      apis.customerApi.searchCustomer(
-        { customerSearchRequest: criteria! },
+  useEffect(
+    () =>
+      form.subscribe({
+        formState: { values: true },
+        callback: ({ values }) => draft.save(values),
+      }),
+    [form, draft],
+  );
+  const [criteria, setCriteria] = useState(draft.initial);
+  const query = useInfiniteQuery({
+    queryKey: ["guests", "directory", criteria],
+    initialPageParam: 0,
+    queryFn: ({ pageParam, signal }) =>
+      apis.customerApi.queryCustomers(
+        { guestQueryRequest: { ...criteria, afterId: pageParam, limit: 50 } },
         { signal },
       ),
-    enabled: !!criteria,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
+  const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   return (
     <>
       <PageHead
@@ -57,7 +65,7 @@ export function Guests() {
           </button>
         }
       >
-        Find a guest and view their current reservations.
+        Find your guests, manage their details and review their stays.
       </PageHead>
       {created && (
         <Notice>
@@ -65,25 +73,23 @@ export function Guests() {
         </Notice>
       )}
       <section className="panel">
-        <h2>Find a guest</h2>
+        <h2>Guest directory</h2>
         <form
           className="form-row"
           aria-label="Search guests"
           noValidate
           onSubmit={form.handleSubmit((values) => {
-            if (
-              criteria?.firstName === values.firstName &&
-              criteria?.phone === values.phone
-            )
+            if (JSON.stringify(criteria) === JSON.stringify(values))
               void query.refetch();
             else setCriteria(values);
           })}
         >
           <Field
-            label="First name"
+            label="Name"
             autoComplete="off"
-            {...form.register("firstName")}
-            error={form.formState.errors.firstName?.message}
+            {...form.register("name")}
+            error={form.formState.errors.name?.message}
+            hint="First, last or full name."
           />
           <Field
             label="Phone"
@@ -92,65 +98,74 @@ export function Guests() {
             {...form.register("phone")}
             error={form.formState.errors.phone?.message}
           />
+          <label className="checkbox-field">
+            <input type="checkbox" {...form.register("includeArchived")} />
+            Include archived guests
+          </label>
           <button className="button secondary" disabled={query.isFetching}>
             Search guests
           </button>
         </form>
+        <p className="hint">
+          Name and phone filters apply together. Contact details stay out of the
+          address bar.
+        </p>
       </section>
       <section className="panel">
         <div className="section-heading">
-          <h2>Search results</h2>
-          {query.data && (
-            <span className="count">{query.data.length} guests</span>
-          )}
+          <h2>Guests</h2>
+          {query.data && <span className="count">{items.length} shown</span>}
         </div>
-        {!criteria ? (
-          <Empty title="Find your guest">
-            Search by first name or phone number. Guest contacts stay out of the
-            address bar.
-          </Empty>
-        ) : query.isPending ? (
+        {query.isPending ? (
           <Pending />
         ) : query.isError ? (
           <QueryError retry={() => void query.refetch()} />
-        ) : !query.data.length ? (
+        ) : !items.length ? (
           <Empty title="No matching guests">
-            Try another name or phone, or add a new guest.
+            Clear the filters or add a guest. Only names are required.
           </Empty>
         ) : (
-          <>
-            <Table
-              label="Guest search results"
-              headings={["Guest", "Phone", "Address", ""]}
-            >
-              {query.data.map((guest) => (
-                <tr key={guest.id}>
-                  <td>
-                    <strong>
+          <Table
+            label="Guest search results"
+            headings={["Guest", "Contact", "Status", ""]}
+          >
+            {items.map((guest) => (
+              <tr key={guest.id}>
+                <td>
+                  <strong>
+                    {guest.firstName} {guest.lastName}
+                  </strong>
+                </td>
+                <td>
+                  {guest.phone || "No phone"}
+                  <small className="table-secondary">
+                    {guest.email || "No email"}
+                  </small>
+                </td>
+                <td>
+                  <RecordState active={guest.active} />
+                </td>
+                <td>
+                  <Link className="text-link" to={`/guests/${guest.id}`}>
+                    View guest
+                    <span className="sr-only">
+                      {" "}
                       {guest.firstName} {guest.lastName}
-                    </strong>
-                  </td>
-                  <td>{guest.phone}</td>
-                  <td>{guest.address}</td>
-                  <td>
-                    <Link className="text-link" to={`/guests/${guest.id}`}>
-                      View guest
-                      <span className="sr-only">
-                        {" "}
-                        {guest.firstName} {guest.lastName}
-                      </span>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </Table>
-            {query.data.length >= 50 && (
-              <p className="hint">
-                Showing the first 50 matches. Refine your search to find another
-                guest.
-              </p>
-            )}
-          </>
+                    </span>
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </Table>
+        )}
+        {query.hasNextPage && (
+          <button
+            className="button secondary load-more"
+            disabled={query.isFetchingNextPage}
+            onClick={() => void query.fetchNextPage()}
+          >
+            {query.isFetchingNextPage ? "Loading…" : "Load more guests"}
+          </button>
         )}
       </section>
       {creating && (
@@ -169,104 +184,5 @@ export function Guests() {
         </Dialog>
       )}
     </>
-  );
-}
-function GuestForm({
-  onSaved,
-  onPending,
-}: {
-  onSaved: (id: number) => void;
-  onPending: (busy: boolean) => void;
-}) {
-  const { apis } = useWorkspace();
-  const draft = useDraft<GuestFields>("guest-create", {
-    firstName: "",
-    lastName: "",
-    phone: "",
-    address: "",
-  });
-  const form = useForm<GuestFields>({
-    defaultValues: draft.initial,
-    resolver: zodResolver(guestSchema),
-  });
-  useEffect(() => {
-    return form.subscribe({
-      formState: { values: true },
-      callback: ({ values }) => draft.save(values),
-    });
-  }, [form, draft]);
-  const mutation = useSave<GuestFields>(
-    async (values) => {
-      const id = await apis.customerApi.createCustomer({
-        customerCreateRequest: values,
-      });
-      if (!Number.isSafeInteger(id) || id < 1)
-        throw new Error("Unconfirmed guest result");
-      return id;
-    },
-    (result) => {
-      draft.clear();
-      onSaved(result as number);
-    },
-  );
-  return (
-    <form
-      noValidate
-      aria-label="Add guest"
-      onSubmit={form.handleSubmit(async (values) => {
-        onPending(true);
-        try {
-          await mutation.submit(values);
-        } finally {
-          onPending(false);
-        }
-      })}
-    >
-      <p className="hint">
-        All four fields are required for the current guest record.
-      </p>
-      <div className="form-grid">
-        <Field
-          label="First name"
-          autoComplete="off"
-          maxLength={200}
-          {...form.register("firstName")}
-          error={form.formState.errors.firstName?.message}
-        />
-        <Field
-          label="Last name"
-          autoComplete="off"
-          maxLength={200}
-          {...form.register("lastName")}
-          error={form.formState.errors.lastName?.message}
-        />
-        <Field
-          label="Phone"
-          type="tel"
-          autoComplete="off"
-          maxLength={200}
-          {...form.register("phone")}
-          error={form.formState.errors.phone?.message}
-        />
-        <Field
-          label="Address"
-          autoComplete="off"
-          maxLength={200}
-          {...form.register("address")}
-          error={form.formState.errors.address?.message}
-        />
-      </div>
-      {mutation.message && (
-        <Notice error>
-          {mutation.message} Search for this guest before creating another
-          record.
-        </Notice>
-      )}
-      <div className="dialog-actions">
-        <button className="button" disabled={mutation.isPending}>
-          {mutation.isPending ? "Saving…" : "Save guest"}
-        </button>
-      </div>
-    </form>
   );
 }

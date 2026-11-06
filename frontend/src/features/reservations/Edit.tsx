@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { staySchema } from "../../shared/schemas";
-import { dateLabel, roomLabel } from "../../shared/format";
+import { dateLabel, roomChoiceLabel } from "../../shared/format";
 import { useDraft } from "../../shared/useDraft";
 import { Field, SelectField, Notice } from "../../shared/ui";
 export function EditReservation({
@@ -100,7 +100,7 @@ export function EditReservation({
             )
             .map((item) => (
               <option key={item.id} value={item.id!}>
-                {roomLabel(item)}
+                {roomChoiceLabel(item)}
               </option>
             ))}
         </SelectField>

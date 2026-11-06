@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
@@ -6,13 +6,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { useWorkspace } from "../../app/context";
 import { bookingSchema, staySchema } from "../../shared/schemas";
-import { addDays, propertyToday, roomLabel } from "../../shared/format";
+import { addDays, propertyToday, roomChoiceLabel } from "../../shared/format";
 import { useDraft } from "../../shared/useDraft";
 import { useSave } from "../../shared/useSave";
 import { useRooms } from "../rooms/queries";
+import { GuestForm } from "../guests/Form";
 import { GuestPicker } from "../../shared/GuestPicker";
 import {
   Empty,
+  Dialog,
   Field,
   SelectField,
   Notice,
@@ -27,14 +29,22 @@ export function NewReservation() {
   const guestId = Number(params.get("guest"));
   const today = propertyToday();
   type Values = z.infer<typeof bookingSchema>;
-  const draft = useDraft<Values>("reservation-create", {
-    customerId: "",
-    guestLabel: "",
-    roomId: "",
-    startDate: today,
-    endDate: addDays(today, 1),
-    guestCount: 1,
-  });
+  const draft = useDraft<Values>(
+    Number.isSafeInteger(guestId) && guestId > 0 && guestId <= 2147483647
+      ? `reservation-create-guest-${guestId}`
+      : "reservation-create",
+    {
+      customerId: "",
+      guestLabel: "",
+      roomId: "",
+      startDate: today,
+      endDate: addDays(today, 1),
+      guestCount: 1,
+    },
+  );
+  const linkedGuestApplied = useRef(!!draft.initial.customerId);
+  const [creatingGuest, setCreatingGuest] = useState(false);
+  const [guestBusy, setGuestBusy] = useState(false);
   const form = useForm<Values>({
     defaultValues: draft.initial,
     resolver: zodResolver(bookingSchema),
@@ -61,7 +71,12 @@ export function NewReservation() {
       !values.customerId,
   });
   useEffect(() => {
-    if (guest.data && !form.getValues("customerId")) {
+    if (
+      guest.data &&
+      !linkedGuestApplied.current &&
+      !form.getValues("customerId")
+    ) {
+      linkedGuestApplied.current = true;
       form.setValue("customerId", String(guest.data.id));
       form.setValue(
         "guestLabel",
@@ -166,6 +181,7 @@ export function NewReservation() {
             value={values.customerId}
             label={values.guestLabel}
             onChange={(id, label) => {
+              linkedGuestApplied.current = true;
               form.setValue("customerId", id, { shouldValidate: true });
               form.setValue("guestLabel", label);
             }}
@@ -177,10 +193,21 @@ export function NewReservation() {
               above.
             </Notice>
           )}
-          <p className="hint">
-            Need a new guest? <Link to="/guests">Add them from Guests</Link>,
-            then return to this form.
-          </p>
+          <button
+            className="button secondary inline-action"
+            type="button"
+            onClick={() => setCreatingGuest(true)}
+          >
+            Add guest
+          </button>
+          {guest.data?.active === false && (
+            <Notice error>
+              This guest is archived.{" "}
+              <Link to={`/guests/${guest.data.id}`}>Open their profile</Link> to
+              restore it before creating a new stay. You can still check an
+              interrupted save with its original details.
+            </Notice>
+          )}
           {!valid ? (
             <p className="hint">Enter valid stay dates to see rooms.</p>
           ) : (
@@ -221,7 +248,7 @@ export function NewReservation() {
                 <option value="">Choose a room</option>
                 {choices.map((room) => (
                   <option key={room.id} value={room.id!}>
-                    {roomLabel(room)}
+                    {roomChoiceLabel(room)}
                     {room.capacity ? ` · up to ${room.capacity} guests` : ""}
                     {room.active === false
                       ? " (inactive)"
@@ -249,6 +276,30 @@ export function NewReservation() {
           </div>
         </form>
       </section>
+      {creatingGuest && (
+        <Dialog
+          title="Add guest"
+          busy={guestBusy}
+          onClose={() => setCreatingGuest(false)}
+        >
+          <GuestForm
+            draftKey="inline-guest-create"
+            onPending={setGuestBusy}
+            onSaved={(id, label) => {
+              linkedGuestApplied.current = true;
+              form.setValue("customerId", String(id), { shouldValidate: true });
+              form.setValue("guestLabel", label);
+              setCreatingGuest(false);
+            }}
+            onExisting={(id, label) => {
+              linkedGuestApplied.current = true;
+              form.setValue("customerId", String(id), { shouldValidate: true });
+              form.setValue("guestLabel", label);
+              setCreatingGuest(false);
+            }}
+          />
+        </Dialog>
+      )}
     </>
   );
 }

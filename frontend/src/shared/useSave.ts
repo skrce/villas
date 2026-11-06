@@ -7,11 +7,15 @@ import { errorMessage } from "./errors";
 export function useSave<T>(
   action: (input: T) => Promise<unknown>,
   after?: (result: unknown) => void,
+  options: { invalidate?: boolean } = {},
 ) {
   const { epoch } = useWorkspace();
   const cache = useQueryClient();
   const [message, setMessage] = useState("");
   const [stale, setStale] = useState(false);
+  const [code, setCode] = useState<string>();
+  const [relatedIds, setRelatedIds] = useState<number[]>([]);
+  const [moreRecords, setMoreRecords] = useState(false);
   const pending = useRef(false);
   const alive = useRef(true);
   useEffect(() => {
@@ -24,24 +28,45 @@ export function useSave<T>(
     mutationFn: async (input: T) => {
       setMessage("");
       setStale(false);
+      setCode(undefined);
+      setRelatedIds([]);
+      setMoreRecords(false);
       try {
         const result = await action(input);
         if (epoch !== getSessionEpoch()) return;
-        await cache.invalidateQueries();
+        if (options.invalidate !== false) await cache.invalidateQueries();
         if (epoch === getSessionEpoch() && alive.current) after?.(result);
         return result;
       } catch (error) {
-        if (error instanceof ResponseError && error.response.status === 409) {
+        if (error instanceof ResponseError) {
           const body = await error.response
             .clone()
             .json()
             .catch(() => null);
+          if (epoch === getSessionEpoch() && alive.current) {
+            setCode(typeof body?.code === "string" ? body.code : undefined);
+            setRelatedIds(
+              Array.isArray(body?.relatedReservationIds)
+                ? body.relatedReservationIds
+                    .filter(
+                      (id: unknown) =>
+                        typeof id === "number" &&
+                        Number.isSafeInteger(id) &&
+                        id > 0 &&
+                        id <= 2147483647,
+                    )
+                    .slice(0, 20)
+                : [],
+            );
+            setMoreRecords(body?.moreReservations === true);
+          }
           if (
             epoch === getSessionEpoch() &&
+            alive.current &&
             ["STALE_VERSION", "RESERVATION_CHANGED"].includes(body?.code)
           )
             setStale(true);
-          await cache.invalidateQueries();
+          if (error.response.status === 409) await cache.invalidateQueries();
         }
         const text = await errorMessage(error);
         if (epoch === getSessionEpoch() && alive.current) setMessage(text);
@@ -54,9 +79,15 @@ export function useSave<T>(
     ...mutation,
     message,
     stale,
+    code,
+    relatedIds,
+    moreRecords,
     resetStatus: () => {
       setStale(false);
       setMessage("");
+      setCode(undefined);
+      setRelatedIds([]);
+      setMoreRecords(false);
       mutation.reset();
     },
     submit: async (input: T) => {

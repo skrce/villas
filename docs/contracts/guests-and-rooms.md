@@ -122,3 +122,19 @@ Room creation is protected against duplicate references but has no operation-key
 contract. An uncertain create requires searching that reference before repeating.
 Versioned metadata edits/status changes require read-back and explicit review after
 an unconfirmed result. Maintenance retains durable operation reconciliation.
+
+## Staff interface
+
+The directory/profile pages use the bounded APIs above. Guest creation is available
+inline in the reservation form and does not discard the stay details. The combobox
+searches full names/phone with a 20-match bound and excludes archived profiles. Room
+choices include the unique reference so identical room names/capacities stay distinct.
+Profile edits retain their reviewed version across login recovery and never silently
+upgrade it. Load latest reads the current profile before adopting its version; a failed
+read preserves entered values. Archive/capacity conflicts link the affected bookings.
+
+Room periods are shareable date-only links and limited to 366 days. Maintenance uses
+private JSON and durable key recovery before any new POST, including after another
+tab's confirmation and a full reload. Cancelled blocks and events remain inspectable.
+The current UI supports Owner accounts only; the server rejects housekeeping direct
+requests. No rate, finance or production acceptance is implied by these screens.

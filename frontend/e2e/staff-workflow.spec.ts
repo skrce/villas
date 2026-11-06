@@ -42,7 +42,7 @@ async function fillBooking(
       })
       .check();
   await page.getByLabel("Room", { exact: true }).selectOption({
-    label: `Synthetic lake room · South · up to 2 guests${recover ? " (not currently available)" : ""}`,
+    label: `Synthetic lake room · South · DEMO-LAKE · up to 2 guests${recover ? " (not currently available)" : ""}`,
   });
 }
 
@@ -68,9 +68,9 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
     .click();
   await page.getByLabel("Check-in", { exact: true }).fill("2026-11-06");
   await page.getByLabel("Check-out", { exact: true }).fill("2026-11-09");
-  await page
-    .getByLabel("Room", { exact: true })
-    .selectOption({ label: "Synthetic lake room · South · up to 2 guests" });
+  await page.getByLabel("Room", { exact: true }).selectOption({
+    label: "Synthetic lake room · South · DEMO-LAKE · up to 2 guests",
+  });
   await page
     .getByRole("button", { name: "Create reservation", exact: true })
     .click();
@@ -87,7 +87,7 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
   const move = page.getByRole("dialog", { name: "Move room" });
   await move
     .getByLabel("New room")
-    .selectOption({ label: "Synthetic garden room · East" });
+    .selectOption({ label: "Synthetic garden room · East · DEMO-GARDEN" });
   await move.getByRole("button", { name: "Save changes" }).click();
   await expect(move).not.toBeVisible();
   const saved = await page.request.get(`/api/v1/reservations/${reservationId}`);
@@ -300,7 +300,7 @@ test("deep links, keyboard dialogs and accessible layouts work at desktop and 32
   ).toBe(true);
 });
 
-test("Owner invitations support another Google identity and self session revocation", async ({
+test("Owner invitations support another synthetic identity and self session revocation", async ({
   page,
 }) => {
   await signIn(page);
@@ -370,4 +370,408 @@ test("session revocation preserves entered booking details and never resubmits a
     page.getByRole("combobox", { name: "Guest", exact: true }),
   ).toHaveValue("Retained input");
   expect(writes).toBe(0);
+});
+
+test("Owner guest and room management protects stays and retains maintenance/history on desktop and phone", async ({
+  page,
+}, testInfo) => {
+  await signIn(page);
+  await page.getByRole("link", { name: "Rooms", exact: true }).click();
+  await page.getByRole("button", { name: "Add room" }).click();
+  const addRoom = page.getByRole("dialog", { name: "Add room" });
+  await addRoom.getByLabel("Room name").fill("Synthetic courtyard studio");
+  await addRoom.getByLabel("Reference").fill("COURT-3");
+  await addRoom.getByLabel("Capacity", { exact: true }).fill("4");
+  await addRoom
+    .getByLabel("Beds", { exact: true })
+    .fill("Queen and two single beds");
+  await addRoom.getByRole("button", { name: "Save room" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Synthetic courtyard studio",
+  );
+  const roomId = Number(new URL(page.url()).pathname.split("/").pop());
+  await page.getByRole("button", { name: "Edit room", exact: true }).click();
+  const editRoom = page.getByRole("dialog", { name: "Edit room" });
+  await editRoom.getByLabel("Amenities").fill("Synthetic terrace, Wi-Fi");
+  const previousRoom = await (
+    await page.request.get(`/api/v1/apartments/${roomId}`)
+  ).json();
+  const concurrent = await page.request.put(`/api/v1/apartments/${roomId}`, {
+    headers: await headersFor(page),
+    data: {
+      details: {
+        name: previousRoom.name,
+        reference: previousRoom.reference,
+        capacity: previousRoom.capacity,
+        bedConfiguration: previousRoom.bedConfiguration,
+        features: "Synthetic concurrent edit",
+      },
+      expectedVersion: previousRoom.version,
+    },
+  });
+  expect(concurrent.ok()).toBeTruthy();
+  await editRoom.getByRole("button", { name: "Save changes" }).click();
+  await expect(editRoom.getByRole("alert")).toContainText(
+    "The saved room changed",
+  );
+  await expect(editRoom.getByLabel("Amenities")).toHaveValue(
+    "Synthetic terrace, Wi-Fi",
+  );
+  await editRoom.getByRole("button", { name: "Load latest room" }).click();
+  await expect(editRoom.getByLabel("Amenities")).toHaveValue(
+    "Synthetic concurrent edit",
+  );
+  await editRoom.getByLabel("Amenities").fill("Synthetic terrace, Wi-Fi");
+  await editRoom.getByRole("button", { name: "Save changes" }).click();
+  await expect(editRoom).not.toBeVisible();
+  await page.getByRole("link", { name: "Reservations", exact: true }).click();
+  await page.getByRole("link", { name: /New reservation/ }).click();
+  await page.getByLabel("Check-in", { exact: true }).fill("2031-03-01");
+  await page.getByLabel("Check-out", { exact: true }).fill("2031-03-04");
+  await page.getByLabel("Guests", { exact: true }).fill("3");
+  await page.getByRole("button", { name: "Add guest", exact: true }).click();
+  const addGuest = page.getByRole("dialog", { name: "Add guest" });
+  await addGuest.getByLabel("First name").fill("Синтетичка");
+  await addGuest.getByLabel("Last name").fill("Гостинка");
+  await addGuest.getByRole("button", { name: "Save guest" }).click();
+  await expect(addGuest).not.toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Guest", exact: true }),
+  ).toHaveValue("Синтетичка Гостинка");
+  await expect(page.getByLabel("Check-in", { exact: true })).toHaveValue(
+    "2031-03-01",
+  );
+  await page.getByLabel("Room", { exact: true }).selectOption({
+    label: "Synthetic courtyard studio · COURT-3 · up to 4 guests",
+  });
+  await page
+    .getByRole("button", { name: "Create reservation", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Reservation #\d+$/,
+  );
+  const reservationId = Number(new URL(page.url()).pathname.split("/").pop());
+  await page
+    .getByRole("link", { name: "Синтетичка Гостинка", exact: true })
+    .click();
+  const guestId = Number(new URL(page.url()).pathname.split("/").pop());
+  await page.getByRole("button", { name: "Edit guest", exact: true }).click();
+  const editGuest = page.getByRole("dialog", { name: "Edit guest" });
+  await editGuest.getByLabel("Last name").fill("Проверка");
+  await editGuest
+    .getByLabel("Phone", { exact: true })
+    .fill("+389\u00a0000\u202f000-000");
+  await editGuest
+    .getByLabel("Email", { exact: true })
+    .fill("GUEST@EXAMPLE.TEST");
+  await editGuest
+    .getByLabel("Notes", { exact: true })
+    .fill("Synthetic late arrival\nUse synthetic side entrance");
+  await editGuest.getByRole("button", { name: "Save changes" }).click();
+  await expect(editGuest).not.toBeVisible();
+  const savedGuest = await (
+    await page.request.get(`/api/v1/customers/${guestId}`)
+  ).json();
+  expect(savedGuest).toMatchObject({
+    lastName: "Проверка",
+    phone: "+389000000000",
+    email: "guest@example.test",
+    version: 1,
+  });
+  await page
+    .getByRole("button", { name: "Archive guest", exact: true })
+    .click();
+  const archiveGuest = page.getByRole("dialog", { name: "Archive guest?" });
+  await archiveGuest
+    .getByRole("button", { name: "Archive guest", exact: true })
+    .click();
+  await expect(
+    archiveGuest.getByRole("link", { name: `Reservation #${reservationId}` }),
+  ).toBeVisible();
+  await archiveGuest.getByRole("button", { name: "Keep active" }).click();
+  await page.goto(`/rooms/${roomId}?from=2031-03-01&to=2031-03-10`);
+  await page.getByRole("button", { name: "Edit room", exact: true }).click();
+  const capacity = page.getByRole("dialog", { name: "Edit room" });
+  await capacity.getByLabel("Capacity", { exact: true }).fill("2");
+  await capacity.getByRole("button", { name: "Save changes" }).click();
+  await expect(
+    capacity.getByRole("link", { name: `Reservation #${reservationId}` }),
+  ).toBeVisible();
+  expect(
+    (await (await page.request.get(`/api/v1/apartments/${roomId}`)).json())
+      .capacity,
+  ).toBe(4);
+  await capacity.getByRole("button", { name: "Close dialog" }).click();
+  await page
+    .getByRole("button", { name: "Block for maintenance", exact: true })
+    .click();
+  const maintenance = page.getByRole("dialog", {
+    name: "Block for maintenance",
+  });
+  await maintenance.getByLabel("Start date").fill("2031-03-02");
+  await maintenance.getByLabel("End date").fill("2031-03-03");
+  await maintenance.getByLabel("Reason").fill("Synthetic plumbing repair");
+  await maintenance.getByRole("button", { name: "Save maintenance" }).click();
+  await expect(maintenance.getByRole("alert")).toContainText(
+    "That room is no longer available",
+  );
+  await maintenance.getByLabel("Start date").fill("2031-03-04");
+  await maintenance.getByLabel("End date").fill("2031-03-06");
+  await maintenance.getByRole("button", { name: "Save maintenance" }).click();
+  await expect(maintenance).not.toBeVisible();
+  await page
+    .getByRole("button", {
+      name: "History for Synthetic plumbing repair",
+      exact: true,
+    })
+    .click();
+  const events = page.getByRole("dialog", { name: "Maintenance history" });
+  await expect(events.getByText("Room blocked", { exact: true })).toBeVisible();
+  await events.getByRole("button", { name: "Close dialog" }).click();
+  await page
+    .getByRole("button", {
+      name: "Cancel block for Synthetic plumbing repair",
+      exact: true,
+    })
+    .click();
+  const cancelBlock = page.getByRole("dialog", { name: "Cancel maintenance?" });
+  await cancelBlock
+    .getByRole("button", { name: "Confirm maintenance cancellation" })
+    .click();
+  await expect(cancelBlock).not.toBeVisible();
+  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  await page.goto(`/reservations/${reservationId}`);
+  await page
+    .getByRole("button", { name: "Cancel reservation", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Cancel reservation?" })
+    .getByRole("button", { name: "Confirm cancellation" })
+    .click();
+  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Guests", exact: true }).click();
+  await page.getByLabel("Name", { exact: true }).fill("проверка синтетичка");
+  await page.getByLabel("Phone", { exact: true }).fill("000 000");
+  await page
+    .getByRole("button", { name: "Search guests", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "View guest Синтетичка Проверка", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Reservation history", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Archive guest", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Archive guest?" })
+    .getByRole("button", { name: "Archive guest", exact: true })
+    .click();
+  await expect(page.getByText("Archived", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Restore guest", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Restore guest?" })
+    .getByRole("button", { name: "Restore guest", exact: true })
+    .click();
+  await expect(
+    page.getByRole("link", { name: "New reservation", exact: true }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 900 });
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  const guestImage = testInfo.outputPath("guests-phone.png");
+  await page.screenshot({ path: guestImage, fullPage: true });
+  await testInfo.attach("Guest profile at 320px", {
+    path: guestImage,
+    contentType: "image/png",
+  });
+  await page.goto(`/rooms/${roomId}?from=2031-03-01&to=2031-03-10&history=1`);
+  await page.getByRole("button", { name: "Archive room", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Archive room?" })
+    .getByRole("button", { name: "Archive room", exact: true })
+    .click();
+  await expect(page.getByText("Archived", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Block for maintenance", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Restore room", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Restore room?" })
+    .getByRole("button", { name: "Restore room", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Block for maintenance", exact: true }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  const roomPhone = testInfo.outputPath("room-phone.png");
+  await page.screenshot({ path: roomPhone, fullPage: true });
+  await testInfo.attach("Room management at 320px", {
+    path: roomPhone,
+    contentType: "image/png",
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const roomDesktop = testInfo.outputPath("room-desktop.png");
+  await page.screenshot({ path: roomDesktop, fullPage: true });
+  await testInfo.attach("Room management desktop", {
+    path: roomDesktop,
+    contentType: "image/png",
+  });
+});
+
+test("guest duplicate review keeps family contacts separate and the directory paginates real data", async ({
+  page,
+}) => {
+  await signIn(page);
+  const createFamily = async (first: string, separate = false) => {
+    await page.goto("/guests");
+    await page.getByRole("button", { name: "Add guest", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Add guest" });
+    await dialog.getByLabel("First name").fill(first);
+    await dialog.getByLabel("Last name").fill("Synthetic family");
+    await dialog.getByLabel("Phone", { exact: true }).fill("000000");
+    if (separate) {
+      await dialog.getByRole("button", { name: "Save guest" }).click();
+      await expect(dialog.getByRole("alert")).toContainText(
+        "A guest with this name already exists",
+      );
+      await dialog
+        .getByRole("checkbox", { name: /I reviewed the matches/ })
+        .check();
+    }
+    await dialog.getByRole("button", { name: "Save guest" }).click();
+    await expect(dialog).not.toBeVisible();
+    await page
+      .getByRole("link", { name: "View guest details", exact: true })
+      .click();
+    return Number(new URL(page.url()).pathname.split("/").pop());
+  };
+  const first = await createFamily("Family A");
+  const second = await createFamily("Family B");
+  const distinct = await createFamily("Family B", true);
+  expect(new Set([first, second, distinct]).size).toBe(3);
+  const headers = await headersFor(page);
+  for (let index = 0; index < 51; index++) {
+    const response = await page.request.post("/api/v1/customers", {
+      headers,
+      data: { firstName: `SyntheticPage${index}`, lastName: "Pagination" },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+  await page.goto("/guests");
+  await page.getByLabel("Name", { exact: true }).fill("SyntheticPage");
+  await page
+    .getByRole("button", { name: "Search guests", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Load more guests" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Load more guests" }).click();
+  await expect(
+    page.getByRole("button", { name: "Load more guests" }),
+  ).toHaveCount(0);
+  await expect(page.getByText("51 shown", { exact: true })).toBeVisible();
+});
+
+test("maintenance recovery survives another tab's confirmation, room archival and full reload without a second POST", async ({
+  page,
+  context,
+}) => {
+  await signIn(page);
+  const response = await page.request.post("/api/v1/apartments", {
+    headers: await headersFor(page),
+    data: {
+      name: "Synthetic recovery room",
+      reference: "RECOVERY-4",
+      capacity: 2,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const room = await response.json();
+  const target = `/api/v1/apartments/${room.id}/maintenance`;
+  const url = `/rooms/${room.id}?from=2032-01-01&to=2032-01-03`;
+  let posts = 0;
+  context.on("request", (request) => {
+    if (
+      new URL(request.url()).pathname === target &&
+      request.method() === "POST"
+    )
+      posts++;
+  });
+  await page.route(`**${target}`, async (route) => {
+    const saved = await route.fetch();
+    expect(saved.ok()).toBeTruthy();
+    await route.abort("failed");
+  });
+  const enter = async (tab: Page) => {
+    await tab.goto(url);
+    await tab
+      .getByRole("button", { name: "Block for maintenance", exact: true })
+      .click();
+    const dialog = tab.getByRole("dialog", { name: "Block for maintenance" });
+    await dialog.getByLabel("Reason").fill("Synthetic interrupted repair");
+    return dialog;
+  };
+  const first = await enter(page);
+  await first.getByRole("button", { name: "Save maintenance" }).click();
+  await expect(first.getByRole("alert")).toContainText(
+    "The result could not be confirmed",
+  );
+  const second = await context.newPage();
+  const confirmation = await enter(second);
+  await confirmation.getByRole("button", { name: "Save maintenance" }).click();
+  await expect(confirmation).not.toBeVisible();
+  const archived = await second.request.post(
+    `/api/v1/apartments/${room.id}/status`,
+    {
+      headers: await headersFor(second),
+      data: { active: false, expectedVersion: room.version },
+    },
+  );
+  expect(archived.ok()).toBeTruthy();
+  await page.reload();
+  const recovered = page.getByRole("dialog", {
+    name: "Check interrupted maintenance save",
+  });
+  await page
+    .getByRole("button", {
+      name: "Check interrupted maintenance save",
+      exact: true,
+    })
+    .click();
+  await recovered.getByLabel("Reason").fill("Synthetic interrupted repair");
+  await recovered.getByRole("button", { name: "Check saved result" }).click();
+  await expect(recovered).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Restore room", exact: true }),
+  ).toBeVisible();
+  expect(posts).toBe(1);
+  const blocks = await (
+    await page.request.get(
+      `/api/v1/maintenance-blocks?startDate=2032-01-01&endDate=2032-01-03&roomId=${room.id}`,
+    )
+  ).json();
+  expect(blocks.items).toHaveLength(1);
+  expect(
+    JSON.stringify(
+      await page.evaluate(() => ({
+        local: { ...localStorage },
+        session: { ...sessionStorage },
+      })),
+    ),
+  ).not.toContain("Synthetic interrupted repair");
+  await second.close();
 });

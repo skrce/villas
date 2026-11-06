@@ -1,4 +1,12 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Navigate,
   NavLink,
@@ -50,6 +58,11 @@ const Rooms = lazy(() =>
     default: module.Rooms,
   })),
 );
+const RoomDetail = lazy(() =>
+  import("../features/rooms/Detail").then((module) => ({
+    default: module.RoomDetail,
+  })),
+);
 const Staff = lazy(() =>
   import("../features/staff/Staff").then((module) => ({
     default: module.Staff,
@@ -86,6 +99,8 @@ export default function Workspace() {
         apis.reservationApi,
         JSON.stringify([API_BASE, ownerId]),
         String(epoch),
+        apis.maintenanceApi,
+        apis.apartmentApi,
       ),
     };
   }, [ownerId, epoch]);
@@ -191,6 +206,7 @@ export default function Workspace() {
                     <Route path="/guests" element={<Guests />} />
                     <Route path="/guests/:guestId" element={<GuestDetail />} />
                     <Route path="/rooms" element={<Rooms />} />
+                    <Route path="/rooms/:roomId" element={<RoomDetail />} />
                     {session.permissions.includes("staff:manage") && (
                       <Route path="/settings/staff" element={<Staff />} />
                     )}
@@ -220,15 +236,19 @@ export default function Workspace() {
   );
 }
 function RouteContent({ children }: { children: React.ReactNode }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const pageIdentity =
+    pathname === "/reservations/new"
+      ? JSON.stringify([pathname, new URLSearchParams(search).get("guest")])
+      : pathname;
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     main.current?.focus();
     document.title = `${pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · Villas`;
-  }, [pathname]);
+  }, [pathname, pageIdentity]);
   return (
     <main ref={main} tabIndex={-1} id="main" className="main-content">
-      {children}
+      <Fragment key={pageIdentity}>{children}</Fragment>
     </main>
   );
 }

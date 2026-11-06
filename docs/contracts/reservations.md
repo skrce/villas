@@ -70,10 +70,10 @@ After a timeout, connection loss, or unreadable successful response:
    state. Preserve the key and reconcile again. A lock retry returns 409
    `INVENTORY_RETRYABLE` and also retains the same intent.
 
-The basic console persists pending create/move/cancel keys and prepared versions
+The staff workspace persists pending booking/maintenance keys and prepared versions
 across reloads. Web Locks serialize shared storage updates across tabs; a completion
 can clear only its own key. Identical submissions share an in-flight request in one
-page and a durable key across tabs. The console confirms the committed operation
+page and a durable key across tabs. The workspace confirms the committed operation
 after a successful mutation response as well as before a retry, so an HTML page or
 malformed 200 cannot erase recovery state. A browser without Web Locks cannot submit
 booking changes; use a supported browser over HTTPS or localhost.

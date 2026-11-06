@@ -1,5 +1,6 @@
 import { ResponseError } from "../api/generated";
 import { SessionChangedError } from "../api/session";
+import { MaintenanceRecoveryError } from "../api/bookingActions";
 const messages: Record<string, string> = {
   INVENTORY_CONFLICT:
     "That room is no longer available for these dates. Choose another room or change the dates.",
@@ -12,9 +13,27 @@ const messages: Record<string, string> = {
   CAPACITY_EXCEEDED: "The selected room cannot accommodate this many guests.",
   SESSION_REVOKED: "Your access changed. Sign in again to continue.",
   INVALID_EMAIL: "Enter a valid Google account email.",
+  POSSIBLE_DUPLICATE:
+    "A guest with this name already exists. Review the matches before creating a separate guest.",
+  GUEST_ARCHIVED:
+    "This guest is archived. Restore the profile before changing a reservation.",
+  GUEST_HAS_BOOKINGS:
+    "Cancel the listed current or future reservations before archiving this guest.",
+  ROOM_HAS_BOOKINGS:
+    "Move or cancel the listed reservations before archiving this room.",
+  CAPACITY_CONFLICT:
+    "The new capacity is too small for the listed reservations. Review those stays first.",
+  ROOM_REFERENCE_EXISTS:
+    "This room reference is already in use. Open that room or choose another reference.",
+  ROOM_INACTIVE:
+    "This room is archived. Restore it before adding a stay or maintenance.",
+  INVALID_PHONE:
+    "Use digits and an optional international prefix for the phone number.",
+  INVALID_GUEST: "Check the guest details and their field lengths.",
 };
 export const errorMessage = async (error: unknown): Promise<string> => {
   if (error instanceof SessionChangedError) return error.message;
+  if (error instanceof MaintenanceRecoveryError) return error.message;
   if (error instanceof ResponseError) {
     const body = await error.response
       .clone()

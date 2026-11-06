@@ -4,7 +4,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { z } from "zod";
 import { DraftContext, useWorkspace } from "../../app/context";
 import { staySchema } from "../../shared/schemas";
-import { dateLabel, eventLabel, roomLabel } from "../../shared/format";
+import { dateLabel, eventLabel, roomChoiceLabel } from "../../shared/format";
 import { useSave } from "../../shared/useSave";
 import { useRooms } from "../rooms/queries";
 import { EditReservation } from "./Edit";
@@ -183,7 +183,7 @@ function ReservationDetailPage() {
               <dt>Room</dt>
               <dd>
                 {rooms.data?.find((room) => room.id === record!.roomId)
-                  ? roomLabel(
+                  ? roomChoiceLabel(
                       rooms.data.find((room) => room.id === record!.roomId)!,
                     )
                   : `Room ${record!.roomId}`}

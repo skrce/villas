@@ -21,7 +21,17 @@ edits require expected versions. The generated client and console send both.
 | --- | --- | --- | --- |
 | `listApartments` | `GET /api/v1/apartments` | `GET /apartment` | Rooms, milestone 5 |
 | `createCustomer` | `POST /api/v1/customers` | `POST /customer` | Guests, milestone 5 |
-| `searchCustomer` | `GET /api/v1/customers` | `GET /customer` | Guests, milestone 5 |
+| `queryCustomers` | `POST /api/v1/customers/query` | None | Private bounded guest directory |
+| `searchCustomer` | `POST /api/v1/customers/search` | Protected GET `/customer` and `/api/v1/customers` | Compatibility bounded first-name/phone search |
+| `customerDuplicates` | `POST /api/v1/customers/duplicates` | None | Review distinct guest records |
+| `getCustomer` / `updateCustomer` | `GET` / `PUT /api/v1/customers/{id}` | None | Guest profile and reviewed-version edit |
+| `setCustomerStatus` | `POST /api/v1/customers/{id}/status` | None | Retained guest archive/restore |
+| `customerReservations` | `GET /api/v1/customers/{id}/reservations` | None | Complete bounded guest history |
+| `apartmentDirectory` | `GET /api/v1/apartments/directory` | None | Bounded named room directory |
+| `createApartment` | `POST /api/v1/apartments` | None | Room metadata with unique reference |
+| `getApartment` / `updateApartment` | `GET` / `PUT /api/v1/apartments/{id}` | None | Room details and reviewed-version edit |
+| `setApartmentStatus` | `POST /api/v1/apartments/{id}/status` | None | Retained room archive/restore |
+| `blockApartment` | `POST /api/v1/apartments/{id}/maintenance` | Existing query-based maintenance creation | Private JSON inventory block |
 | `createReservation` | `POST /api/v1/reservations` | `POST /reservation` | Bookings, milestones 2 and 7 |
 | `findAvailableApartments` | `GET /api/v1/reservations/available-apartments` | `GET /reservation/available-apartments` | Availability, milestones 2 and 7 |
 | `findReservationsByCustomer` | `GET /api/v1/reservations/customer` | `GET /reservation/customer` | Bookings, milestone 7 |

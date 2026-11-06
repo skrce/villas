@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildBookingActions } from './bookingActions';
-import { Configuration, ReservationApi } from './generated';
+import { Configuration, ReservationApi, MaintenanceApi, ApartmentApi } from './generated';
 
 const fetchMock = vi.fn<typeof fetch>();
 const input = { customerId: 1, roomId: 7, startDate: '2026-11-06', endDate: '2026-11-09' };
@@ -219,5 +219,72 @@ describe('booking write reconciliation', () => {
     fetchMock.mockResolvedValueOnce(json({ id: 42, version: -1 }));
     await expect(actions().cancel(42)).rejects.toThrow('version could not be loaded');
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
+
+
+describe('maintenance operation reconciliation', () => {
+  const block = {id: 30, roomId: 7, startDate: '2030-01-01', endDate: '2030-01-03', reason: 'Synthetic private repair', status: 'ACTIVE', version: 0};
+  const client = () => {
+    const config = new Configuration({basePath: '/api/v1', fetchApi: fetchMock});
+    return buildBookingActions(new ReservationApi(config), 'maintenance-owner', 'maintenance-login', new MaintenanceApi(config), new ApartmentApi(config));
+  };
+  it('sends private maintenance JSON and verifies its committed result', async () => {
+    fetchMock.mockResolvedValueOnce(json(block)).mockImplementationOnce(async () => json({key: key(0), kind: 'BLOCK', resourceId: 30, maintenance: block}));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason)).resolves.toBe(30);
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/apartments/7/maintenance');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({startDate: block.startDate, endDate: block.endDate, reason: block.reason});
+    expect(JSON.stringify(localStorage)).not.toContain(block.reason);
+  });
+  it('retains a block intent when the saved snapshot is malformed and reconciles before another POST', async () => {
+    fetchMock.mockResolvedValueOnce(json(block)).mockImplementationOnce(async () => json({key: key(0), kind: 'BLOCK', resourceId: 30, maintenance: {id: 30}}));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason)).rejects.toThrow('could not be confirmed');
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(json({key: original, kind: 'BLOCK', resourceId: 30, maintenance: block}));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason)).resolves.toBe(30);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+  it.each([
+    ['another room', {roomId: 999}],
+    ['another start date', {startDate: '2030-01-02'}],
+    ['another end date', {endDate: '2030-01-04'}],
+    ['an invalid date', {startDate: 'invalid'}],
+    ['another reason', {reason: 'Different repair'}],
+    ['a later version', {version: 1}],
+    ['a fractional room', {roomId: 7.5}],
+  ])('keeps the pending block key when a snapshot contains %s', async (_label, change) => {
+    fetchMock.mockResolvedValueOnce(json(block)).mockImplementationOnce(async () => json({key: key(0), kind: 'BLOCK', resourceId: 30, maintenance: {...block, ...change}}));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason)).rejects.toThrow('could not be confirmed');
+    const original = key(0);
+    expect(sessionStorage.getItem('villarosa.ownPendingOperations.v2')).toContain(original!);
+    fetchMock.mockResolvedValueOnce(json({key: original, kind: 'BLOCK', resourceId: 30, maintenance: block}));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason)).resolves.toBe(30);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1);
+  });
+  it('checks an archived room result without creating a new intent or sending a new block', async () => {
+    await expect(client().block(7, block.startDate, block.endDate, block.reason, {recoveryOnly: true})).rejects.toThrow('No pending maintenance request');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toBeNull();
+    fetchMock.mockRejectedValueOnce(new TypeError('Lost response'));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason)).rejects.toThrow();
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(notCommitted());
+    await expect(client().block(7, block.startDate, block.endDate, block.reason, {recoveryOnly: true})).rejects.toThrow('No committed result was found');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sessionStorage.getItem('villarosa.ownPendingOperations.v2')).toContain(original!);
+    fetchMock.mockResolvedValueOnce(json({key: original, kind: 'BLOCK', resourceId: 30, maintenance: block}));
+    await expect(client().block(7, block.startDate, block.endDate, block.reason, {recoveryOnly: true})).resolves.toBe(30);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1);
+  });
+  it('keeps the reviewed block version and rejects a cancellation snapshot that still says active', async () => {
+    fetchMock.mockResolvedValueOnce(json(block)).mockImplementationOnce(async () => json({key: key(0), kind: 'UNBLOCK', resourceId: 30, maintenance: block}));
+    await expect(client().unblock(30, 3)).rejects.toThrow('could not be confirmed');
+    expect(String(fetchMock.mock.calls[0][0])).toContain('expectedVersion=3');
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(json({key: original, kind: 'UNBLOCK', resourceId: 30, maintenance: {...block, status: 'CANCELLED', version: 4}}));
+    await expect(client().unblock(30, 4)).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });
