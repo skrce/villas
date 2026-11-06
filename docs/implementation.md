@@ -167,3 +167,18 @@ GitHub. The owner explicitly deferred Google client creation and live-provider c
 Synthetic OIDC is loopback-only and rejected in production. Milestone 3 remains open
 for real Google callback/cookie/logout/invitation/recovery acceptance. The verified
 local checkpoint is the dependency for the authorized milestone 4 work.
+
+The complete local check passed at `f492982`: 98 unit/HTTP/configuration cases,
+86 native MariaDB cases, 40 frontend cases, six launcher cases and three Chromium
+workflows. Backend independent re-review cleared the two session findings. A later
+frontend-only notification correction adds the 41st case and keeps unconfirmed logout
+hidden until explicit session recovery; its lint/build and browser checks are recorded
+in PR #19. The PR records independent re-review and final CI before merge.
+
+Raw branch coverage is 100% for StaffAccess and 93.62% for AuthenticationSettings.
+StaffDirectory is 76.25%, StaffSessionFilter 70%, and the browser session module 83.03%.
+These remain below the 90% critical-module target. Native adversarial checks cover
+the required invitation/identity, revocation, concurrent writes, handoff failure,
+CSRF, lifetime and rollback cases, but those checks do not erase the measured gap.
+Continue filling boundary coverage during live-provider qualification and later
+lifecycle work. No global percentage is substituted for those failure cases.
