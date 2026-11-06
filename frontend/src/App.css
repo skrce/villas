@@ -625,9 +625,16 @@ td .subline {
 }
 .guest-picker small {
   display: block;
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-size: 11px;
   margin-top: 5px;
+}
+.guest-picker .record-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  overflow-wrap: anywhere;
 }
 dialog {
   border: 1px solid var(--border);

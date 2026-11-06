@@ -1,4 +1,11 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
@@ -307,8 +314,278 @@ async function enterName(dialog: HTMLElement, first: string, last: string) {
   await userEvent.type(within(dialog).getByLabelText("First name"), first);
   await userEvent.type(within(dialog).getByLabelText("Last name"), last);
 }
+async function navigate(path: string) {
+  await act(async () => {
+    window.history.pushState({}, "", path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+}
 
 describe("guest and room workflows", () => {
+  it("keeps guest drafts with their own record when browser Back changes the profile", async () => {
+    guests.set(6, {
+      ...guestFixture,
+      id: 6,
+      firstName: "Second",
+      lastName: "Person",
+    });
+    await mount("/guests/5");
+    await screen.findByRole("heading", { name: "Test Guest" });
+    await navigate("/guests/6");
+    await screen.findByRole("heading", { name: "Second Person" });
+    await userEvent.click(screen.getByRole("button", { name: "Edit guest" }));
+    const edit = screen.getByRole("dialog", { name: "Edit guest" });
+    await userEvent.clear(within(edit).getByLabelText("First name"));
+    await userEvent.type(
+      within(edit).getByLabelText("First name"),
+      "UnsavedSecond",
+    );
+    await act(async () => {
+      window.history.back();
+    });
+    await screen.findByRole("heading", { name: "Test Guest" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Edit guest" }));
+    expect(
+      within(screen.getByRole("dialog")).getByLabelText("First name"),
+    ).toHaveValue("Test");
+    expect(calls("/api/v1/customers/5", "PUT")).toHaveLength(0);
+    await act(async () => {
+      window.history.forward();
+    });
+    await screen.findByRole("heading", { name: "Second Person" });
+    await userEvent.click(screen.getByRole("button", { name: "Edit guest" }));
+    expect(
+      within(screen.getByRole("dialog")).getByLabelText("First name"),
+    ).toHaveValue("UnsavedSecond");
+    expect(guests.get(5)?.firstName).toBe("Test");
+  });
+  it("resets room dialogs on navigation while keeping edit and maintenance drafts under their room", async () => {
+    rooms.set(8, {
+      ...roomFixture,
+      id: 8,
+      name: "Second studio",
+      reference: "SECOND-1",
+    });
+    await mount("/rooms/7");
+    await screen.findByRole("heading", { name: "Garden studio" });
+    await navigate("/rooms/8");
+    await screen.findByRole("heading", { name: "Second studio" });
+    await userEvent.click(screen.getByRole("button", { name: "Edit room" }));
+    let dialog = screen.getByRole("dialog");
+    await userEvent.clear(within(dialog).getByLabelText("Room name"));
+    await userEvent.type(
+      within(dialog).getByLabelText("Room name"),
+      "Draft for second room",
+    );
+    await act(async () => {
+      window.history.back();
+    });
+    await screen.findByRole("heading", { name: "Garden studio" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Block for maintenance" }),
+    );
+    dialog = screen.getByRole("dialog");
+    await userEvent.clear(within(dialog).getByLabelText("Reason"));
+    await userEvent.type(
+      within(dialog).getByLabelText("Reason"),
+      "First room repair",
+    );
+    await navigate("/rooms/8");
+    await screen.findByRole("heading", { name: "Second studio" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Block for maintenance" }),
+    );
+    expect(
+      within(screen.getByRole("dialog")).getByLabelText("Reason"),
+    ).toHaveValue("Maintenance");
+    await act(async () => {
+      window.history.back();
+    });
+    await screen.findByRole("heading", { name: "Garden studio" });
+    await userEvent.click(screen.getByRole("button", { name: "Edit room" }));
+    expect(
+      within(screen.getByRole("dialog")).getByLabelText("Room name"),
+    ).toHaveValue("Garden studio");
+    expect(calls("/api/v1/apartments/7", "PUT")).toHaveLength(0);
+    await userEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Close dialog",
+      }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Block for maintenance" }),
+    );
+    dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByLabelText("Reason")).toHaveValue(
+      "First room repair",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Save maintenance" }),
+    );
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    expect(blocks[0]).toMatchObject({ roomId: 7, reason: "First room repair" });
+  });
+  it("remounts a linked guest booking intent and restores only that guest's draft", async () => {
+    guests.set(6, {
+      ...guestFixture,
+      id: 6,
+      firstName: "Second",
+      lastName: "Person",
+    });
+    await mount("/reservations/new?guest=5");
+    const picker = await screen.findByRole("combobox", { name: "Guest" });
+    await waitFor(() => expect(picker).toHaveValue("Test Guest"));
+    await userEvent.clear(screen.getByLabelText("Check-in"));
+    await userEvent.type(screen.getByLabelText("Check-in"), "2031-01-01");
+    await navigate("/reservations/new?guest=6");
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Guest" })).toHaveValue(
+        "Second Person",
+      ),
+    );
+    expect(screen.getByLabelText("Check-in")).not.toHaveValue("2031-01-01");
+    await act(async () => {
+      window.history.back();
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Guest" })).toHaveValue(
+        "Test Guest",
+      ),
+    );
+    expect(screen.getByLabelText("Check-in")).toHaveValue("2031-01-01");
+    expect(calls("/api/v1/reservations", "POST")).toHaveLength(0);
+  });
+  it("distinguishes same-name guests with optional or shared contacts before selection", async () => {
+    guests = new Map([
+      [
+        5,
+        {
+          ...guestFixture,
+          firstName: "Alex",
+          lastName: "Jones",
+          phone: null,
+          email: "first@example.test",
+        },
+      ],
+      [
+        6,
+        {
+          ...guestFixture,
+          id: 6,
+          firstName: "Alex",
+          lastName: "Jones",
+          phone: null,
+          email: "second@example.test",
+        },
+      ],
+      [
+        7,
+        {
+          ...guestFixture,
+          id: 7,
+          firstName: "Alex",
+          lastName: "Jones",
+          phone: null,
+          email: "second@example.test",
+        },
+      ],
+      [
+        8,
+        {
+          ...guestFixture,
+          id: 8,
+          firstName: "Alex",
+          lastName: "Jones",
+          phone: null,
+          email: null,
+        },
+      ],
+    ]);
+    await mount("/reservations/new");
+    await userEvent.type(
+      await screen.findByRole("combobox", { name: "Guest" }),
+      "Alex Jones",
+    );
+    const list = await screen.findByRole("listbox", {
+      name: "Matching guests",
+    });
+    await waitFor(() =>
+      expect(within(list).getAllByRole("option")).toHaveLength(4),
+    );
+    const options = within(list).getAllByRole("option");
+    expect(new Set(options.map((option) => option.textContent)).size).toBe(4);
+    expect(options[0]).toHaveTextContent("first@example.test");
+    expect(options[3]).toHaveTextContent("No contact details");
+    await userEvent.click(
+      within(list).getByRole("option", {
+        name: /second@example.test Guest #7/,
+      }),
+    );
+    expect(
+      screen.getByRole("link", { name: "View selected guest #7" }),
+    ).toHaveAttribute("href", "/guests/7");
+    expect(window.location.search).toBe("");
+  });
+  it("checks an interrupted maintenance save after archival and reload without restoring or writing again", async () => {
+    api.mockImplementation(async (input, init) => {
+      const response = await responses(input, init);
+      if (parsed(input).pathname === "/api/v1/apartments/7/maintenance") {
+        rooms.set(7, { ...rooms.get(7)!, active: false, version: 1 });
+        throw new TypeError("Lost maintenance response");
+      }
+      return response;
+    });
+    await mount("/rooms/7?from=2030-02-01&to=2030-02-03");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Block for maintenance" }),
+    );
+    let dialog = screen.getByRole("dialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Save maintenance" }),
+    );
+    await within(dialog).findByText(/The result could not be confirmed/);
+    cleanup();
+    await mount("/rooms/7?from=2030-02-01&to=2030-02-03");
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Check interrupted maintenance save",
+      }),
+    );
+    dialog = screen.getByRole("dialog", {
+      name: "Check interrupted maintenance save",
+    });
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Check saved result" }),
+    );
+    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    await screen.findByText(/Maintenance #30 is saved/);
+    expect(blocks).toHaveLength(1);
+    expect(calls("/api/v1/apartments/7/maintenance", "POST")).toHaveLength(1);
+    expect(calls("/api/v1/apartments/7/status", "POST")).toHaveLength(0);
+    expect(rooms.get(7)!.active).toBe(false);
+  });
+  it("cannot create new maintenance from an archived room's recovery form", async () => {
+    rooms.set(7, { ...roomFixture, active: false, version: 1 });
+    await mount("/rooms/7");
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Check interrupted maintenance save",
+      }),
+    );
+    const dialog = screen.getByRole("dialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Check saved result" }),
+    );
+    await within(dialog).findByText(
+      /No pending maintenance request matches these details/,
+    );
+    expect(calls("/api/v1/apartments/7/maintenance", "POST")).toHaveLength(0);
+    expect(blocks).toHaveLength(0);
+    expect(localStorage.getItem("villarosa.pendingOperations.v2")).toBeNull();
+  });
   it("creates a walk-in using names only, keeps contacts private and clears the successful draft", async () => {
     await mount("/guests");
     const dialog = await guestDialog();

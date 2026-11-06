@@ -247,20 +247,28 @@ no write repeats automatically. Maintenance retains the operation-key recovery c
 across tabs and reload, without persisting raw details. The fixture rooms now have
 explicit synthetic names/references matching the same contracts as room administration.
 
-Local frontend checks pass 71 cases. Nine real Chromium workflows verify these screens
+Local frontend checks pass 85 cases. Nine real Chromium workflows verify these screens
 against signed synthetic OIDC and private MariaDB, including stale edits, 51-record
 pagination, family phones, duplicate review, capacity/archive/maintenance conflicts,
-archive/restore/history, and recovery of a lost maintenance response across tabs/reload
+archive/restore/history, and recovery of a lost maintenance response across tabs, room archival and reload
 without a second POST. Desktop/320px axe scans and attached screenshots pass. Final
 complete-gate, independent review and merge evidence are recorded in the milestone issue.
 
 Raw backend branch coverage is 100% for BookingProtection, 97.22% for the guest
 normalizer and 100% for the room normalizer. CustomerService is 78.95%, GuestDirectory
 86.67% and ApartmentService 81.25%. Frontend generated code is excluded; current
-application coverage is 82.00% line/74.82% branch. The retry adapter is 92.13% branch,
+application coverage is 82.48% line/76.23% branch. The retry adapter is 94.26% branch,
 session 83.92%, mutation helper 80.55% and versioned-draft helper 66.66%. Sub-90%
 critical-module targets remain explicit qualification work; passing required workflows
 is not a claim that every failure branch or production environment is verified.
+
+Independent review identified record-local dialogs surviving a change of route ID,
+archived-room maintenance recovery being hidden, incomplete maintenance snapshot
+validation, and ambiguous same-name guest choices. Regression tests now cover Back/
+Forward navigation with record-scoped drafts, linked-guest booking intents, read-only
+archived recovery, wrong room/date/reason snapshots retaining their original key,
+and stable guest profile numbers alongside optional contacts. Final re-review and
+exact-head CI evidence are recorded in the milestone issue before closure.
 
 Real Google setup/acceptance remains explicitly deferred in milestone 3. Seasonal
 rates, complete calendar/lifecycle, settlement/reporting and deployment/pilot remain

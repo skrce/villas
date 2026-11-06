@@ -1,4 +1,12 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Navigate,
   NavLink,
@@ -228,15 +236,19 @@ export default function Workspace() {
   );
 }
 function RouteContent({ children }: { children: React.ReactNode }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const pageIdentity =
+    pathname === "/reservations/new"
+      ? JSON.stringify([pathname, new URLSearchParams(search).get("guest")])
+      : pathname;
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     main.current?.focus();
     document.title = `${pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · Villas`;
-  }, [pathname]);
+  }, [pathname, pageIdentity]);
   return (
     <main ref={main} tabIndex={-1} id="main" className="main-content">
-      {children}
+      <Fragment key={pageIdentity}>{children}</Fragment>
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { useWorkspace } from "../app/context";
 import type { Customer } from "../api/generated";
 export function GuestPicker({
@@ -104,6 +105,11 @@ export function GuestPicker({
             ? "Guest selected. Edit to choose someone else."
             : "Type a name or phone, then choose a match.")}
       </p>
+      {value && (
+        <Link className="record-link" to={`/guests/${value}`}>
+          View selected guest #{value}
+        </Link>
+      )}
       <ul
         id={`${id}-list`}
         role="listbox"
@@ -119,8 +125,12 @@ export function GuestPicker({
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => choose(guest)}
           >
-            {guest.firstName} {guest.lastName}
-            <small>{guest.phone}</small>
+            {guest.firstName} {guest.lastName}{" "}
+            <small>
+              {[guest.phone, guest.email].filter(Boolean).join(" · ") ||
+                "No contact details"}
+            </small>{" "}
+            <small>Guest #{guest.id}</small>
           </li>
         ))}
       </ul>

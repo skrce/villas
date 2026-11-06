@@ -245,11 +245,14 @@ export function RoomDetail() {
           <section className="panel">
             <div className="section-heading">
               <h2>Availability & maintenance</h2>
-              {room.data.active !== false && (
-                <button className="button" onClick={() => setAdding(true)}>
-                  Block for maintenance
-                </button>
-              )}
+              <button
+                className={`button${room.data.active === false ? " secondary" : ""}`}
+                onClick={() => setAdding(true)}
+              >
+                {room.data.active === false
+                  ? "Check interrupted maintenance save"
+                  : "Block for maintenance"}
+              </button>
             </div>
             <PeriodForm
               key={JSON.stringify(period)}
@@ -398,12 +401,17 @@ export function RoomDetail() {
       )}
       {adding && (
         <Dialog
-          title="Block for maintenance"
+          title={
+            room.data?.active === false
+              ? "Check interrupted maintenance save"
+              : "Block for maintenance"
+          }
           busy={busy}
           onClose={() => setAdding(false)}
         >
           <MaintenanceForm
             roomId={id}
+            recoveryOnly={room.data?.active === false}
             from={windowValid ? period.from : today}
             to={windowValid ? period.to : addDays(today, 1)}
             onPending={setBusy}

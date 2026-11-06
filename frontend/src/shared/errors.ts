@@ -1,5 +1,6 @@
 import { ResponseError } from "../api/generated";
 import { SessionChangedError } from "../api/session";
+import { MaintenanceRecoveryError } from "../api/bookingActions";
 const messages: Record<string, string> = {
   INVENTORY_CONFLICT:
     "That room is no longer available for these dates. Choose another room or change the dates.",
@@ -32,6 +33,7 @@ const messages: Record<string, string> = {
 };
 export const errorMessage = async (error: unknown): Promise<string> => {
   if (error instanceof SessionChangedError) return error.message;
+  if (error instanceof MaintenanceRecoveryError) return error.message;
   if (error instanceof ResponseError) {
     const body = await error.response
       .clone()

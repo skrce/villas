@@ -686,7 +686,7 @@ test("guest duplicate review keeps family contacts separate and the directory pa
   await expect(page.getByText("51 shown", { exact: true })).toBeVisible();
 });
 
-test("maintenance recovery survives another tab's confirmation and full reload without a second POST", async ({
+test("maintenance recovery survives another tab's confirmation, room archival and full reload without a second POST", async ({
   page,
   context,
 }) => {
@@ -734,14 +734,30 @@ test("maintenance recovery survives another tab's confirmation and full reload w
   const confirmation = await enter(second);
   await confirmation.getByRole("button", { name: "Save maintenance" }).click();
   await expect(confirmation).not.toBeVisible();
+  const archived = await second.request.post(
+    `/api/v1/apartments/${room.id}/status`,
+    {
+      headers: await headersFor(second),
+      data: { active: false, expectedVersion: room.version },
+    },
+  );
+  expect(archived.ok()).toBeTruthy();
   await page.reload();
-  const recovered = page.getByRole("dialog", { name: "Block for maintenance" });
+  const recovered = page.getByRole("dialog", {
+    name: "Check interrupted maintenance save",
+  });
   await page
-    .getByRole("button", { name: "Block for maintenance", exact: true })
+    .getByRole("button", {
+      name: "Check interrupted maintenance save",
+      exact: true,
+    })
     .click();
   await recovered.getByLabel("Reason").fill("Synthetic interrupted repair");
-  await recovered.getByRole("button", { name: "Save maintenance" }).click();
+  await recovered.getByRole("button", { name: "Check saved result" }).click();
   await expect(recovered).not.toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Restore room", exact: true }),
+  ).toBeVisible();
   expect(posts).toBe(1);
   const blocks = await (
     await page.request.get(

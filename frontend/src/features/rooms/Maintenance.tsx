@@ -24,12 +24,14 @@ export function MaintenanceForm({
   roomId,
   from,
   to,
+  recoveryOnly = false,
   onSaved,
   onPending,
 }: {
   roomId: number;
   from: string;
   to: string;
+  recoveryOnly?: boolean;
   onSaved: (id: number, from: string, to: string) => void;
   onPending: (busy: boolean) => void;
 }) {
@@ -58,6 +60,7 @@ export function MaintenanceForm({
         values.startDate,
         values.endDate,
         values.reason,
+        { recoveryOnly },
       ),
       from: values.startDate,
       to: values.endDate,
@@ -72,7 +75,11 @@ export function MaintenanceForm({
   return (
     <form
       noValidate
-      aria-label="Block for maintenance"
+      aria-label={
+        recoveryOnly
+          ? "Check interrupted maintenance save"
+          : "Block for maintenance"
+      }
       onSubmit={form.handleSubmit(async (values) => {
         onPending(true);
         try {
@@ -83,8 +90,9 @@ export function MaintenanceForm({
       })}
     >
       <p className="hint">
-        This blocks the room from the start date up to the end date in Skopje
-        property time. Existing stays are protected.
+        {recoveryOnly
+          ? "Re-enter the original dates and reason to check an interrupted save. This room is archived, so this check cannot create new maintenance."
+          : "This blocks the room from the start date up to the end date in Skopje property time. Existing stays are protected."}
       </p>
       <div className="form-grid">
         <Field
@@ -114,7 +122,13 @@ export function MaintenanceForm({
       <MutationNotice save={save} />
       <div className="dialog-actions">
         <button className="button" disabled={save.isPending}>
-          {save.isPending ? "Saving…" : "Save maintenance"}
+          {save.isPending
+            ? recoveryOnly
+              ? "Checking…"
+              : "Saving…"
+            : recoveryOnly
+              ? "Check saved result"
+              : "Save maintenance"}
         </button>
       </div>
     </form>

@@ -10,6 +10,9 @@ owned by runtime OpenAPI and the pinned generator.
 `App.tsx` installs session events and chooses the authentication return or workspace.
 `app/Workspace.tsx` owns the session boundary, layout, navigation, query provider and
 route focus. Feature pages load as separate chunks under `features/`.
+Changing a record path or a linked-guest booking intent remounts the page's local
+forms and dialogs. The Owner's draft store stays above that boundary, keyed by its
+original record. Room date filters do not change the room's edit identity.
 
 | Route | Implemented behavior |
 | --- | --- |
@@ -66,7 +69,10 @@ No mutation retries automatically. Browsers need Web Locks over HTTPS or localho
 
 Maintenance creation uses private JSON and the same retained-key reconciliation as
 bookings. It does not pre-block recovery based on advisory availability. Confirmation
-checks the key/kind/resource and maintenance state/version before clearing the intent.
+checks the key/kind/resource, room, dates, reason and maintenance state/version before
+clearing the intent. Archived rooms offer an explicit interrupted-save check that
+only looks up a retained operation. It cannot create a new block, including after a
+definitive uncommitted result; restore the room before making a new maintenance save.
 Successful maintenance selects its dated room window, retaining cancelled history.
 
 Guest creation has no idempotency contract yet. Its unconfirmed-result message directs
@@ -78,6 +84,8 @@ before repeating an uncertain create. Shared contacts never merge guests. Same-n
 creation requires explicit separate-person review; archived matches link to retained
 profiles. New reservation drafts are scoped by a linked guest when present, so a
 new guest link cannot accidentally retain another guest choice.
+Guest choices show available phone/email and a stable profile number, including when
+names and shared contacts match. The selected guest has a separate profile-review link.
 
 ## Dates and display
 
