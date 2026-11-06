@@ -521,7 +521,10 @@ export function NewReservation() {
                 </div>
                 <div>
                   <dt>Party</dt>
-                  <dd>{values.guestCount} guests</dd>
+                  <dd>
+                    {values.guestCount}{" "}
+                    {values.guestCount === 1 ? "guest" : "guests"}
+                  </dd>
                 </div>
               </dl>
               <button
@@ -585,10 +588,9 @@ export function NewReservation() {
             Check previous save
           </button>
           <p className="hint">
-            Check previous save is read-only. Use the original room, dates,
-            party and guest to recover an interrupted confirmation, even if the
-            room is unavailable now. Show all steps to enter the original
-            details together.
+            Unsure whether a confirmation saved? Use the original guest, room,
+            dates and party, then check. This finds the previous result without
+            creating a booking. Show all steps to enter those details together.
           </p>
           <div className="form-actions">
             <Link className="button secondary" to="/reservations">
