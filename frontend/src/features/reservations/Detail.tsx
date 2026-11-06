@@ -14,6 +14,7 @@ import {
   PageHead,
   Pending,
   QueryError,
+  SelectField,
   Status,
 } from "../../shared/ui";
 export function ReservationDetail() {
@@ -28,6 +29,7 @@ function ReservationDetailPage() {
   const [editing, setEditing] = useState<{
     kind: "move" | "stay" | "cancel";
     version: number;
+    recoveryOnly: boolean;
     snapshot: {
       startDate: string;
       endDate: string;
@@ -67,13 +69,14 @@ function ReservationDetailPage() {
   });
   const rooms = useRooms();
   const record = query.data;
-  const open = (kind: "move" | "stay" | "cancel") => {
+  const open = (kind: "move" | "stay" | "cancel", recoveryOnly = false) => {
     if (!record || !Number.isSafeInteger(record.version) || record.version! < 0)
       return;
     mutation.resetStatus();
     setSaved(false);
     setEditing({
       kind,
+      recoveryOnly,
       version: record.version!,
       snapshot: {
         startDate: record.startDate!,
@@ -126,6 +129,13 @@ function ReservationDetailPage() {
                 Cancel reservation
               </button>
             </>
+          ) : record?.status === "CANCELLED" ? (
+            <button
+              className="button secondary"
+              onClick={() => open("stay", true)}
+            >
+              Check previous save
+            </button>
           ) : null
         }
       />
@@ -245,15 +255,34 @@ function ReservationDetailPage() {
       {editing && record && (
         <Dialog
           title={
-            editing?.kind === "cancel"
-              ? "Cancel reservation?"
-              : editing?.kind === "move"
-                ? "Move room"
-                : "Edit stay"
+            editing.kind !== "cancel" &&
+            (editing.recoveryOnly || record.status === "CANCELLED")
+              ? "Check previous save"
+              : editing?.kind === "cancel"
+                ? "Cancel reservation?"
+                : editing?.kind === "move"
+                  ? "Move room"
+                  : "Edit stay"
           }
           busy={busy || mutation.isPending}
           onClose={() => setEditing(undefined)}
         >
+          {editing.kind !== "cancel" &&
+            (editing.recoveryOnly || record.status === "CANCELLED") && (
+              <SelectField
+                label="Previous change"
+                value={editing.kind}
+                onChange={(event) =>
+                  setEditing({
+                    ...editing,
+                    kind: event.target.value === "move" ? "move" : "stay",
+                  })
+                }
+              >
+                <option value="stay">Stay dates or party size</option>
+                <option value="move">Room move</option>
+              </SelectField>
+            )}
           <EditReservation
             key={editing.kind}
             kind={editing.kind}
@@ -261,6 +290,10 @@ function ReservationDetailPage() {
             reservationId={id}
             expectedVersion={editing.version}
             currentVersion={record.version}
+            recoveryOnly={
+              editing.kind !== "cancel" &&
+              (editing.recoveryOnly || record.status === "CANCELLED")
+            }
             onBusy={setBusy}
             onSaved={() => {
               setEditing(undefined);

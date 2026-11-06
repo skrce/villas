@@ -145,3 +145,9 @@ its key. It never requests a fresh quote or repeats a write. Room recovery can i
 current or archived choices when an earlier move has already changed availability.
 
 Live Google and deployment acceptance remain separately recorded gates.
+
+Cancelled bookings expose a read-only recovery dialog for previous stay or room
+changes. It cannot request a quote or write, including after a definitive uncommitted
+lookup. Accepted agreements show the stay dates, party size and room alongside their
+amounts. Load latest changes cache/form/draft state only while its original dialog and
+session remain current, and never replaces a newer cached booking version.

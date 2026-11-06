@@ -1137,7 +1137,7 @@ test("saved quotes require explicit acceptance, retain exact seasonal prices and
   ).toBe(true);
 });
 
-test("an Owner accepts a refreshed edit price and recovers a lost confirmation after reload without another quote or write", async ({
+test("an Owner accepts a refreshed edit price and recovers a lost confirmation after cancellation and reload without another quote or write", async ({
   page,
 }, testInfo) => {
   await signIn(page);
@@ -1260,21 +1260,34 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
       })
     ).ok(),
   ).toBeTruthy();
+  const cancelled = await page.request.delete(
+    `/api/v1/reservations?reservationId=${id}&expectedVersion=1`,
+    { headers: { ...headers, "Idempotency-Key": crypto.randomUUID() } },
+  );
+  expect(cancelled.ok()).toBeTruthy();
   const quoteCount = quoteWrites;
   await page.reload();
-  await page.getByRole("button", { name: "Edit stay", exact: true }).click();
-  await expect(edit.getByLabel("Check-out", { exact: true })).toHaveValue(
+  await page
+    .getByRole("button", { name: "Check previous save", exact: true })
+    .click();
+  const recovered = page.getByRole("dialog", { name: "Check previous save" });
+  await expect(recovered.getByLabel("Check-out", { exact: true })).toHaveValue(
     "2034-06-04",
   );
   await expect(
-    edit.getByRole("button", { name: "Review price", exact: true }),
-  ).toBeDisabled();
-  await edit
+    recovered.getByRole("button", {
+      name: /Review price|Confirm changes|Load latest stay/,
+    }),
+  ).toHaveCount(0);
+  await recovered
     .getByRole("button", { name: "Check previous save", exact: true })
     .click();
-  await expect(edit).not.toBeVisible();
+  await expect(recovered).not.toBeVisible();
   expect(editWrites).toBe(2);
   expect(quoteWrites).toBe(quoteCount);
+  expect(
+    await (await page.request.get(`/api/v1/reservations/${id}`)).json(),
+  ).toMatchObject({ status: "CANCELLED", version: 2 });
   const accepted = await (
     await page.request.get(`/api/v1/reservations/${id}/price`)
   ).json();

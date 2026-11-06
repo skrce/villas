@@ -1,8 +1,15 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useRooms } from "../rooms/queries";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { ReservationInfo } from "../../api/generated";
 import { useWorkspace } from "../../app/context";
-import { eventLabel, validVersion } from "../../shared/format";
+import {
+  dateLabel,
+  eventLabel,
+  roomChoiceLabel,
+  validVersion,
+} from "../../shared/format";
 import { Empty, Pending, QueryError } from "../../shared/ui";
 import { PriceSummary } from "./PriceSummary";
 import {
@@ -18,6 +25,9 @@ export function ReservationPricePanel({
 }) {
   const { apis } = useWorkspace();
   const [showHistory, setShowHistory] = useState(false);
+  const rooms = useRooms();
+  const roomName = (id: number) =>
+    roomChoiceLabel(rooms.data?.find((room) => room.id === id) ?? { id });
   const id = reservation.id!;
   const current = useQuery({
     queryKey: [
@@ -115,7 +125,10 @@ export function ReservationPricePanel({
           No accommodation price was recorded for this reservation.
         </Empty>
       ) : (
-        <AcceptedSummary price={current.data} />
+        <AcceptedSummary
+          price={current.data}
+          roomName={roomName(current.data.quote.roomId)}
+        />
       )}
       {showHistory && (
         <section className="price-history">
@@ -137,7 +150,10 @@ export function ReservationPricePanel({
                         ? "Current agreement"
                         : "Previous agreement"}
                     </p>
-                    <AcceptedSummary price={price} />
+                    <AcceptedSummary
+                      price={price}
+                      roomName={roomName(price.quote.roomId)}
+                    />
                   </li>
                 ))}
             </ol>
@@ -156,11 +172,23 @@ export function ReservationPricePanel({
     </section>
   );
 }
-function AcceptedSummary({ price }: { price: AcceptedPriceData }) {
+function AcceptedSummary({
+  price,
+  roomName,
+}: {
+  price: AcceptedPriceData;
+  roomName: string;
+}) {
   return (
     <>
       <p className="hint">
         Agreed {eventLabel(price.acceptedAt)} in Skopje time.
+      </p>
+      <p className="hint">
+        {dateLabel(price.quote.startDate)} → {dateLabel(price.quote.endDate)} ·{" "}
+        {price.quote.guestCount}{" "}
+        {price.quote.guestCount === 1 ? "guest" : "guests"} ·{" "}
+        <Link to={`/rooms/${price.quote.roomId}`}>{roomName}</Link>
       </p>
       <PriceSummary price={price.quote.price} />
     </>

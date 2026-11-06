@@ -329,7 +329,7 @@ an explicit protected reload. Edit recovery checks the original saved quote and
 operation before clearing its retained key, including after reload or expiry, without
 a fresh quote or write. Financial response validation is shared by both workflows.
 
-Scoped checks pass 173 frontend cases, including explicit edit acceptance, unchanged
+Scoped checks pass 176 frontend cases, including explicit edit acceptance, unchanged
 party-price totals, refreshed offers, stale drafts, protected reload failures and lost
 edit recovery. The existing native inventory races/rollback/version cases pass with
 explicit reviewed quote fixtures. Direct native pricing tests cover whole-stay changes,
@@ -337,3 +337,10 @@ immutable prior agreements, edit-price rollback, changed-rate replacements and n
 Full-gate, browser, independent-review and final merge evidence are recorded in #7
 and the implementing PR before milestone closure. Real Google and deployed acceptance
 remain separately tracked gates.
+
+Independent review found a late Load latest read overwriting a newer reopened draft
+and cancelled bookings hiding interrupted-edit recovery. The reload now applies only
+through the session/route guarded completion callback and refuses to downgrade a newer
+cache version. Cancelled records expose read-only previous stay/room recovery. Permanent
+regressions cover Back/Forward with held reads, cancellation after a lost party or room
+edit, retained original quotes/keys, and the absence of new quotes or writes in recovery.

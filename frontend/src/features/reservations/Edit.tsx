@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
+import type { ReservationInfo } from "../../api/generated";
 import { useWorkspace } from "../../app/context";
 import { staySchema } from "../../shared/schemas";
 import {
@@ -30,6 +31,7 @@ type Props = {
   reservationId: number;
   expectedVersion: number;
   currentVersion?: number;
+  recoveryOnly?: boolean;
   draftKey: string;
   record: Record;
   rooms: {
@@ -79,6 +81,7 @@ function PriceEdit({
   reservationId,
   expectedVersion,
   currentVersion,
+  recoveryOnly = false,
   draftKey,
   record,
   rooms,
@@ -134,7 +137,7 @@ function PriceEdit({
     !validVersion(currentVersion) || draft.expectedVersion !== currentVersion;
   const review = useSave<Stay>(
     async (stay) => {
-      if (staleDraft || !changed)
+      if (recoveryOnly || staleDraft || !changed)
         throw new Error(
           "Review the current reservation and changed stay details first.",
         );
@@ -171,6 +174,7 @@ function PriceEdit({
       if (
         !visible ||
         visible.identity !== identity(stay) ||
+        recoveryOnly ||
         staleDraft ||
         !changed
       )
@@ -244,18 +248,33 @@ function PriceEdit({
         latest.status !== "ACTIVE"
       )
         throw new Error("The current active reservation could not be loaded.");
-      cache.setQueryData(["reservations", reservationId], latest);
       const next = { ...checked.data, roomId: latest.roomId! };
+      return { latest, next, version: latest.version };
+    },
+    (result) => {
+      const { latest, next, version } = result as {
+        latest: ReservationInfo;
+        next: Record;
+        version: number;
+      };
+      const cached = cache.getQueryData<ReservationInfo>([
+        "reservations",
+        reservationId,
+      ]);
+      if (cached && validVersion(cached.version) && cached.version > version)
+        throw new Error(
+          "A newer reservation is already loaded. Load the latest stay again.",
+        );
+      cache.setQueryData(["reservations", reservationId], latest);
       setBase(next);
       setRoom("");
       form.reset(next);
-      draft.reload({ ...next, room: "" }, latest.version);
+      draft.reload({ ...next, room: "" }, version);
       setQuote(undefined);
       mutation.resetStatus();
       review.resetStatus();
       recovery.resetStatus();
     },
-    undefined,
     { invalidate: false },
   );
   const busy =
@@ -275,11 +294,19 @@ function PriceEdit({
         };
   return (
     <form
-      aria-label={kind === "move" ? "Move room" : "Edit stay"}
+      aria-label={
+        recoveryOnly
+          ? kind === "move"
+            ? "Check previous room save"
+            : "Check previous stay save"
+          : kind === "move"
+            ? "Move room"
+            : "Edit stay"
+      }
       noValidate
       onSubmit={async (event) => {
         event.preventDefault();
-        await submit(review.submit)(event);
+        await submit(recoveryOnly ? recovery.submit : review.submit)(event);
       }}
     >
       <fieldset className="form-fields" disabled={busy}>
@@ -287,7 +314,11 @@ function PriceEdit({
           <>
             <SelectField
               label="New room"
-              hint="Availability is checked again when you confirm."
+              hint={
+                recoveryOnly
+                  ? "Choose the original requested room, including current or archived rooms."
+                  : "Availability is checked again when you confirm."
+              }
               required
               value={room}
               onChange={(event) => {
@@ -303,6 +334,7 @@ function PriceEdit({
               {rooms
                 .filter(
                   (item) =>
+                    recoveryOnly ||
                     includeUnavailable ||
                     item.id === Number(room) ||
                     (item.id !== base.roomId &&
@@ -316,16 +348,18 @@ function PriceEdit({
                   </option>
                 ))}
             </SelectField>
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={includeUnavailable}
-                onChange={(event) =>
-                  setIncludeUnavailable(event.target.checked)
-                }
-              />
-              Include other rooms for an interrupted save
-            </label>
+            {!recoveryOnly && (
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={includeUnavailable}
+                  onChange={(event) =>
+                    setIncludeUnavailable(event.target.checked)
+                  }
+                />
+                Include other rooms for an interrupted save
+              </label>
+            )}
           </>
         ) : (
           <div className="form-grid">
@@ -352,17 +386,24 @@ function PriceEdit({
           </div>
         )}
       </fieldset>
-      <p className="hint">
-        A change uses current rates for the whole stay. Previous agreed prices
-        remain in history.
-      </p>
-      {(staleDraft || mutation.stale) && (
+      {recoveryOnly ? (
+        <Notice>
+          This reservation is cancelled. Re-enter the original requested details
+          to check a previous save. This check only reads a saved result.
+        </Notice>
+      ) : (
+        <p className="hint">
+          A change uses current rates for the whole stay. Previous agreed prices
+          remain in history.
+        </p>
+      )}
+      {!recoveryOnly && (staleDraft || mutation.stale) && (
         <Notice error>
           The saved reservation changed. Check any previous save, or load the
           latest stay before reviewing a new price.
         </Notice>
       )}
-      {(staleDraft || mutation.stale) && (
+      {!recoveryOnly && (staleDraft || mutation.stale) && (
         <button
           type="button"
           className="button secondary"
@@ -372,21 +413,21 @@ function PriceEdit({
           Load latest stay
         </button>
       )}
-      {!changed && (
+      {!recoveryOnly && !changed && (
         <p className="hint">
           Choose a different room or change the stay details to review a new
           price.
         </p>
       )}
-      {review.code === "RATES_REQUIRED" && (
+      {!recoveryOnly && review.code === "RATES_REQUIRED" && (
         <p>
           <Link to={`/rooms/${inputFor().roomId}#rates`}>
             Configure this room's rates
           </Link>
         </p>
       )}
-      {visible && <QuoteSummary quote={visible.value} />}
-      {visible?.refreshed && (
+      {!recoveryOnly && visible && <QuoteSummary quote={visible.value} />}
+      {!recoveryOnly && visible?.refreshed && (
         <Notice>
           The quote was refreshed. Review the new total before confirming again.
         </Notice>
@@ -407,17 +448,19 @@ function PriceEdit({
         >
           Check previous save
         </button>
-        <button
-          className="button secondary"
-          disabled={busy || staleDraft || mutation.stale || !changed}
-        >
-          {review.isPending
-            ? "Loading price…"
-            : visible
-              ? "Refresh quote"
-              : "Review price"}
-        </button>
-        {visible && (
+        {!recoveryOnly && (
+          <button
+            className="button secondary"
+            disabled={busy || staleDraft || mutation.stale || !changed}
+          >
+            {review.isPending
+              ? "Loading price…"
+              : visible
+                ? "Refresh quote"
+                : "Review price"}
+          </button>
+        )}
+        {!recoveryOnly && visible && (
           <button
             type="button"
             className="button"

@@ -220,6 +220,79 @@ async function review() {
   return screen.findByRole("button", { name: /Confirm reservation/ });
 }
 describe("reviewed quote booking workflow", () => {
+  it.each(["stay", "move"] as const)(
+    "keeps read-only edit recovery available after another Owner cancels a lost edit (%s)",
+    async (kind) => {
+      await booked();
+      const target =
+        kind === "stay"
+          ? "/api/v1/reservations/42/dates/quoted"
+          : "/api/v1/reservations/42/room/quoted";
+      let lose = true;
+      api.mockImplementation(async (url, init) => {
+        const response = await responses(url, init);
+        if (path(url) === target && init?.method === "PATCH" && lose) {
+          lose = false;
+          throw new TypeError("Lost accepted edit response");
+        }
+        return response;
+      });
+      const dialog = await dialogFor(kind);
+      if (kind === "stay") {
+        await userEvent.clear(within(dialog).getByLabelText("Guests"));
+        await userEvent.type(within(dialog).getByLabelText("Guests"), "3");
+      } else
+        await userEvent.selectOptions(
+          within(dialog).getByLabelText("New room"),
+          "8",
+        );
+      await userEvent.click(await editQuote(dialog));
+      await within(dialog).findByText(/The result could not be confirmed/);
+      expect(
+        sessionStorage.getItem("villarosa.ownPendingOperations.v2"),
+      ).not.toBe("{}");
+      saved = { ...saved, status: "CANCELLED", version: 2 };
+      cleanup();
+      window.history.replaceState({}, "", "/reservations/42");
+      await act(async () => {
+        render(<App />);
+      });
+      await screen.findByText("Cancelled", { exact: true });
+      await userEvent.click(
+        screen.getByRole("button", { name: "Check previous save" }),
+      );
+      const recovery = screen.getByRole("dialog", {
+        name: "Check previous save",
+      });
+      if (kind === "move") {
+        await userEvent.selectOptions(
+          within(recovery).getByLabelText("Previous change"),
+          "move",
+        );
+        await userEvent.selectOptions(
+          within(recovery).getByLabelText("New room"),
+          "8",
+        );
+      }
+      expect(
+        within(recovery).queryByRole("button", {
+          name: /Review price|Confirm changes|Load latest stay/,
+        }),
+      ).not.toBeInTheDocument();
+      const quoted = calls("/api/v1/booking-quotes", "POST").length;
+      await userEvent.click(
+        within(recovery).getByRole("button", { name: "Check previous save" }),
+      );
+      await waitFor(() => expect(recovery).not.toBeInTheDocument());
+      expect(calls(target, "PATCH")).toHaveLength(1);
+      expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(quoted);
+      expect(saved).toMatchObject({ status: "CANCELLED", version: 2 });
+      expect(sessionStorage.getItem("villarosa.ownPendingOperations.v2")).toBe(
+        "{}",
+      );
+    },
+  );
+
   async function booked() {
     await enter();
     await userEvent.click(await review());
@@ -245,6 +318,70 @@ describe("reviewed quote booking workflow", () => {
     );
     return within(dialog).findByRole("button", { name: /Confirm changes/ });
   }
+  it("does not let an abandoned older Load latest erase a newer reopened stay draft", async () => {
+    await booked();
+    const original = await dialogFor("stay");
+    await checkout(original, "2030-01-04");
+    saved = { ...saved, version: 1, endDate: "2030-01-05" };
+    generation = "stale-draft-session";
+    await act(async () => {
+      await refreshSession({ explicit: true });
+    });
+    const first = await dialogFor("stay");
+    let finishOld: (response: Response) => void = () => {};
+    let hold = true;
+    const oldSnapshot = { ...saved };
+    api.mockImplementation((url, init) => {
+      if (
+        path(url) === "/api/v1/reservations/42" &&
+        (!init?.method || init.method === "GET") &&
+        hold
+      ) {
+        hold = false;
+        return new Promise<Response>((resolve) => {
+          finishOld = resolve;
+        });
+      }
+      return responses(url, init);
+    });
+    await userEvent.click(
+      within(first).getByRole("button", { name: "Load latest stay" }),
+    );
+    await act(async () => {
+      window.history.back();
+    });
+    await screen.findByRole("heading", {
+      name: "New reservation",
+    });
+    await act(async () => {
+      window.history.forward();
+    });
+    await screen.findByRole("heading", {
+      name: "Reservation #42",
+    });
+    saved = { ...saved, version: 2, endDate: "2030-01-06" };
+    const current = await dialogFor("stay");
+    await userEvent.click(
+      within(current).getByRole("button", { name: "Load latest stay" }),
+    );
+    await waitFor(() =>
+      expect(within(current).getByLabelText("Check-out")).toHaveValue(
+        "2030-01-06",
+      ),
+    );
+    await checkout(current, "2030-01-07");
+    await act(async () => {
+      finishOld(json(oldSnapshot));
+    });
+    await userEvent.click(
+      within(current).getByRole("button", { name: "Close dialog" }),
+    );
+    const reopened = await dialogFor("stay");
+    expect(within(reopened).getByLabelText("Check-out")).toHaveValue(
+      "2030-01-07",
+    );
+  });
+
   it("requires explicit whole-stay price acceptance for dates and room moves and retains the agreements", async () => {
     await booked();
     const stay = await dialogFor("stay");
