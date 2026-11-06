@@ -2,7 +2,11 @@
 /* eslint-disable */
 export * from './AcceptedPrice';
 export * from './Apartment';
+export * from './BookingCalendarPage';
 export * from './BookingQuote';
+export * from './CalendarMaintenance';
+export * from './CalendarRoom';
+export * from './CalendarStay';
 export * from './Customer';
 export * from './CustomerCreateRequest';
 export * from './CustomerSearchRequest';

@@ -8,6 +8,7 @@ import {
   MaintenanceApi,
   RatesApi,
   QuotesApi,
+  CalendarApi,
 } from './generated';
 import { API_BASE, scopedSessionFetch } from './session';
 
@@ -27,5 +28,6 @@ export const buildApis = (staffId: string, epoch: number) => {
     maintenanceApi: new MaintenanceApi(configuration),
     ratesApi: new RatesApi(configuration),
     quotesApi: new QuotesApi(configuration),
+    calendarApi: new CalendarApi(configuration),
   };
 };

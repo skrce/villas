@@ -1,5 +1,6 @@
 .openapi-generator-ignore
 apis/ApartmentApi.ts
+apis/CalendarApi.ts
 apis/CustomerApi.ts
 apis/InventoryApi.ts
 apis/MaintenanceApi.ts
@@ -11,7 +12,12 @@ apis/index.ts
 docs/AcceptedPrice.md
 docs/Apartment.md
 docs/ApartmentApi.md
+docs/BookingCalendarPage.md
 docs/BookingQuote.md
+docs/CalendarApi.md
+docs/CalendarMaintenance.md
+docs/CalendarRoom.md
+docs/CalendarStay.md
 docs/Customer.md
 docs/CustomerApi.md
 docs/CustomerCreateRequest.md
@@ -59,7 +65,11 @@ docs/StayPrice.md
 index.ts
 models/AcceptedPrice.ts
 models/Apartment.ts
+models/BookingCalendarPage.ts
 models/BookingQuote.ts
+models/CalendarMaintenance.ts
+models/CalendarRoom.ts
+models/CalendarStay.ts
 models/Customer.ts
 models/CustomerCreateRequest.ts
 models/CustomerSearchRequest.ts

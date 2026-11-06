@@ -1,5 +1,10 @@
-import { useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import {
+  Link,
+  useParams,
+  useSearchParams,
+  useLocation,
+} from "react-router-dom";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -95,6 +100,7 @@ export function RoomDetail() {
   const valid = Number.isSafeInteger(id) && id > 0 && id <= 2147483647;
   const { apis } = useWorkspace();
   const [params, setParams] = useSearchParams();
+  const { hash } = useLocation();
   const today = propertyToday();
   const period = {
     from: params.get("from") ?? today,
@@ -152,6 +158,12 @@ export function RoomDetail() {
     enabled: valid && windowValid && !!room.data,
   });
   const bookings = stays.data?.pages.flatMap((page) => page.items) ?? [];
+  useEffect(() => {
+    if (hash === "#maintenance" && room.data)
+      document
+        .getElementById("maintenance")
+        ?.scrollIntoView?.({ block: "start" });
+  }, [hash, room.data]);
   const blocks = maintenance.data?.pages.flatMap((page) => page.items) ?? [];
   const occupied =
     bookings.some((booking) => booking.status === "ACTIVE") ||
@@ -333,7 +345,7 @@ export function RoomDetail() {
                   </button>
                 )}
               </section>
-              <section className="panel">
+              <section className="panel" id="maintenance">
                 <h2>Maintenance blocks</h2>
                 {maintenance.isPending ? (
                   <Pending />

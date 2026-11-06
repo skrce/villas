@@ -28,6 +28,11 @@ import { Login } from "./AuthViews";
 import { DraftContext, WorkspaceContext } from "./context";
 import { PageHead, Pending } from "../shared/ui";
 
+const Calendar = lazy(() =>
+  import("../features/reservations/Calendar").then((module) => ({
+    default: module.BookingCalendar,
+  })),
+);
 const Reservations = lazy(() =>
   import("../features/reservations/List").then((module) => ({
     default: module.Reservations,
@@ -122,6 +127,7 @@ export default function Workspace() {
   if (session.staff.id !== ownerId)
     return <Pending label="Changing account…" />;
   const routes = [
+    { to: "/calendar", name: "Calendar", icon: "▦" },
     { to: "/reservations", name: "Reservations", icon: "▤" },
     { to: "/guests", name: "Guests", icon: "♧" },
     { to: "/rooms", name: "Rooms", icon: "▥" },
@@ -195,6 +201,7 @@ export default function Workspace() {
                       path="/login"
                       element={<Navigate replace to="/reservations" />}
                     />
+                    <Route path="/calendar" element={<Calendar />} />
                     <Route path="/reservations" element={<Reservations />} />
                     <Route
                       path="/reservations/new"
@@ -240,12 +247,17 @@ function RouteContent({ children }: { children: React.ReactNode }) {
   const { pathname, search } = useLocation();
   const pageIdentity =
     pathname === "/reservations/new"
-      ? JSON.stringify([pathname, new URLSearchParams(search).get("guest")])
+      ? JSON.stringify([
+          pathname,
+          ...["guest", "room", "from", "to"].map((key) =>
+            new URLSearchParams(search).get(key),
+          ),
+        ])
       : pathname;
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     main.current?.focus();
-    document.title = `${pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · Villas`;
+    document.title = `${pathname.startsWith("/calendar") ? "Calendar" : pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · Villas`;
   }, [pathname, pageIdentity]);
   return (
     <main ref={main} tabIndex={-1} id="main" className="main-content">

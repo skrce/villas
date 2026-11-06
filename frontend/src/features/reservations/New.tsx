@@ -6,12 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { useWorkspace } from "../../app/context";
 import { bookingSchema, staySchema } from "../../shared/schemas";
-import {
-  addDays,
-  propertyToday,
-  roomChoiceLabel,
-  euros,
-} from "../../shared/format";
+import { propertyToday, roomChoiceLabel, euros } from "../../shared/format";
+import { bookingSeed } from "./calendarData";
 import { useDraft } from "../../shared/useDraft";
 import { useSave } from "../../shared/useSave";
 import { useRooms } from "../rooms/queries";
@@ -40,22 +36,17 @@ export function NewReservation() {
   const { apis, booking } = useWorkspace();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const guestId = Number(params.get("guest"));
-  const today = propertyToday();
+  const seed = bookingSeed(params, propertyToday());
+  const guestId = seed.guestId;
   type Values = z.infer<typeof bookingSchema>;
-  const draft = useDraft<Values>(
-    Number.isSafeInteger(guestId) && guestId > 0 && guestId <= 2147483647
-      ? `reservation-create-guest-${guestId}`
-      : "reservation-create",
-    {
-      customerId: "",
-      guestLabel: "",
-      roomId: "",
-      startDate: today,
-      endDate: addDays(today, 1),
-      guestCount: 1,
-    },
-  );
+  const draft = useDraft<Values>(seed.key, {
+    customerId: "",
+    guestLabel: "",
+    roomId: seed.roomId,
+    startDate: seed.startDate,
+    endDate: seed.endDate,
+    guestCount: 1,
+  });
   const linkedGuestApplied = useRef(!!draft.initial.customerId);
   const [creatingGuest, setCreatingGuest] = useState(false);
   const [guestBusy, setGuestBusy] = useState(false);
@@ -114,7 +105,9 @@ export function NewReservation() {
         },
         { signal },
       ),
-    enabled: valid,
+    enabled: valid && seed.valid,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: "always",
   });
   const inventory = useRooms();
   const [includeUnavailable, setIncludeUnavailable] = useState(false);
@@ -227,13 +220,20 @@ export function NewReservation() {
       <PageHead title="New reservation">
         Choose a guest, dates and an available room.
       </PageHead>
+      {!seed.valid && (
+        <Notice error>
+          This booking link has invalid dates or identifiers.{" "}
+          <Link to="/reservations/new">Start a new reservation</Link> or return
+          to the calendar.
+        </Notice>
+      )}
       <section className="panel form-panel">
         <form
           aria-label="New reservation"
           noValidate
           onSubmit={form.handleSubmit(review.submit)}
         >
-          <fieldset className="stay-fields" disabled={saving}>
+          <fieldset className="stay-fields" disabled={saving || !seed.valid}>
             <h2>Stay details</h2>
             <div className="form-grid">
               <Field
@@ -373,7 +373,7 @@ export function NewReservation() {
           <button
             type="button"
             className="button quiet"
-            disabled={busy}
+            disabled={busy || !seed.valid}
             onClick={() => void form.handleSubmit(recovery.submit)()}
           >
             Check previous save
@@ -384,7 +384,7 @@ export function NewReservation() {
             </Link>
             <button
               className={visibleQuote ? "button secondary" : "button"}
-              disabled={busy}
+              disabled={busy || !seed.valid}
             >
               {review.isPending
                 ? "Loading price…"
@@ -396,7 +396,7 @@ export function NewReservation() {
               <button
                 type="button"
                 className="button"
-                disabled={busy}
+                disabled={busy || !seed.valid}
                 onClick={() => void form.handleSubmit(mutation.submit)()}
               >
                 {mutation.isPending

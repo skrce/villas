@@ -14,7 +14,7 @@ start are recorded in [decisions](decisions.md).
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | [Implemented and independently reviewed in PR #20](https://github.com/skrce/villas/pull/20); final merge/CI evidence is in the linked issue |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Implemented and independently reviewed in PRs #21, #22 and #23; merge/CI evidence is in the linked issue |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Implemented and independently reviewed in PRs #24 and #25; final merge/CI evidence is in the linked issue |
-| 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Planned |
+| 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | In progress: calendar, filtered list and prefilled drafts |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Planned |
 | 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Planned |
 | 10 | [Verify production deployment, recovery, and the staff pilot](https://github.com/skrce/villas/issues/11) | 1-9 | Planned |
@@ -364,3 +364,36 @@ Required overflow, malformed money, expiry, stale version, admission, concurrenc
 rollback scenarios pass; those cases do not erase the unsuppressed measured gaps.
 Broader boundary coverage and live/deployed qualification remain explicit work before
 the production pilot.
+
+
+## Milestone 7 calendar checkpoint
+
+The Owner calendar reads a consistent MariaDB snapshot of a bounded room page,
+active stays and maintenance. Half-open date windows are limited to 31 nights and
+pages to 50 rooms (the UI shows seven nights and 20 rooms). An excessive event count
+fails explicitly instead of returning a truncated availability picture. Only guest
+names are included; contacts and addresses are absent. Archived rooms are opt-in.
+
+Desktop users select the first and last free night with buttons or the keyboard.
+Phones show a room agenda with free-period links. Both open a memory-only draft
+with reviewed room/date seeds. Invalid seeds are rejected, and route identity keeps
+separate calendar selections from retargeting a retained draft. Reservation-list
+filters include dates, status and room, with exclusive bounded pagination. Calendar,
+list and availability reads refresh on focus/reconnection; writes invalidate all
+active workspace queries. Malformed or overlapping calendar data disables selection.
+
+The guided wizard and concurrent-Owner browser checkpoint remain the next slice.
+This work retains the existing Owner cancellation permission and D12's retained
+price/no-fee/no-refund behavior. It adds no deadline, financial action or daily
+operations lifecycle. Real Google and deployed acceptance remain separate gates.
+
+
+The calendar checkpoint passed the complete repository gate: 380 backend cases
+(204 unit/HTTP and 176 native MariaDB), 195 frontend cases, 13 launcher checks and
+13 Chromium workflows, with no skips. Independent backend review found no material
+defects. Frontend review found lost maintenance periods and missing room-filter
+labels, then caught one missed phone call site. All are corrected with regressions.
+The final frontend suite has 198 cases plus lint/build; a focused Chromium rerun
+checks both booking persistence and the actual historical phone maintenance target.
+An idle cached calendar now disables selection immediately on going offline.
+Final review, exact-head CI and merge evidence are recorded in PR #26 and #8.

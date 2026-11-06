@@ -142,3 +142,26 @@ edit confirmation. Its per-tab unresolved key survives another tab clearing the 
 claim after confirmation. Both localStorage and sessionStorage contain only hashed
 identities and key/version metadata. A replay refreshes current details and does not
 claim that the current room/dates still equal the historical result.
+
+
+## Calendar snapshot
+
+`GET /api/v1/calendar` is Owner-only. Required `startDate`/`endDate` use the existing
+strict half-open property-date contract. The window is at most 31 nights;
+`afterRoomId` is an exclusive nonnegative Int cursor, `limit` is 1..50 (default 20),
+and `includeArchived` defaults false. The response includes explicit `rooms`,
+`stays` and `maintenance` arrays plus `nextRoomCursor`. Events are ACTIVE and overlap
+the requested window; full event dates are retained when they extend outside it.
+
+All three reads run in one new read-only REPEATABLE_READ transaction, scoped to the
+property. A page contains every matching event for its selected rooms. More than
+2,000 stays or maintenance blocks fails with `409 CALENDAR_INCOMPLETE`; it never
+silently truncates occupancy. Room paging is intentionally one page at a time.
+The snapshot carries guest display names and identifiers, without contacts or
+addresses. Existing details provide accepted prices and permitted actions.
+
+The calendar is advisory: a displayed free interval is not an inventory hold.
+Creation still requires a valid reviewed quote and the existing atomic admission,
+operation reconciliation and locking rules. This milestone preserves Owner
+cancellation with retained history and no financial side effect under D12. Future
+cancellation deadlines, fees and refunds remain separate policy work.

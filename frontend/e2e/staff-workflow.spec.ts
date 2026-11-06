@@ -1,6 +1,133 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+test("calendar selection creates a quoted stay that persists on the desktop grid and phone agenda", async ({
+  page,
+}, testInfo) => {
+  await signIn(page);
+  const headers = await headersFor(page);
+  const created = await page.request.post("/api/v1/apartments", {
+    headers,
+    data: { name: "Calendar terrace", reference: "CAL-TERRACE", capacity: 4 },
+  });
+  expect(created.ok()).toBe(true);
+  const room = await created.json();
+  const rated = await page.request.put(`/api/v1/apartments/${room.id}/rates`, {
+    headers,
+    data: {
+      expectedVersion: 0,
+      currency: "EUR",
+      baseNightlyCents: 6500,
+      seasons: [],
+    },
+  });
+  expect(rated.ok()).toBe(true);
+  const block = await page.request.post(
+    `/api/v1/apartments/${room.id}/maintenance`,
+    {
+      headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
+      data: {
+        startDate: "2037-04-05",
+        endDate: "2037-04-07",
+        reason: "Synthetic inspection",
+      },
+    },
+  );
+  expect(block.ok()).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/calendar?from=2037-04-01");
+  await page
+    .getByRole("button", {
+      name: "Select Calendar terrace, night of 2 Apr 2037",
+    })
+    .focus();
+  await page.keyboard.press("Enter");
+  await page
+    .getByRole("button", {
+      name: "Select Calendar terrace, night of 3 Apr 2037",
+    })
+    .focus();
+  await page.keyboard.press("Enter");
+  await page
+    .getByRole("link", { name: "Create reservation", exact: true })
+    .click();
+  await expect(page.getByLabel("Check-in", { exact: true })).toHaveValue(
+    "2037-04-02",
+  );
+  await expect(page.getByLabel("Check-out", { exact: true })).toHaveValue(
+    "2037-04-04",
+  );
+  await expect(page.getByLabel("Room", { exact: true })).toHaveValue(
+    String(room.id),
+  );
+  await page.getByRole("button", { name: "Add guest", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add guest" });
+  await dialog.getByLabel("First name", { exact: true }).fill("Calendar");
+  await dialog.getByLabel("Last name", { exact: true }).fill("Synthetic Guest");
+  await dialog.getByRole("button", { name: "Save guest" }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByRole("button", { name: "Review price", exact: true }).click();
+  await expect(
+    page.getByRole("button", {
+      name: "Confirm reservation · €130.00",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Confirm reservation · €130.00", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Reservation #\d+$/,
+  );
+  await page.goto("/calendar?from=2037-04-01");
+  await page.reload();
+  const desktop = page.locator(".calendar-desktop");
+  await expect(
+    desktop.getByRole("link", { name: /Calendar Synthetic Guest/ }),
+  ).toBeVisible();
+  await expect(
+    desktop.getByRole("link", { name: /Synthetic inspection/ }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath("calendar-desktop.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 320, height: 760 });
+  const agenda = page.getByLabel("Room agenda");
+  await expect(
+    agenda.getByRole("link", { name: /Calendar Synthetic Guest/ }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("calendar-phone.png"),
+    fullPage: true,
+  });
+  await agenda.getByRole("link", { name: /Synthetic inspection/ }).click();
+  await expect(page).toHaveURL(
+    /from=2037-04-01&to=2037-04-08&history=1#maintenance$/,
+  );
+  await expect(
+    page
+      .locator("#maintenance")
+      .locator("strong")
+      .filter({ hasText: /^Synthetic inspection$/ }),
+  ).toBeVisible();
+  await page.goto("/calendar?from=2037-04-01");
+  await page
+    .getByLabel("Room agenda")
+    .getByRole("link", { name: /Calendar Synthetic Guest/ })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Reservation #\d+$/,
+  );
+});
+
 async function signInHere(page: Page, identity = "Synthetic Owner") {
   const opened = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Sign in to local demo" }).click();
