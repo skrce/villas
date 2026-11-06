@@ -6,6 +6,7 @@ import {
   StaffApi,
   InventoryApi,
   MaintenanceApi,
+  RatesApi,
 } from './generated';
 import { API_BASE, scopedSessionFetch } from './session';
 
@@ -23,5 +24,6 @@ export const buildApis = (staffId: string, epoch: number) => {
     staffApi: new StaffApi(configuration),
     inventoryApi: new InventoryApi(configuration),
     maintenanceApi: new MaintenanceApi(configuration),
+    ratesApi: new RatesApi(configuration),
   };
 };

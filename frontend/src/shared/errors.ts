@@ -2,6 +2,13 @@ import { ResponseError } from "../api/generated";
 import { SessionChangedError } from "../api/session";
 import { MaintenanceRecoveryError } from "../api/bookingActions";
 const messages: Record<string, string> = {
+  RATES_REQUIRED: "Configure this room's nightly rates before quoting a stay.",
+  SEASON_OVERLAP:
+    "Seasonal price periods overlap. Adjust their start and end dates.",
+  INVALID_AMOUNT:
+    "Enter a positive EUR amount with at most two decimal places.",
+  AMOUNT_TOO_LARGE: "This accommodation total exceeds the supported amount.",
+  UNSUPPORTED_CURRENCY: "Room prices must use EUR.",
   INVENTORY_CONFLICT:
     "That room is no longer available for these dates. Choose another room or change the dates.",
   STALE_VERSION:

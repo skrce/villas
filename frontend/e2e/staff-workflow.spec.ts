@@ -686,6 +686,113 @@ test("guest duplicate review keeps family contacts separate and the directory pa
   await expect(page.getByText("51 shown", { exact: true })).toBeVisible();
 });
 
+test("Owner configures exact nightly and seasonal rates and explicitly reloads a concurrent price change", async ({
+  page,
+}, testInfo) => {
+  await signIn(page);
+  const created = await page.request.post("/api/v1/apartments", {
+    headers: await headersFor(page),
+    data: {
+      name: "Synthetic seasonal studio",
+      reference: "SEASON-6",
+      capacity: 4,
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const room = await created.json();
+  const target = `/api/v1/apartments/${room.id}/rates`;
+  await page.goto(`/rooms/${room.id}`);
+  await expect(
+    page.getByText("Rates need configuration", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Configure rates", exact: true })
+    .click();
+  const edit = page.getByRole("dialog", { name: "Edit nightly rates" });
+  await edit.getByLabel("Base price (EUR per night)").fill("50,01");
+  await edit.getByRole("button", { name: "Add seasonal price" }).click();
+  await edit.getByLabel("Season name").fill("Synthetic leap-day season");
+  await edit.getByLabel("Nightly price (EUR)").fill("75.01");
+  await edit.getByLabel("Season start").fill("2028-02-29");
+  await edit.getByLabel("Season end").fill("2028-03-02");
+  await edit.getByRole("button", { name: "Save rates", exact: true }).click();
+  await expect(edit).not.toBeVisible();
+  await expect(page.getByText("€50.01", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Synthetic leap-day season", { exact: true }),
+  ).toBeVisible();
+  const preview = await page.request.post(`${target}/preview`, {
+    headers: await headersFor(page),
+    data: {
+      startDate: "2028-02-28",
+      endDate: "2028-03-02",
+      guestCount: 4,
+    },
+  });
+  expect(preview.ok()).toBeTruthy();
+  expect(await preview.json()).toMatchObject({
+    currency: "EUR",
+    totalCents: 20003,
+    nights: 3,
+    rateVersion: 1,
+  });
+  await page.getByRole("button", { name: "Edit rates", exact: true }).click();
+  await edit.getByLabel("Base price (EUR per night)").fill("60.01");
+  const saved = await (await page.request.get(target)).json();
+  const concurrent = await page.request.put(target, {
+    headers: await headersFor(page),
+    data: {
+      expectedVersion: saved.version,
+      currency: "EUR",
+      baseNightlyCents: 7001,
+      seasons: saved.seasons,
+    },
+  });
+  expect(concurrent.ok()).toBeTruthy();
+  await edit.getByRole("button", { name: "Save rates", exact: true }).click();
+  await expect(edit.getByRole("alert")).toContainText(
+    "The saved rates changed",
+  );
+  await expect(edit.getByLabel("Base price (EUR per night)")).toHaveValue(
+    "60.01",
+  );
+  await expect(
+    edit.getByRole("button", { name: "Save rates", exact: true }),
+  ).toBeDisabled();
+  await edit
+    .getByRole("button", { name: "Load latest rates", exact: true })
+    .click();
+  await expect(edit.getByLabel("Base price (EUR per night)")).toHaveValue(
+    "70.01",
+  );
+  await edit
+    .getByRole("button", { name: "Remove season 1", exact: true })
+    .click();
+  await edit.getByLabel("Base price (EUR per night)").fill("71.01");
+  await edit.getByRole("button", { name: "Save rates", exact: true }).click();
+  await expect(edit).not.toBeVisible();
+  await expect(page.getByText("€71.01", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("The base rate applies to every night.", { exact: true }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.getByRole("button", { name: "Edit rates", exact: true }).click();
+  await edit.getByRole("button", { name: "Add seasonal price" }).click();
+  const scan = await new AxeBuilder({ page }).analyze();
+  expect(scan.violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  const screenshot = testInfo.outputPath("rates-phone.png");
+  await page.screenshot({ path: screenshot, fullPage: true });
+  await testInfo.attach("Nightly rate editor at 320px", {
+    path: screenshot,
+    contentType: "image/png",
+  });
+});
+
 test("maintenance recovery survives another tab's confirmation, room archival and full reload without a second POST", async ({
   page,
   context,

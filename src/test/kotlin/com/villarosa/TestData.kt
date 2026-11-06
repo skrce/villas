@@ -45,6 +45,7 @@ object TestData {
                 "inventory_operations",
                 "reservations",
                 "maintenance_blocks",
+                "seasonal_rates",
                 "customers",
                 "apartments",
             )) {

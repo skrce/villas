@@ -10,6 +10,7 @@ Confirmed with the owner on November 5, 2026.
 | D04: Hosting | Open | Choose a personal hosting target, domain, secret storage, backups, recovery targets, and monitoring before milestone 10. Local implementation requires no cloud credentials. Retain MariaDB unless a separate decision changes it. |
 | D09: Initial staff roles | Confirmed | Owner is the only available role initially. Every invitation grants Owner access. Other roles require a later explicit decision and implementation. |
 | D10: Staff session lifetime | Confirmed | Sessions last at most seven days and expire after three days of inactivity. Logout and account/session revocation invalidate access immediately. |
+| D11: Initial accommodation pricing | Confirmed on November 6, 2026 | A base EUR nightly price per room with dated seasonal replacements. The price covers any party within capacity. Owners enter the final accommodation price. Villas adds no taxes, fees, discounts or minimum-stay rules. |
 
 The first release serves staff at one property through a responsive online app.
 Public booking and guest accounts are outside the ten-step plan. The existing

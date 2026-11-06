@@ -45,3 +45,9 @@ V9 backfills room labels/references while retaining old prices and reservations.
 capacity/status changes share the inventory apartment lock and reject current/future
 bookings they would invalidate. Metadata events contain surrogate IDs, not guest
 contacts. Availability queries can restrict their bounded database window by room.
+
+V10 adds independent room rate versions, explicit EUR currency and nullable exact-cent
+base prices without converting old price fields. `seasonal_rates` stores year-specific
+half-open date periods, names and exact nightly cents with property/room foreign keys.
+Owner writes serialize on the existing room lock, reject overlaps/stale versions and
+commit the complete configuration with its audit event. See [pricing](contracts/pricing.md).

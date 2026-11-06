@@ -200,6 +200,14 @@ async function responses(
     return json(room);
   }
   const roomId = Number(path.split("/")[4]);
+  if (/^\/api\/v1\/apartments\/\d+\/rates$/.test(path))
+    return json({
+      roomId,
+      currency: "EUR",
+      version: 0,
+      seasons: [],
+      baseNightlyCents: null,
+    });
   if (
     /^\/api\/v1\/apartments\/\d+\/maintenance$/.test(path) &&
     method === "POST"

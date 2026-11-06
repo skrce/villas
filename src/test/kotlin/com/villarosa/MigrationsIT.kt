@@ -26,7 +26,7 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(9)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(10)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
@@ -74,7 +74,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(8)
+            .isEqualTo(9)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement
@@ -390,7 +390,12 @@ class MigrationsIT {
             }
         }
         val flyway =
-            DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
+            DatabaseMigrations.configured(
+                database.jdbcUrl,
+                database.username,
+                database.password,
+                "9",
+            )
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         connection().use { connection ->
