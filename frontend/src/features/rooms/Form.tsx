@@ -240,7 +240,7 @@ export function RoomEditor({
       form.reset(values);
       save.resetStatus();
     },
-    { invalidate: false },
+    { invalidate: false, repeatable: true },
   );
   return (
     <form

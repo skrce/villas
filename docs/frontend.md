@@ -205,3 +205,10 @@ are deliberately re-reviewed after a recovered session. Every save runs immediat
 or reports its failure instead of joining an offline mutation queue. Booking
 confirmation/review buttons are disabled while offline, and reconnection alone sends
 no write.
+
+
+A confirmed final save remains completed until its form closes or a new intent is
+explicitly opened/reset. This blocks a second click after a fast successful response
+but before React finishes navigation. Read-only quote/reload actions and the reusable
+invitation form opt into repeatable execution; failures retain deliberate retry and
+operation-reconciliation behavior. No time-based debounce is used.

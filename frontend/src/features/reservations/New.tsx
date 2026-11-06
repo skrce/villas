@@ -189,7 +189,7 @@ export function NewReservation() {
         goStep(3);
       }
     },
-    { invalidate: false },
+    { invalidate: false, repeatable: true },
   );
   const mutation = useSave<Values>(
     async (value) => {

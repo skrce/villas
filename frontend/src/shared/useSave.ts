@@ -7,7 +7,11 @@ import { errorMessage } from "./errors";
 export function useSave<T>(
   action: (input: T) => Promise<unknown>,
   after?: (result: unknown) => void,
-  options: { invalidate?: boolean; onError?: (body: unknown) => void } = {},
+  options: {
+    invalidate?: boolean;
+    repeatable?: boolean;
+    onError?: (body: unknown) => void;
+  } = {},
 ) {
   const { epoch } = useWorkspace();
   const cache = useQueryClient();
@@ -17,6 +21,7 @@ export function useSave<T>(
   const [relatedIds, setRelatedIds] = useState<number[]>([]);
   const [moreRecords, setMoreRecords] = useState(false);
   const pending = useRef(false);
+  const completed = useRef(false);
   const alive = useRef(true);
   useEffect(() => {
     alive.current = true;
@@ -34,6 +39,7 @@ export function useSave<T>(
       try {
         const result = await action(input);
         if (epoch !== getSessionEpoch()) return;
+        if (!options.repeatable) completed.current = true;
         if (options.invalidate !== false) await cache.invalidateQueries();
         if (epoch === getSessionEpoch() && alive.current) after?.(result);
         return result;
@@ -85,6 +91,7 @@ export function useSave<T>(
     relatedIds,
     moreRecords,
     resetStatus: () => {
+      completed.current = false;
       setStale(false);
       setMessage("");
       setCode(undefined);
@@ -93,7 +100,7 @@ export function useSave<T>(
       mutation.reset();
     },
     submit: async (input: T) => {
-      if (pending.current) return;
+      if (pending.current || completed.current) return;
       pending.current = true;
       try {
         await mutation.mutateAsync(input).catch(() => undefined);

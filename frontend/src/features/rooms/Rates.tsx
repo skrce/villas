@@ -188,7 +188,7 @@ function RateEditor({
       form.reset(fields);
       save.resetStatus();
     },
-    { invalidate: false },
+    { invalidate: false, repeatable: true },
   );
   const busy = save.isPending || reload.isPending;
   const errors = form.formState.errors;
