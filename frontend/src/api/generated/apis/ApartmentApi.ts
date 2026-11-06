@@ -17,13 +17,62 @@ import * as runtime from '../runtime';
 import type {
   Apartment,
   ErrorResponse,
+  MaintenanceBlock,
+  RecordStatusRequest,
+  RoomBlockRequest,
+  RoomCreateRequest,
+  RoomPage,
+  RoomUpdateRequest,
 } from '../models/index';
 import {
     ApartmentFromJSON,
     ApartmentToJSON,
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
+    MaintenanceBlockFromJSON,
+    MaintenanceBlockToJSON,
+    RecordStatusRequestFromJSON,
+    RecordStatusRequestToJSON,
+    RoomBlockRequestFromJSON,
+    RoomBlockRequestToJSON,
+    RoomCreateRequestFromJSON,
+    RoomCreateRequestToJSON,
+    RoomPageFromJSON,
+    RoomPageToJSON,
+    RoomUpdateRequestFromJSON,
+    RoomUpdateRequestToJSON,
 } from '../models/index';
+
+export interface ApartmentDirectoryRequest {
+    name?: string;
+    includeArchived?: boolean;
+    afterId?: number;
+    limit?: number;
+}
+
+export interface BlockApartmentRequest {
+    apartmentId: number;
+    idempotencyKey: string;
+    roomBlockRequest: RoomBlockRequest;
+}
+
+export interface CreateApartmentRequest {
+    roomCreateRequest: RoomCreateRequest;
+}
+
+export interface GetApartmentRequest {
+    apartmentId: number;
+}
+
+export interface SetApartmentStatusRequest {
+    apartmentId: number;
+    recordStatusRequest: RecordStatusRequest;
+}
+
+export interface UpdateApartmentRequest {
+    apartmentId: number;
+    roomUpdateRequest: RoomUpdateRequest;
+}
 
 /**
  * 
@@ -31,7 +80,186 @@ import {
 export class ApartmentApi extends runtime.BaseAPI {
 
     /**
-     * Lists all apartments.
+     * Read a bounded room directory by name or reference
+     */
+    async apartmentDirectoryRaw(requestParameters: ApartmentDirectoryRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RoomPage>> {
+        const queryParameters: any = {};
+
+        if (requestParameters['name'] != null) {
+            queryParameters['name'] = requestParameters['name'];
+        }
+
+        if (requestParameters['includeArchived'] != null) {
+            queryParameters['includeArchived'] = requestParameters['includeArchived'];
+        }
+
+        if (requestParameters['afterId'] != null) {
+            queryParameters['afterId'] = requestParameters['afterId'];
+        }
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/apartments/directory`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => RoomPageFromJSON(jsonValue));
+    }
+
+    /**
+     * Read a bounded room directory by name or reference
+     */
+    async apartmentDirectory(requestParameters: ApartmentDirectoryRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RoomPage> {
+        const response = await this.apartmentDirectoryRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Add a dated maintenance block using a private JSON body
+     */
+    async blockApartmentRaw(requestParameters: BlockApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MaintenanceBlock>> {
+        if (requestParameters['apartmentId'] == null) {
+            throw new runtime.RequiredError(
+                'apartmentId',
+                'Required parameter "apartmentId" was null or undefined when calling blockApartment().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling blockApartment().'
+            );
+        }
+
+        if (requestParameters['roomBlockRequest'] == null) {
+            throw new runtime.RequiredError(
+                'roomBlockRequest',
+                'Required parameter "roomBlockRequest" was null or undefined when calling blockApartment().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/apartments/{apartmentId}/maintenance`;
+        urlPath = urlPath.replace(`{${"apartmentId"}}`, encodeURIComponent(String(requestParameters['apartmentId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: RoomBlockRequestToJSON(requestParameters['roomBlockRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => MaintenanceBlockFromJSON(jsonValue));
+    }
+
+    /**
+     * Add a dated maintenance block using a private JSON body
+     */
+    async blockApartment(requestParameters: BlockApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MaintenanceBlock> {
+        const response = await this.blockApartmentRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Add a named room with a unique property reference
+     */
+    async createApartmentRaw(requestParameters: CreateApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Apartment>> {
+        if (requestParameters['roomCreateRequest'] == null) {
+            throw new runtime.RequiredError(
+                'roomCreateRequest',
+                'Required parameter "roomCreateRequest" was null or undefined when calling createApartment().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/apartments`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: RoomCreateRequestToJSON(requestParameters['roomCreateRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ApartmentFromJSON(jsonValue));
+    }
+
+    /**
+     * Add a named room with a unique property reference
+     */
+    async createApartment(requestParameters: CreateApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Apartment> {
+        const response = await this.createApartmentRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read a property-scoped current or archived room
+     */
+    async getApartmentRaw(requestParameters: GetApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Apartment>> {
+        if (requestParameters['apartmentId'] == null) {
+            throw new runtime.RequiredError(
+                'apartmentId',
+                'Required parameter "apartmentId" was null or undefined when calling getApartment().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/apartments/{apartmentId}`;
+        urlPath = urlPath.replace(`{${"apartmentId"}}`, encodeURIComponent(String(requestParameters['apartmentId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ApartmentFromJSON(jsonValue));
+    }
+
+    /**
+     * Read a property-scoped current or archived room
+     */
+    async getApartment(requestParameters: GetApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Apartment> {
+        const response = await this.getApartmentRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * List rooms for compatibility and booking selectors
      */
     async listApartmentsRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<Apartment>>> {
         const queryParameters: any = {};
@@ -52,10 +280,104 @@ export class ApartmentApi extends runtime.BaseAPI {
     }
 
     /**
-     * Lists all apartments.
+     * List rooms for compatibility and booking selectors
      */
     async listApartments(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<Apartment>> {
         const response = await this.listApartmentsRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Archive or restore a room while retaining its history
+     */
+    async setApartmentStatusRaw(requestParameters: SetApartmentStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Apartment>> {
+        if (requestParameters['apartmentId'] == null) {
+            throw new runtime.RequiredError(
+                'apartmentId',
+                'Required parameter "apartmentId" was null or undefined when calling setApartmentStatus().'
+            );
+        }
+
+        if (requestParameters['recordStatusRequest'] == null) {
+            throw new runtime.RequiredError(
+                'recordStatusRequest',
+                'Required parameter "recordStatusRequest" was null or undefined when calling setApartmentStatus().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/apartments/{apartmentId}/status`;
+        urlPath = urlPath.replace(`{${"apartmentId"}}`, encodeURIComponent(String(requestParameters['apartmentId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: RecordStatusRequestToJSON(requestParameters['recordStatusRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ApartmentFromJSON(jsonValue));
+    }
+
+    /**
+     * Archive or restore a room while retaining its history
+     */
+    async setApartmentStatus(requestParameters: SetApartmentStatusRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Apartment> {
+        const response = await this.setApartmentStatusRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Edit a reviewed room without invalidating current or future stays
+     */
+    async updateApartmentRaw(requestParameters: UpdateApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Apartment>> {
+        if (requestParameters['apartmentId'] == null) {
+            throw new runtime.RequiredError(
+                'apartmentId',
+                'Required parameter "apartmentId" was null or undefined when calling updateApartment().'
+            );
+        }
+
+        if (requestParameters['roomUpdateRequest'] == null) {
+            throw new runtime.RequiredError(
+                'roomUpdateRequest',
+                'Required parameter "roomUpdateRequest" was null or undefined when calling updateApartment().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/apartments/{apartmentId}`;
+        urlPath = urlPath.replace(`{${"apartmentId"}}`, encodeURIComponent(String(requestParameters['apartmentId'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'PUT',
+            headers: headerParameters,
+            query: queryParameters,
+            body: RoomUpdateRequestToJSON(requestParameters['roomUpdateRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ApartmentFromJSON(jsonValue));
+    }
+
+    /**
+     * Edit a reviewed room without invalidating current or future stays
+     */
+    async updateApartment(requestParameters: UpdateApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Apartment> {
+        const response = await this.updateApartmentRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

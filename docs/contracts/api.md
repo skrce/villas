@@ -125,3 +125,9 @@ only surrogate IDs or date/status/cursor filters. Versioned confirmation dialogs
 the displayed version. Booking retry adapters reconcile a saved key before advisory
 availability data can block recovery. The server still checks current membership,
 versions and inventory transactionally for every new write. See [frontend](../frontend.md).
+
+Room administration adds bounded `/apartments/directory`, property-scoped details,
+JSON create/versioned replace/status and private JSON maintenance creation. Optional
+`roomId` filters narrow existing reservation/maintenance calendar reads in SQL.
+Reference/capacity/archive errors and surrogate conflict links are defined in
+[guests and rooms](guests-and-rooms.md). No price fields are accepted by room writes.

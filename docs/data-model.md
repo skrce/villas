@@ -7,7 +7,7 @@ Property IDs are not client-controlled fields in the console.
 
 | Table | Main fields and invariants |
 | --- | --- |
-| `apartments` | Positive capacity, optional nonnegative legacy test price integers, active flag, optimistic version, and property scope |
+| `apartments` | Named room with a property-unique uppercase reference, capacity, orientation/view/bed/features/floor, optional legacy test price integers, active/archive flag, optimistic version, and property scope |
 | `customers` | Required first/last names, optional phone/email/address/notes, active/archive flag, optimistic version, and property scope. No uniqueness claim on shared contacts. |
 | `reservations` | Guest/room references, SQL DATE check-in/out, positive guest count, status/version, UTC creation instant, and property scope |
 | `maintenance_blocks` | Room reference, strict SQL DATE interval, reason, status/version, and property scope |
@@ -40,3 +40,8 @@ the same transaction. Guest archival and inventory creation/edits share a guest 
 lock before apartment locks. An archived guest cannot acquire a new or extended
 reservation. Current/future active reservations must be resolved before archival.
 V8 adds optional guest fields without rewriting existing names or contacts.
+
+V9 backfills room labels/references while retaining old prices and reservations. Room
+capacity/status changes share the inventory apartment lock and reject current/future
+bookings they would invalidate. Metadata events contain surrogate IDs, not guest
+contacts. Availability queries can restrict their bounded database window by room.

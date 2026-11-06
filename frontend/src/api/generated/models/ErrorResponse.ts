@@ -31,6 +31,18 @@ export interface ErrorResponse {
      * @memberof ErrorResponse
      */
     message: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ErrorResponse
+     */
+    moreReservations?: boolean | null;
+    /**
+     * 
+     * @type {Array<number>}
+     * @memberof ErrorResponse
+     */
+    relatedReservationIds?: Array<number> | null;
 }
 
 /**
@@ -54,6 +66,8 @@ export function ErrorResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         
         'code': json['code'],
         'message': json['message'],
+        'moreReservations': json['moreReservations'] == null ? undefined : json['moreReservations'],
+        'relatedReservationIds': json['relatedReservationIds'] == null ? undefined : json['relatedReservationIds'],
     };
 }
 
@@ -70,6 +84,8 @@ export function ErrorResponseToJSONTyped(value?: ErrorResponse | null, ignoreDis
         
         'code': value['code'],
         'message': value['message'],
+        'moreReservations': value['moreReservations'],
+        'relatedReservationIds': value['relatedReservationIds'],
     };
 }
 

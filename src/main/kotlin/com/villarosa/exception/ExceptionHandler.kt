@@ -17,7 +17,14 @@ class ExceptionHandler : ResponseEntityExceptionHandler() {
     @ExceptionHandler(DomainException::class)
     fun domainFailure(exception: DomainException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(exception.status)
-            .body(ErrorResponse(exception.message, exception.code))
+            .body(
+                ErrorResponse(
+                    exception.message,
+                    exception.code,
+                    exception.relatedReservationIds,
+                    exception.moreReservations,
+                )
+            )
 
     @ExceptionHandler(org.springframework.dao.OptimisticLockingFailureException::class)
     fun staleWrite(): ResponseEntity<ErrorResponse> =
@@ -66,6 +73,8 @@ class ExceptionHandler : ResponseEntityExceptionHandler() {
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED) val message: String,
         @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         val code: String = "INVALID_REQUEST",
+        val relatedReservationIds: List<Int>? = null,
+        val moreReservations: Boolean? = null,
     )
 
     data class ClientException(override val message: String) : RuntimeException()

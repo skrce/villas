@@ -63,6 +63,62 @@ another submission. This differs from the durable inventory-operation contract.
 
 ## Room administration
 
-Room administration, named references, maintenance screens and native conflict checks
-are the next implementation PR within milestone 5. Existing room listing and inventory
-maintenance retain the [reservation contract](reservations.md) until that PR lands.
+New HTTP room records require a name, reference and integral capacity from 1 to 1000.
+Names allow 200 characters. References use 1-32 letters/digits/hyphens, start with a
+letter/digit, and are trimmed/uppercased. A reference is unique within the property,
+including archived rooms. Reuse the retained record or choose a distinct reference.
+Orientation/view/bed configuration allow 200 characters, features 1000 and floor 50;
+all are optional single-line fields with Unicode NFC and collapsed whitespace. These
+are operational attributes. No legacy price is converted or exposed as a configured
+EUR rate. New room APIs do not accept price fields.
+
+`GET /apartments/directory` uses name/reference substring search, `includeArchived`,
+exclusive ascending `afterId` and `limit` 1-100. Percent/underscore/exclamation are
+literal search characters. `GET /apartments/{id}` includes archived details.
+Compatibility `GET /apartments` and legacy read aliases retain their list shape.
+`POST /apartments` accepts the new metadata JSON. `PUT /apartments/{id}` requires
+`{details: <metadata>, expectedVersion}`. Archive/restore uses
+`POST /apartments/{id}/status` with explicit `{active, expectedVersion}`. Owner writes
+lock the current Owner then the apartment, recheck references/bookings, update the
+version and record a surrogate-only business audit event in the same transaction.
+
+Capacity reductions reject active reservations ending after Skopje today when the
+new capacity is smaller than their guest count. Archive rejects every such current
+or future active reservation. Move/cancel those stays or explicitly reduce their
+recorded guest count after staff review, then review the room again. There is no
+force override, automatic reassignment or deletion. Past/cancelled history remains.
+Conflicts return `CAPACITY_CONFLICT` or `ROOM_HAS_BOOKINGS` with at most 20
+`relatedReservationIds` and `moreReservations`. Guest archival also returns these
+surrogate links. The HTTP boundary has already verified current Owner membership;
+no contacts or another property's identifiers are included in the response.
+
+Room metadata writes use the same READ COMMITTED apartment lock as booking/maintenance
+mutations. Competing capacity reduction/archive and booking admission cannot commit
+an invalid active stay. Archived rooms are excluded from availability and reject new
+bookings and maintenance. Future maintenance already recorded when a room is archived
+is retained and applies again after restoration. Restoration rechecks capacity.
+
+`POST /apartments/{id}/maintenance` accepts private JSON `{startDate,endDate,reason}`
+and requires `Idempotency-Key`. It delegates to the existing atomic inventory writer;
+active bookings or another block on the half-open interval return `INVENTORY_CONFLICT`.
+Cancel a block with the existing versioned, idempotent maintenance endpoint. Read its
+retained event history with the existing bounded event API. Existing query-parameter
+maintenance creation remains compatible; the new UI uses the JSON route. Resolve a
+maintenance conflict by changing dates, moving/cancelling a booking or cancelling an
+old block after review. No stay is silently invalidated.
+
+Existing bounded reservation/maintenance calendar reads accept optional `roomId`.
+A foreign/missing room is 404. Filters/pagination execute in the database and retain
+the 366-day window and 1-200 page limits. This provides a dated room availability
+context without claiming the complete milestone 7 calendar is implemented.
+
+V9 assigns retained rooms meaningful names from their existing view/orientation and
+`ROOM-<id>` references. It preserves bookings, maintenance, versions and legacy prices,
+resumes partially committed DDL, and enforces reference uniqueness in MariaDB. Legacy
+SQL/constructor defaults support fixtures; the new HTTP API always requires explicit
+room metadata. Production still starts empty.
+
+Room creation is protected against duplicate references but has no operation-key
+contract. An uncertain create requires searching that reference before repeating.
+Versioned metadata edits/status changes require read-back and explicit review after
+an unconfirmed result. Maintenance retains durable operation reconciliation.

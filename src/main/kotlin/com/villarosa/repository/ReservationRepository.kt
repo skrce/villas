@@ -43,7 +43,7 @@ interface ReservationRepository : JpaRepository<Reservation, Int> {
     ): List<Reservation>
 
     @Query(
-        "select r from Reservation r where r.propertyId=:property and r.startDate<:end and r.endDate>:start and (:status is null or r.status=:status) and r.id>:after order by r.id"
+        "select r from Reservation r where r.propertyId=:property and r.startDate<:end and r.endDate>:start and (:status is null or r.status=:status) and (:room is null or r.roomId=:room) and r.id>:after order by r.id"
     )
     fun calendar(
         property: String,
@@ -52,6 +52,7 @@ interface ReservationRepository : JpaRepository<Reservation, Int> {
         status: ReservationStatus?,
         after: Int,
         pageable: Pageable,
+        room: Int? = null,
     ): List<Reservation>
 
     fun findByRoomId(roomId: Int): List<Reservation>

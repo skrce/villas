@@ -21,7 +21,7 @@ interface MaintenanceRepository : JpaRepository<MaintenanceBlock, Int> {
     fun locked(property: String, id: Int): MaintenanceBlock?
 
     @Query(
-        "select b from MaintenanceBlock b where b.propertyId=:property and b.startDate<:end and b.endDate>:start and (:status is null or b.status=:status) and b.id>:after order by b.id"
+        "select b from MaintenanceBlock b where b.propertyId=:property and b.startDate<:end and b.endDate>:start and (:status is null or b.status=:status) and (:room is null or b.roomId=:room) and b.id>:after order by b.id"
     )
     fun calendar(
         property: String,
@@ -30,6 +30,7 @@ interface MaintenanceRepository : JpaRepository<MaintenanceBlock, Int> {
         status: ReservationStatus?,
         after: Int,
         pageable: Pageable,
+        room: Int? = null,
     ): List<MaintenanceBlock>
 
     fun findByPropertyIdAndId(propertyId: String, id: Int): MaintenanceBlock?

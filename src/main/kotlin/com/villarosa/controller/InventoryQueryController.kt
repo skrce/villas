@@ -20,7 +20,8 @@ class InventoryQueryController(private val queries: InventoryQueries) {
         @RequestParam(required = false) status: ReservationStatus?,
         @RequestParam(defaultValue = "0") afterId: Int,
         @RequestParam(defaultValue = "100") limit: Int,
-    ): ReservationPage = queries.reservations(startDate, endDate, status, afterId, limit)
+        @RequestParam(required = false) roomId: Int?,
+    ): ReservationPage = queries.reservations(startDate, endDate, status, afterId, limit, roomId)
 
     @GetMapping("/api/v1/maintenance-blocks")
     @Operation(
@@ -33,7 +34,8 @@ class InventoryQueryController(private val queries: InventoryQueries) {
         @RequestParam(required = false) status: ReservationStatus?,
         @RequestParam(defaultValue = "0") afterId: Int,
         @RequestParam(defaultValue = "100") limit: Int,
-    ): MaintenancePage = queries.maintenance(startDate, endDate, status, afterId, limit)
+        @RequestParam(required = false) roomId: Int?,
+    ): MaintenancePage = queries.maintenance(startDate, endDate, status, afterId, limit, roomId)
 
     @GetMapping("/api/v1/reservations/{reservationId}/events")
     @Operation(

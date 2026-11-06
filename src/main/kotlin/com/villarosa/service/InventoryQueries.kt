@@ -18,6 +18,7 @@ class InventoryQueries(
     private val events: InventoryEventRepository,
     private val current: CurrentStaff,
     private val access: StaffAccess,
+    private val rooms: ApartmentRepository,
 ) {
     fun reservations(
         start: String,
@@ -25,8 +26,10 @@ class InventoryQueries(
         status: ReservationStatus?,
         after: Int,
         limit: Int,
+        roomId: Int? = null,
     ): ReservationPage {
         access.current(current.identity())
+        checkRoom(roomId)
         val dates = window(start, end)
         val rows =
             reservations.calendar(
@@ -36,6 +39,7 @@ class InventoryQueries(
                 status,
                 cursor(after),
                 page(limit),
+                roomId,
             )
         val items = rows.take(limit)
         return ReservationPage(
@@ -50,8 +54,10 @@ class InventoryQueries(
         status: ReservationStatus?,
         after: Int,
         limit: Int,
+        roomId: Int? = null,
     ): MaintenancePage {
         access.current(current.identity())
+        checkRoom(roomId)
         val dates = window(start, end)
         val rows =
             blocks.calendar(
@@ -61,6 +67,7 @@ class InventoryQueries(
                 status,
                 cursor(after),
                 page(limit),
+                roomId,
             )
         val items = rows.take(limit)
         return MaintenancePage(items, if (rows.size > limit) items.last().id else null)
@@ -99,6 +106,11 @@ class InventoryQueries(
                     "A calendar query may span at most $MAX_WINDOW_DAYS days.",
                 )
         }
+
+    private fun checkRoom(id: Int?) {
+        if (id != null && rooms.findByPropertyIdAndId(PropertyScope.ID, id) == null)
+            missing("Room does not exist.")
+    }
 
     private fun cursor(after: Int): Int {
         if (after < 0) invalid("INVALID_CURSOR", "Cursor must not be negative.")
