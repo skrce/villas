@@ -117,3 +117,10 @@ Update the generated contract and permission matrix with each domain.
 
 Guest fields, cancellation/refund rules, and rate-override rules are open gates in
 [decisions](../decisions.md). Do not silently turn proposals into policy.
+
+The staff workspace uses generated clients with same-origin sessions and cancellation
+signals on queries. Guest search criteria stay in JSON. Browser route links contain
+only surrogate IDs or date/status/cursor filters. Versioned confirmation dialogs capture
+the displayed version. Booking retry adapters reconcile a saved key before advisory
+availability data can block recovery. The server still checks current membership,
+versions and inventory transactionally for every new write. See [frontend](../frontend.md).

@@ -35,3 +35,8 @@ Owner bootstrap is an explicit offline command that creates a pending invitation
 It creates no authenticated account and grants no password or HTTP bypass. See
 [security](../security.md). The real Google callback, cookie, logout, recovery, and
 invitation checks remain open until demonstrated against Google.
+
+The routed UI shows Owner settings only with `staff:manage`; backend checks remain the
+authority. Login-generation changes remount query observers and clear their old cache,
+while the same Owner's entered drafts remain above that boundary. An Owner change
+creates a new workspace/draft store. Logout hides and clears protected state immediately.

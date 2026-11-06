@@ -1,138 +1,373 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
-
-async function signIn(page: Page, identity = 'Synthetic Owner') {
-  await page.goto('/');
-  const popupPromise = page.waitForEvent('popup');
-  await page.getByRole('button', { name: 'Sign in to local demo' }).click();
-  const popup = await popupPromise;
-  await popup.getByRole('button', { name: identity, exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
+async function signInHere(page: Page, identity = "Synthetic Owner") {
+  const opened = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Sign in to local demo" }).click();
+  const popup = await opened;
+  await popup.getByRole("button", { name: identity, exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+}
+async function signIn(page: Page, identity = "Synthetic Owner") {
+  if (!process.env.VILLAS_LOCAL_INSTANCE?.startsWith("e2e-"))
+    throw new Error("Use npm run test:e2e for a disposable database.");
+  await page.goto("/");
+  await signInHere(page, identity);
 }
 async function headersFor(page: Page) {
-  const response = await page.request.get('/api/v1/auth/session');
-  return { 'X-CSRF-TOKEN': (await response.json()).csrfToken, Origin: 'http://127.0.0.1:15073' };
+  const response = await page.request.get("/api/v1/auth/session");
+  return {
+    "X-CSRF-TOKEN": (await response.json()).csrfToken,
+    Origin: "http://127.0.0.1:15073",
+  };
+}
+async function fillBooking(
+  page: Page,
+  guestId: number,
+  start = "2026-11-12",
+  end = "2026-11-14",
+  recover = false,
+) {
+  await page.goto(`/reservations/new?guest=${guestId}`);
+  await expect(
+    page.getByRole("combobox", { name: "Guest", exact: true }),
+  ).not.toHaveValue("");
+  await page.getByLabel("Check-in", { exact: true }).fill(start);
+  await page.getByLabel("Check-out", { exact: true }).fill(end);
+  await page.getByLabel("Guests", { exact: true }).fill("2");
+  if (recover)
+    await page
+      .getByRole("checkbox", {
+        name: "Include unavailable rooms for an interrupted save",
+      })
+      .check();
+  await page.getByLabel("Room", { exact: true }).selectOption({
+    label: `Synthetic lake room · South · up to 2 guests${recover ? " (not currently available)" : ""}`,
+  });
 }
 
-test('staff can create a guest and move and cancel a persisted booking', async ({ page }) => {
+test("an Owner creates a guest and booking, edits the stay, moves the room and cancels with persisted history", async ({
+  page,
+}) => {
   await signIn(page);
-  const request = page.request;
-  const headers = await headersFor(page);
-  await page.getByRole('button', { name: 'Load apartments' }).click();
-  await expect(page.getByRole('cell', { name: 'Synthetic lake room' })).toBeVisible();
-
-  const guestForm = page.getByRole('form', { name: 'Create customer', exact: true });
-  await guestForm.getByLabel('First name').fill('BrowserTest');
-  await guestForm.getByLabel('Last name').fill('Гостин');
-  await guestForm.getByLabel('Phone').fill('000');
-  await guestForm.getByLabel('Address').fill('Synthetic test record');
-  await guestForm.getByRole('button', { name: 'Create customer', exact: true }).click();
-  await expect(guestForm.getByText(/^ID \d+$/)).toBeVisible();
-  const customerId = Number((await guestForm.getByText(/^ID \d+$/).innerText()).replace('ID ', ''));
-
-  const roomsResponse = await request.get('/api/v1/apartments', { headers });
-  expect(roomsResponse.ok()).toBeTruthy();
-  const rooms: { id: number }[] = await roomsResponse.json();
-  const create = await request.post('/api/v1/reservations', {
-    headers: { ...headers, 'Idempotency-Key': crypto.randomUUID() },
-    params: { customerId, roomId: rooms[0].id, startDate: '2026-11-06', endDate: '2026-11-09' },
+  await page.getByRole("link", { name: "Guests", exact: true }).click();
+  await page.getByRole("button", { name: "Add guest" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add guest" });
+  for (const [label, value] of [
+    ["First name", "BrowserTest"],
+    ["Last name", "Гостин"],
+    ["Phone", "000"],
+    ["Address", "Synthetic test record"],
+  ])
+    await dialog.getByLabel(label, { exact: true }).fill(value);
+  await dialog.getByRole("button", { name: "Save guest" }).click();
+  await page.getByRole("link", { name: "View guest details" }).click();
+  const guestId = Number(new URL(page.url()).pathname.split("/").pop());
+  await page
+    .getByRole("link", { name: "New reservation", exact: true })
+    .click();
+  await page.getByLabel("Check-in", { exact: true }).fill("2026-11-06");
+  await page.getByLabel("Check-out", { exact: true }).fill("2026-11-09");
+  await page
+    .getByLabel("Room", { exact: true })
+    .selectOption({ label: "Synthetic lake room · South · up to 2 guests" });
+  await page
+    .getByRole("button", { name: "Create reservation", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Reservation #\d+$/,
+  );
+  const reservationId = Number(new URL(page.url()).pathname.split("/").pop());
+  await page.getByRole("button", { name: "Edit stay", exact: true }).click();
+  const edit = page.getByRole("dialog", { name: "Edit stay" });
+  await edit.getByLabel("Check-out", { exact: true }).fill("2026-11-10");
+  await edit.getByRole("button", { name: "Save changes" }).click();
+  await expect(edit).not.toBeVisible();
+  await page.getByRole("button", { name: "Move room", exact: true }).click();
+  const move = page.getByRole("dialog", { name: "Move room" });
+  await move
+    .getByLabel("New room")
+    .selectOption({ label: "Synthetic garden room · East" });
+  await move.getByRole("button", { name: "Save changes" }).click();
+  await expect(move).not.toBeVisible();
+  const saved = await page.request.get(`/api/v1/reservations/${reservationId}`);
+  expect(await saved.json()).toMatchObject({
+    customerId: guestId,
+    endDate: "2026-11-10",
+    version: 2,
+    nights: 4,
   });
-  expect(create.ok()).toBeTruthy();
-  const reservationId: number = await create.json();
-
-  const move = page.getByRole('form', { name: 'Move reservation' });
-  await move.getByLabel('Reservation ID', { exact: true }).fill(String(reservationId));
-  await move.getByLabel('New room ID').fill(String(rooms[1].id));
-  await move.getByRole('button', { name: 'Update room' }).click();
-  await expect(page.getByText('Reservation updated.', { exact: true })).toBeVisible();
-  const moved = await request.get('/api/v1/reservations/customer', { headers, params: { customerId } });
-  expect(moved.ok()).toBeTruthy();
-  expect(await moved.json()).toEqual([expect.objectContaining({ roomId: rooms[1].id })]);
-
-  const cancel = page.getByRole('form', { name: 'Cancel reservation', exact: true });
-  await cancel.getByLabel('Reservation ID').fill(String(reservationId));
-  await cancel.getByRole('button', { name: 'Cancel reservation' }).click();
-  await expect(page.getByText('Reservation cancelled.', { exact: true })).toBeVisible();
-  const cancelled = await request.get('/api/v1/reservations/customer', { headers, params: { customerId } });
-  expect(cancelled.ok()).toBeTruthy();
-  expect(await cancelled.json()).toEqual([]);
-
-  const search = page.getByRole('form', { name: 'Search customers' });
-  await search.getByLabel('First name').fill('BrowserTest');
-  await search.getByRole('button', { name: 'Search', exact: true }).click();
-  await expect(page.getByRole('cell', { name: 'Гостин', exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Cancel reservation", exact: true })
+    .click();
+  const cancel = page.getByRole("dialog", { name: "Cancel reservation?" });
+  await cancel.getByRole("button", { name: "Confirm cancellation" }).click();
+  await expect(cancel).not.toBeVisible();
+  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  expect(
+    await (
+      await page.request.get(`/api/v1/reservations/${reservationId}`)
+    ).json(),
+  ).toMatchObject({ status: "CANCELLED", version: 3 });
+  const history = await page.request.get(
+    `/api/v1/reservations/${reservationId}/events`,
+  );
+  expect((await history.json()).items).toHaveLength(4);
+  const stored = await page.evaluate(() => JSON.stringify(localStorage));
+  for (const value of ["BrowserTest", "Гостин", "Synthetic test record"])
+    expect(stored).not.toContain(value);
 });
 
-test('separate tabs share a pending booking key when one response is lost', async ({ page, context }) => {
+test("separate tabs reconcile a lost booking response with the same durable key", async ({
+  page,
+  context,
+}) => {
   await signIn(page);
-  const request = page.request;
   const headers = await headersFor(page);
-  const guest = await request.post('/api/v1/customers', {
-    headers, data: { firstName: 'TabTest', lastName: 'Synthetic', phone: '000', address: 'Synthetic' },
+  const guest = await page.request.post("/api/v1/customers", {
+    headers,
+    data: {
+      firstName: "TabTest",
+      lastName: "Synthetic",
+      phone: "000",
+      address: "Synthetic",
+    },
   });
   expect(guest.ok()).toBeTruthy();
-  const customerId: number = await guest.json();
-  const rooms = await request.get('/api/v1/apartments', { headers });
-  const roomId: number = (await rooms.json())[0].id;
-  await page.goto('/');
+  const id = await guest.json();
+  await fillBooking(page, id);
   const other = await context.newPage();
-  await other.goto('/');
-  for (const tab of [page, other]) {
-    const form = tab.getByRole('form', { name: 'Create reservation', exact: true });
-    await form.getByLabel('Customer ID').fill(String(customerId));
-    await form.getByLabel('Room ID').fill(String(roomId));
-    await form.getByLabel('Guest count').fill('2');
-    await form.getByLabel('Start date').fill('2026-11-12');
-    await form.getByLabel('End date').fill('2026-11-14');
-    await form.getByLabel('End date').press('Tab');
-  }
-  let releaseFirst: () => void = () => {};
-  const firstCanFinish = new Promise<void>((resolve) => { releaseFirst = resolve; });
-  let firstStarted: () => void = () => {};
-  const firstInFlight = new Promise<void>((resolve) => { firstStarted = resolve; });
+  await fillBooking(other, id);
+  let release = () => {};
+  const allowed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started = () => {};
+  const inFlight = new Promise<void>((resolve) => {
+    started = resolve;
+  });
   const keys: string[] = [];
-  await page.route('**/api/v1/reservations?**', async (route) => {
-    if (route.request().method() !== 'POST') return route.continue();
-    keys.push(route.request().headers()['idempotency-key']);
-    firstStarted();
-    await firstCanFinish;
+  await page.route("**/api/v1/reservations?**", async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    keys.push(route.request().headers()["idempotency-key"]);
+    started();
+    await allowed;
     const response = await route.fetch();
     expect(response.ok()).toBeTruthy();
-    await route.abort('failed');
+    await route.abort("failed");
   });
-  await other.route('**/api/v1/reservations?**', async (route) => {
-    if (route.request().method() === 'POST') {
-      keys.push(route.request().headers()['idempotency-key']);
-      releaseFirst();
+  await other.route("**/api/v1/reservations?**", async (route) => {
+    if (route.request().method() === "POST") {
+      keys.push(route.request().headers()["idempotency-key"]);
+      release();
     }
     await route.continue();
   });
   try {
-    await page.getByRole('button', { name: 'Create reservation', exact: true }).click();
-    await firstInFlight;
-    await other.getByRole('button', { name: 'Create reservation', exact: true }).click();
-    await expect(other.getByRole('form', { name: 'Create reservation', exact: true }).getByText(/^ID \d+$/)).toBeVisible();
-    await expect(page.getByText('The request could not be confirmed. Check the records before retrying.')).toBeVisible();
+    await page
+      .getByRole("button", { name: "Create reservation", exact: true })
+      .click();
+    await inFlight;
+    await other
+      .getByRole("button", { name: "Create reservation", exact: true })
+      .click();
+    await expect(other.getByRole("heading", { level: 1 })).toHaveText(
+      /^Reservation #\d+$/,
+    );
+    await expect(
+      page.getByText(/The result could not be confirmed/),
+    ).toBeVisible();
     expect(keys).toHaveLength(2);
     expect(new Set(keys).size).toBe(1);
-    const saved = await request.get('/api/v1/reservations/customer', { headers, params: { customerId } });
-    expect(await saved.json()).toEqual([expect.objectContaining({ guestCount: 2, nights: 2 })]);
+    const rows = await page.request.get("/api/v1/reservations/customer", {
+      params: { customerId: id },
+    });
+    expect(await rows.json()).toEqual([
+      expect.objectContaining({ guestCount: 2, nights: 2 }),
+    ]);
+    await fillBooking(page, id, "2026-11-12", "2026-11-14", true);
+    await page
+      .getByRole("button", { name: "Create reservation", exact: true })
+      .click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      /^Reservation #\d+$/,
+    );
+    expect(keys).toHaveLength(2);
+    const storage = await page.evaluate(() => JSON.stringify(localStorage));
+    expect(storage).not.toContain("TabTest");
+    expect(storage).not.toContain("2026-11-12");
   } finally {
-    releaseFirst();
+    release();
     await other.close();
   }
 });
 
-
-test('logout clears access in another tab and storage contains no credentials or guest details', async ({ page, context }) => {
-  await page.addInitScript(() => localStorage.setItem('villarosa.apiConfig', '{"username":"test","password":"obsolete"}'));
+test("logout removes legacy credentials and clears another tab", async ({
+  page,
+  context,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("villarosa.apiConfig", '{"password":"obsolete"}'),
+  );
   await signIn(page);
   const other = await context.newPage();
-  await other.goto('/');
-  await expect(other.getByRole('button', { name: 'Sign out' })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem('villarosa.apiConfig'))).toBeNull();
-  await page.getByRole('button', { name: 'Sign out' }).click();
-  await expect(page.getByRole('button', { name: 'Sign in to local demo' })).toBeVisible();
-  await expect(other.getByRole('button', { name: 'Sign in to local demo' })).toBeVisible();
-  expect((await page.request.get('/api/v1/apartments')).status()).toBe(401);
+  await other.goto("/rooms");
+  await expect(
+    other.getByRole("heading", { name: "Rooms", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => localStorage.getItem("villarosa.apiConfig")),
+  ).toBeNull();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(
+    page.getByRole("button", { name: "Sign in to local demo" }),
+  ).toBeVisible();
+  await expect(
+    other.getByRole("button", { name: "Sign in to local demo" }),
+  ).toBeVisible();
+  expect((await page.request.get("/api/v1/apartments")).status()).toBe(401);
+});
+
+test("deep links, keyboard dialogs and accessible layouts work at desktop and 320 pixels", async ({
+  page,
+}, testInfo) => {
+  await signIn(page);
+  await page.goto(
+    "/reservations?from=2026-11-01&to=2026-12-01&status=CANCELLED",
+  );
+  await expect(page.getByLabel("From", { exact: true })).toHaveValue(
+    "2026-11-01",
+  );
+  await expect(page.getByLabel("Status", { exact: true })).toHaveValue(
+    "CANCELLED",
+  );
+  await expect(page.getByRole("table")).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await testInfo.attach("desktop-reservations", {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
+  await page.getByRole("link", { name: "Guests", exact: true }).click();
+  const add = page.getByRole("button", { name: "Add guest" });
+  await add.click();
+  const dialog = page.getByRole("dialog", { name: "Add guest" });
+  await dialog.getByLabel("First name").focus();
+  await page.keyboard.press("Shift+Tab");
+  expect(
+    await dialog.evaluate((element) =>
+      element.contains(document.activeElement),
+    ),
+  ).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(add).toBeFocused();
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.getByRole("link", { name: "Rooms", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Synthetic lake room · South" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await testInfo.attach("phone-rooms", {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
+  await page.goto(
+    "/reservations?from=2026-11-01&to=2026-12-01&status=CANCELLED",
+  );
+  const view = page.getByRole("link", { name: /View reservation/ }).first();
+  await expect(view).toBeVisible();
+  const bounds = await view.boundingBox();
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await testInfo.attach("phone-reservations", {
+    body: await page.screenshot({ fullPage: true }),
+    contentType: "image/png",
+  });
+  await page.getByRole("link", { name: /New reservation/ }).click();
+  await expect(
+    page.getByRole("button", { name: "Create reservation" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("Owner invitations support another Google identity and self session revocation", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.getByRole("link", { name: "Owner settings" }).click();
+  await page
+    .getByLabel("Google account email")
+    .fill("second-owner@example.test");
+  await page.getByRole("button", { name: "Create invitation" }).click();
+  await expect(
+    page.getByText("Invitation saved.", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await signInHere(page, "Second synthetic Owner");
+  await expect(
+    page
+      .getByRole("banner")
+      .getByText("second-owner@example.test", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Owner settings" }).click();
+  await page
+    .getByRole("button", {
+      name: "Revoke sessions for second-owner@example.test",
+    })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Revoke sessions?" })
+    .getByRole("button", { name: "Confirm", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Sign in to local demo" }),
+  ).toBeVisible();
+  expect((await page.request.get("/api/v1/apartments")).status()).toBe(401);
+});
+
+test("session revocation preserves entered booking details and never resubmits after sign-in", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto("/reservations/new");
+  await page
+    .getByRole("combobox", { name: "Guest", exact: true })
+    .fill("Retained input");
+  const session = await (await page.request.get("/api/v1/auth/session")).json();
+  const revoke = await page.request.post(
+    `/api/v1/staff/${session.staff.id}/revoke-sessions`,
+    {
+      headers: await headersFor(page),
+      data: { expectedVersion: session.staff.version },
+    },
+  );
+  expect(revoke.ok()).toBeTruthy();
+  let writes = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      request.url().includes("/api/v1/reservations?")
+    )
+      writes++;
+  });
+  await page.getByLabel("Check-in", { exact: true }).fill("2027-01-05");
+  await page.getByLabel("Check-out", { exact: true }).fill("2027-01-07");
+  await expect(
+    page.getByRole("button", { name: "Sign in to local demo" }),
+  ).toBeVisible();
+  await signInHere(page);
+  await expect(
+    page.getByRole("combobox", { name: "Guest", exact: true }),
+  ).toHaveValue("Retained input");
+  expect(writes).toBe(0);
 });

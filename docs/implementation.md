@@ -10,8 +10,8 @@ start are recorded in [decisions](decisions.md).
 | --- | --- | --- | --- |
 | 1 | [Modernize the foundation and establish regression checks](https://github.com/skrce/villas/issues/2) | None | Implemented and verified; review/merge evidence is in the linked issue |
 | 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Implemented and locally verified; final review/merge evidence is in the linked issue |
-| 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Owner-only foundation merged; local OIDC/session/browser integration under verification; live Google setup explicitly deferred |
-| 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | Authorized after milestone 3's verified local authentication checkpoint |
+| 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Local implementation reviewed, verified and merged in PRs #18 and #19; live Google setup explicitly deferred |
+| 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | [Implemented and independently reviewed in PR #20](https://github.com/skrce/villas/pull/20); final merge/CI evidence is in the linked issue |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Planned |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Planned |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Planned |
@@ -145,7 +145,7 @@ production acceptance is implied by the local checks.
 
 ## Known limitations
 
-The frontend remains a single basic console until milestone 4. The schema has
+Milestone 4 replaces the console with a routed responsive workspace. The schema has
 versioned migrations, reference constraints, and strict calendar dates. Inventory
 transactions, version checks, retry reconciliation, and bounded queries are implemented.
 Cancellation retains the record and events. Price integers are fixture values, not the
@@ -182,3 +182,36 @@ the required invitation/identity, revocation, concurrent writes, handoff failure
 CSRF, lifetime and rollback cases, but those checks do not erase the measured gap.
 Continue filling boundary coverage during live-provider qualification and later
 lifecycle work. No global percentage is substituted for those failure cases.
+
+## Milestone 4 local implementation
+
+The workspace now has separate routed features, keyed query state, validated forms,
+shared accessible controls and phone record layouts. It replaces API settings and
+manual ID entry with session login, guest search and room choices. Existing booking
+creation, date edits, room moves, retained cancellation/history, guest lookup/creation
+and Owner administration are wired to their real APIs. Future workflows are not shown
+as placeholders or fake metrics. See [frontend conventions and demo](frontend.md).
+
+The local demo works without Google setup in a separate synthetic database. Its
+lifecycle checks cover occupied ports, signals, worker failure and retained state after
+cleanup failure. Real Google and deployed acceptance remain separate open gates.
+Final review and verification evidence will be recorded in the milestone issue/PR.
+
+Milestone 4's complete local check passed at `4785517`: 184 backend cases (98
+unit/HTTP/configuration and 86 native MariaDB), 54 frontend cases, 13 launcher
+checks and six authenticated Chromium workflows. The browser run includes a lost
+booking response followed by reload/re-entry/recovery, Owner invitation/session
+revocation, keyboard dialogs, deep links and axe checks at desktop and 320px.
+The actual Vite demo also passed synthetic sign-in, room loading and logout.
+
+Two independent reviewers cleared the final implementation. Their original failure
+probes are permanent tests: advisory availability cannot block reconciliation, login
+generations remount query observers while retaining same-Owner drafts, and demo
+process groups remain owned when a launcher exits before its descendants. Both
+launcher suites now run in CI. The linked PR/issue records final CI and merge evidence.
+
+Frontend coverage excludes generated code. At this checkpoint it measures
+79.79% line/68.51% branch coverage. The booking retry adapter has 93.05%
+branch coverage, the session module 83.92%, and the mutation helper 75%.
+Session/mutation branches remain below the 90% critical-module target; required
+adversarial cases pass and the raw gap stays explicit during later qualification.

@@ -7,6 +7,7 @@ import {
 } from './generated';
 
 const STORAGE_KEY = 'villarosa.pendingOperations.v2';
+const OWN_STORAGE_KEY = 'villarosa.ownPendingOperations.v2';
 const DEFINITIVE_ERRORS = new Set([
   'INVALID_REQUEST', 'INVALID_OPERATION_KEY', 'INVALID_ID', 'INVALID_VERSION',
   'INVALID_GUEST_COUNT', 'CAPACITY_EXCEEDED', 'NOT_FOUND', 'STALE_VERSION',
@@ -22,9 +23,9 @@ const stored = <T>(action: () => T): Promise<T> => {
   return navigator.locks.request(STORAGE_KEY, () => action());
 };
 
-const read = (): Intents => {
+const read = (storage: Storage = localStorage, key = STORAGE_KEY): Intents => {
   try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    const parsed: unknown = JSON.parse(storage.getItem(key) ?? '{}');
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
     for (const item of Object.values(parsed)) {
       if (!item || typeof item !== 'object' || !('key' in item) || typeof item.key !== 'string'
@@ -39,6 +40,8 @@ const read = (): Intents => {
 };
 
 export const buildBookingActions = (api: ReservationApi, scope: string, generation = scope) => {
+  const ownStorage = sessionStorage;
+  const remember = (identity: string, intent: Intent) => ownStorage.setItem(OWN_STORAGE_KEY, JSON.stringify({ ...read(ownStorage, OWN_STORAGE_KEY), [identity]: intent }));
   const execute = async <T>(
     kind: GetOperationKindEnum,
     identity: string,
@@ -46,7 +49,11 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
     send: (intent: Intent) => Promise<unknown>,
     recovered: (result: OperationResult) => T,
   ): Promise<T> => {
-    let intent = await stored(() => read()[identity]);
+    let intent = await stored(() => {
+      const saved = read(ownStorage, OWN_STORAGE_KEY)[identity] ?? read()[identity];
+      if (saved) remember(identity, saved);
+      return saved;
+    });
     let existing = !!intent;
     if (!intent) {
       const prepared = { key: crypto.randomUUID(), expectedVersion: await prepare() };
@@ -54,13 +61,19 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
         const current = read();
         if (current[identity]) {
           existing = true;
+          remember(identity, current[identity]);
           return current[identity];
         }
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, [identity]: prepared }));
+        remember(identity, prepared);
         return prepared;
       });
     }
     const clear = () => stored(() => {
+      const own = read(ownStorage, OWN_STORAGE_KEY);
+      if (own[identity]?.key === intent.key) {
+        delete own[identity]; ownStorage.setItem(OWN_STORAGE_KEY, JSON.stringify(own));
+      }
       const current = read();
       if (current[identity]?.key === intent.key) {
         delete current[identity];
@@ -131,13 +144,18 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
       (intent) => api.createReservation({ ...input, guestCount: input.guestCount ?? 1, idempotencyKey: intent.key }),
       (result) => result.resourceId!,
     ),
-    move: (reservationId: number, newRoomId: number) => run(
-      GetOperationKindEnum.Move, { reservationId, newRoomId }, () => version(reservationId),
+    move: (reservationId: number, newRoomId: number, expectedVersion?: number) => run(
+      GetOperationKindEnum.Move, { reservationId, newRoomId }, () => expectedVersion === undefined ? version(reservationId) : Promise.resolve(expectedVersion),
       (intent) => api.updateReservationRoom({ reservationId, newRoomId, expectedVersion: intent.expectedVersion!, idempotencyKey: intent.key }),
       () => undefined,
     ),
-    cancel: (reservationId: number) => run(
-      GetOperationKindEnum.Cancel, { reservationId }, () => version(reservationId),
+    change: (reservationId: number, startDate: string, endDate: string, guestCount: number, expectedVersion: number) => run(
+      GetOperationKindEnum.Change, { reservationId, startDate, endDate, guestCount }, async () => expectedVersion,
+      (intent) => api.changeReservationDates({ reservationId, startDate, endDate, guestCount, expectedVersion: intent.expectedVersion!, idempotencyKey: intent.key }),
+      () => undefined,
+    ),
+    cancel: (reservationId: number, expectedVersion?: number) => run(
+      GetOperationKindEnum.Cancel, { reservationId }, () => expectedVersion === undefined ? version(reservationId) : Promise.resolve(expectedVersion),
       (intent) => api.cancelReservation({ reservationId, expectedVersion: intent.expectedVersion!, idempotencyKey: intent.key }),
       () => undefined,
     ),

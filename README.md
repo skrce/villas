@@ -5,7 +5,7 @@ Staff management for Villa Rosa, starting in North Macedonia with EUR and the
 React/TypeScript/Vite, and MariaDB.
 
 Invited Google accounts establish server-side Owner sessions. The current frontend
-is still the basic staff console. The routed interface, calendar, rates, payments,
+has a routed staff workspace. Calendar, rates, payments,
 and production deployment follow the
 [ten-step implementation tracker](docs/implementation.md).
 
@@ -22,6 +22,23 @@ The Maven wrapper verifies its pinned distribution checksum. npm dependencies ha
 exact direct versions and a checked-in lockfile. CI uses `npm ci`. Client generation
 uses the official OpenAPI Generator JAR pinned by version and SHA-256 in
 `frontend/openapi-generator.json`; no npm generator wrapper is needed.
+
+## Try the local demo
+
+Google client setup can wait. After installing the requirements:
+
+```sh
+./mvnw verify
+cd frontend
+npm ci
+npm run demo
+```
+
+Open `http://localhost:5173` and choose **Synthetic Owner**. This uses a separate private
+demo database and loopback identity provider, with a visible demo banner. It never
+reads the real Google configuration or calls Google. Ctrl+C stops the owned servers
+and database and retains the demo records. See [frontend setup](docs/frontend.md)
+for port overrides and the UI/recovery conventions.
 
 ## Run locally
 
@@ -181,7 +198,7 @@ backups, and live-provider verification remain later setup work.
 
 Booking writes now serialize on apartment locks, enforce versions, retain
 cancellations, and support operation-key reconciliation. Calendar/history queries
-are bounded in the database. The basic console accepts guest counts and recovers
+are bounded in the database. The staff workspace accepts guest counts and recovers
 pending booking changes across reloads and tabs. Its booking changes require browser
 Web Locks over HTTPS or localhost. See the [reservation contract](docs/contracts/reservations.md).
 The later staff workflows and live Google acceptance remain separate gates. See [decisions](docs/decisions.md) and
