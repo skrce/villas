@@ -79,10 +79,14 @@ reconciliation. Unexpected server failures are not yet a complete domain error
 catalogue. Default error responses suppress stack traces, binding details, and
 internal exception messages.
 
-Local/test business requests use temporary Basic Auth. Production denies business
-access until milestone 3 implements Google sessions, CSRF protection, and permission
-checks. OpenAPI describes the local adapter and makes no claim that Google login is
-already available.
+Business requests require an invited Owner session. Unsafe requests also require
+`X-CSRF-TOKEN` and the configured Origin. Read `/api/v1/auth/session` for current
+membership, expiry and a memory-only CSRF token. POST `/api/v1/auth/logout` invalidates
+the session. Production uses a Secure, HttpOnly, host-only cookie. Synthetic OIDC is
+explicitly limited to local/test loopback. Real Google acceptance remains deferred.
+Guest creation accepts validated JSON; canonical search uses POST `/customers/search`
+with JSON criteria. Old query-based guest writes return 415 and must migrate to JSON.
+Legacy read aliases remain protected but are absent from the generated client.
 
 ## Shared contracts for subsequent milestones
 

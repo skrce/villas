@@ -1,8 +1,8 @@
 villas:
   mode: local
-  local-auth:
-    username: ${VILLAS_LOCAL_USERNAME:test}
-    password: ${VILLAS_LOCAL_PASSWORD}
+  public-url: ${VILLAS_PUBLIC_URL:http://localhost:5173}
+  auth:
+    synthetic-issuer: ${VILLAS_SYNTHETIC_ISSUER:}
 
 springdoc:
   api-docs:

@@ -29,9 +29,8 @@ import type { ListMaintenanceBlocksRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new InventoryApi(config);
 
@@ -77,7 +76,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -112,9 +111,8 @@ import type { ListReservationsRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new InventoryApi(config);
 
@@ -160,7 +158,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -195,9 +193,8 @@ import type { MaintenanceHistoryRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new InventoryApi(config);
 
@@ -237,7 +234,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -272,9 +269,8 @@ import type { ReservationHistoryRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new InventoryApi(config);
 
@@ -314,7 +310,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 

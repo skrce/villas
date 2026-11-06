@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Villarosa API
- * Staff API. Basic Auth is available only for local development and tests.
+ * Owner staff API. Google OIDC establishes a server-side session. Unsafe requests require the current CSRF header.
  *
  * The version of the OpenAPI document: 1.0.0
  * 
@@ -81,9 +81,6 @@ export class MaintenanceApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
-        if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
-            headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
-        }
 
         let urlPath = `/maintenance-blocks/{blockId}`;
         urlPath = urlPath.replace(`{${"blockId"}}`, encodeURIComponent(String(requestParameters['blockId'])));
@@ -162,9 +159,6 @@ export class MaintenanceApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
-        if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
-            headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
-        }
 
         let urlPath = `/maintenance-blocks`;
 

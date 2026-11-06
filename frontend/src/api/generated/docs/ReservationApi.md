@@ -33,9 +33,8 @@ import type { CancelReservationRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new ReservationApi(config);
 
@@ -75,7 +74,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -110,9 +109,8 @@ import type { ChangeReservationDatesRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new ReservationApi(config);
 
@@ -161,7 +159,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -196,9 +194,8 @@ import type { CreateReservationRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new ReservationApi(config);
 
@@ -247,7 +244,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -282,9 +279,8 @@ import type { FindAvailableApartmentsRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new ReservationApi(config);
 
@@ -324,7 +320,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -359,9 +355,8 @@ import type { FindReservationsByCustomerRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new ReservationApi(config);
 
@@ -395,7 +390,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -430,9 +425,8 @@ import type { GetOperationRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new ReservationApi(config);
 
@@ -469,7 +463,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -504,9 +498,8 @@ import type { GetReservationRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new ReservationApi(config);
 
@@ -540,7 +533,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 
@@ -575,9 +568,8 @@ import type { UpdateReservationRoomRequest } from '';
 async function example() {
   console.log("🚀 Testing  SDK...");
   const config = new Configuration({ 
-    // To configure HTTP basic authorization: basicAuth
-    username: "YOUR USERNAME",
-    password: "YOUR PASSWORD",
+    // To configure API key authorization: staffSession
+    apiKey: "YOUR API KEY",
   });
   const api = new ReservationApi(config);
 
@@ -620,7 +612,7 @@ example().catch(console.error);
 
 ### Authorization
 
-[basicAuth](../README.md#basicAuth)
+[staffSession](../README.md#staffSession)
 
 ### HTTP request headers
 

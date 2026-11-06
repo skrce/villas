@@ -1,7 +1,7 @@
 # Staff security
 
 The initial release supports Owners only, as confirmed by the owner. All new staff
-invitations grant full Owner access. Sessions will have a seven-day absolute limit
+invitations grant full Owner access. Sessions have a seven-day absolute limit
 and a three-day inactivity limit. Staff identity is separate from guest records.
 
 ## Account foundation
@@ -44,13 +44,48 @@ Villas-specific database settings and `VILLAS_INITIAL_OWNER_EMAIL`. It never use
 an ambient cloud login. Protect configuration files and keep secrets out of command
 arguments, source control, screenshots, and chat.
 
-## Google and session integration status
+## Google and server sessions
 
-The account foundation is implemented. The following integration remains the next
-PR: Spring Security authorization-code OIDC, provider/state/nonce validation, server
-sessions, CSRF, cookie settings, session rotation, logout, expiry and current account
-checks on business requests. The frontend credential form will be removed after
-that integration. Default production mode continues to deny business access.
+Spring Security owns authorization-code exchange and state, nonce, issuer, audience,
+expiry and signature validation. Invitations are checked only after provider validation.
+The server replaces provider authentication with a minimal canonical staff identity;
+provider access/ID tokens are not retained in the database session. A fresh session ID
+is issued on login. JDBC sessions are created by V6, with runtime schema initialization
+disabled. The server checks current membership and security generation on every request.
+Inventory and guest writes lock and recheck the Owner inside the write transaction.
+
+Production uses `__Host-villas`, Path=/, Secure, HttpOnly and SameSite=Lax, with no
+Domain attribute. Explicit HTTP loopback development uses `VILLAS_LOCAL_SESSION`.
+The maximum lifetime is seven days and the inactivity limit is three days. Anonymous
+OIDC handshakes expire after ten minutes. Unsafe requests require both the current CSRF
+header and the configured Origin. There is no Basic/password login or public signup.
+
+The browser obtains session metadata and a CSRF token from `/api/v1/auth/session`.
+Tokens remain in memory. Session loss hides protected views and clears loaded records;
+entered forms remain only in memory until the same Owner signs in again. Account
+changes reset the workspace. Writes require an explicit new submission after sign-in.
+Old account responses and action continuations are rejected. Logout is reported as
+confirmed only after the server session is read back as anonymous.
+
+Guest creation and search use JSON bodies so contacts do not appear in normal URLs.
+Audit events contain surrogate actor/subject IDs and UTC timestamps. The legacy GET
+search aliases remain protected for compatibility but the generated client uses POST.
+
+## Recovery and deferred Google setup
+
+If every existing Owner has lost Google access, a database administrator may run the
+packaged offline `recover-owner` command (`node scripts/run-api.mjs --recover-owner`
+for a private checkout) with `VILLAS_INITIAL_OWNER_EMAIL` set privately. This starts
+no HTTP listener and creates only an audited, expiring invitation. It neither signs
+anyone in nor bypasses Google verification. It does not deactivate the last Owner.
+Protect database administrator access as the recovery authority. Repeating recovery
+for an unexpired invitation returns the same invitation. An already active email
+must use normal Google sign-in. A restored database and live recovery procedure still
+require milestone 10's deployed verification.
+
+The initial Owner email was supplied privately. Google project/client creation and
+real-provider verification were explicitly deferred by the owner. Do not publish the
+email or mark the real-provider acceptance gate complete from synthetic results.
 
 The intended local Google callback is
 `http://localhost:5173/login/oauth2/code/google`. The OAuth client must belong to a
@@ -68,3 +103,10 @@ canonical identity across a verified rename, current generation checks, last-own
 races, property isolation, stale edits, and atomic rollback after audit failure.
 The packaged bootstrap regression confirms it starts no HTTP listener and leaves
 the account table empty until verified acceptance.
+
+`StaffAuthenticationIT` performs real local HTTP OIDC exchanges with signed synthetic
+ID tokens and native sessions. It covers rotation and replay, CSRF/Origin denials,
+verified invitations, unsupported role input, invalid issuer/audience/expiry/nonce/
+signature, seven-day absolute and three-day idle boundaries, logout and revocation.
+These tests never call Google. Playwright exercises the same protocol through an
+explicit loopback-only synthetic provider. Production refuses that configuration.

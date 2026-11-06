@@ -18,10 +18,11 @@ lock and affected account rows. Two simultaneous deactivations cannot remove eve
 active owner. Revocation increments the generation so an older session identity is
 rejected. Stale account/invitation edits require a reload.
 
-HTTP Google login, session cookies, and the business-route permission checks are
-the next integration PR. Until then the default production mode denies business
-requests. Existing Basic Auth remains a temporary local/test adapter, not staff
-authentication or permission evidence.
+The HTTP boundary requires a current server-side Owner session. Services also check
+current membership; business writes lock the Owner row before inventory changes.
+Deactivation or revocation committed before that lock prevents the write. A write
+already holding the row completes before revocation can commit. Logout invalidates
+the server session. Unsafe requests require CSRF and a matching Origin.
 
 First sign-in requires an unexpired invitation matching a verified email exactly
 after trimming and case normalization. Dots and plus aliases remain significant.

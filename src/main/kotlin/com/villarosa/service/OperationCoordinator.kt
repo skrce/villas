@@ -5,6 +5,8 @@ import com.villarosa.exception.conflict
 import com.villarosa.exception.invalid
 import com.villarosa.repository.model.OperationKind
 import com.villarosa.repository.model.OperationResult
+import com.villarosa.security.CurrentStaff
+import com.villarosa.security.StaffAccess
 import java.security.MessageDigest
 import java.util.HexFormat
 import java.util.UUID
@@ -22,6 +24,8 @@ class OperationCoordinator(
     manager: PlatformTransactionManager,
     private val jdbc: JdbcTemplate,
     private val json: ObjectMapper,
+    private val access: StaffAccess,
+    private val current: CurrentStaff,
 ) {
     private val transactions =
         TransactionTemplate(manager).apply {
@@ -52,10 +56,11 @@ class OperationCoordinator(
         try {
             return checkNotNull(
                 transactions.execute {
+                    val actor = access.lockOwner(current.identity()).id
                     jdbc.update(
                         "INSERT INTO inventory_operations (property_id, actor_id, operation_kind, operation_key, request_hash, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6))",
                         PropertyScope.ID,
-                        "development",
+                        actor,
                         kind.name,
                         key,
                         fingerprint,
@@ -66,7 +71,7 @@ class OperationCoordinator(
                             "UPDATE inventory_operations SET result_json=? WHERE property_id=? AND actor_id=? AND operation_kind=? AND operation_key=?",
                             json.writeValueAsString(result),
                             PropertyScope.ID,
-                            "development",
+                            actor,
                             kind.name,
                             key,
                         ) == 1
@@ -77,7 +82,8 @@ class OperationCoordinator(
         } catch (duplicate: DuplicateKeyException) {
             return checkNotNull(
                 transactions.execute {
-                    val saved = record(kind, key) ?: throw duplicate
+                    val actor = access.lockOwner(current.identity()).id
+                    val saved = record(kind, key, actor) ?: throw duplicate
                     if (saved.first != fingerprint)
                         conflict(
                             "IDEMPOTENCY_KEY_REUSED",
@@ -92,8 +98,9 @@ class OperationCoordinator(
     fun find(kind: OperationKind, suppliedKey: String): OperationResult =
         checkNotNull(
             transactions.execute {
+                val actor = access.current(current.identity()).id
                 val saved =
-                    record(kind, key(suppliedKey))
+                    record(kind, key(suppliedKey), actor)
                         ?: throw DomainException(
                             "OPERATION_NOT_COMMITTED",
                             HttpStatus.NOT_FOUND,
@@ -103,13 +110,13 @@ class OperationCoordinator(
             }
         )
 
-    private fun record(kind: OperationKind, key: String): Pair<String, String>? =
+    private fun record(kind: OperationKind, key: String, actor: String): Pair<String, String>? =
         jdbc
             .query(
                 "SELECT request_hash, result_json FROM inventory_operations WHERE property_id=? AND actor_id=? AND operation_kind=? AND operation_key=?",
                 { row, _ -> row.getString(1) to row.getString(2) },
                 PropertyScope.ID,
-                "development",
+                actor,
                 kind.name,
                 key,
             )

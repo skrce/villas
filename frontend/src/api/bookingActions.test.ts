@@ -146,15 +146,15 @@ describe('booking write reconciliation', () => {
 
   it('never deletes a different durable intent when completing its own', async () => {
     fetchMock.mockImplementationOnce(async () => {
-      const saved = JSON.parse(localStorage.getItem('villarosa.pendingOperations.v1')!);
+      const saved = JSON.parse(localStorage.getItem('villarosa.pendingOperations.v2')!);
       const identity = Object.keys(saved)[0];
       saved[identity] = { key: '00000000-0000-0000-0000-000000000001' };
-      localStorage.setItem('villarosa.pendingOperations.v1', JSON.stringify(saved));
+      localStorage.setItem('villarosa.pendingOperations.v2', JSON.stringify(saved));
       return json(42);
     });
     confirm(0);
     await expect(actions().create(input)).resolves.toBe(42);
-    expect(localStorage.getItem('villarosa.pendingOperations.v1')).toContain('00000000-0000-0000-0000-000000000001');
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toContain('00000000-0000-0000-0000-000000000001');
   });
 
   it('refuses to submit without origin-wide storage locks', async () => {
@@ -164,7 +164,7 @@ describe('booking write reconciliation', () => {
   });
 
   it('refuses to discard corrupt pending state or an invalid loaded version', async () => {
-    localStorage.setItem('villarosa.pendingOperations.v1', 'invalid');
+    localStorage.setItem('villarosa.pendingOperations.v2', 'invalid');
     await expect(actions().create(input)).rejects.toThrow('could not be read');
     expect(fetchMock).not.toHaveBeenCalled();
     localStorage.clear();

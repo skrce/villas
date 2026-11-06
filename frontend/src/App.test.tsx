@@ -1,8 +1,10 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import { refreshSession } from './api/session';
 
+let signedIn = true;
 const fetchMock = vi.fn<typeof fetch>();
 const room = {
   id: 7,
@@ -13,10 +15,15 @@ const room = {
   topSeasonPrice: 150,
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
+  signedIn = true;
   fetchMock.mockReset();
-  vi.stubGlobal('fetch', fetchMock);
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).endsWith('/auth/session')) return new Response(JSON.stringify({ authenticated: signedIn, staff: { id: 'owner-test', email: 'owner@example.test', role: 'OWNER', active: true, version: 0 }, csrfToken: 'csrf-test', expiresAt: '2099-01-01T00:00:00Z', permissions: [], provider: 'synthetic' }));
+    return fetchMock(input, init);
+  });
+  await refreshSession();
 });
 
 afterEach(() => {
@@ -107,7 +114,7 @@ describe('staff console API integration', () => {
     expect(new Headers(fetchMock.mock.calls[1][1]?.headers).get('Idempotency-Key')).toMatch(/^[a-f0-9-]{36}$/);
   });
 
-  it('migrates the stored legacy API prefix to the canonical prefix', async () => {
+  it('deletes stored legacy credentials and uses the canonical session client', async () => {
     localStorage.setItem('villarosa.apiConfig', JSON.stringify({
       basePath: '/api', username: 'test', password: '',
     }));
@@ -120,6 +127,8 @@ describe('staff console API integration', () => {
 
     await screen.findByText('Loaded 0 apartments.');
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/apartments');
+    expect(localStorage.getItem('villarosa.apiConfig')).toBeNull();
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).has('Authorization')).toBe(false);
   });
 
   it('includes the requested guest count in availability', async () => {
@@ -138,4 +147,22 @@ describe('staff console API integration', () => {
     const url = new URL(String(fetchMock.mock.calls[0][0]), 'http://local');
     expect(url.searchParams.get('guestCount')).toBe('3');
   });
+  it('hides loaded guest data on expiry and preserves entered form details for explicit review', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify([room]), { headers: { 'Content-Type': 'application/json' } }));
+    render(<App />);
+    const form = screen.getByRole('form', { name: 'Create customer', exact: true });
+    await userEvent.type(within(form).getByLabelText('First name'), 'Retained');
+    await userEvent.click(screen.getByRole('button', { name: 'Load apartments' }));
+    await screen.findByRole('cell', { name: 'Lake' });
+    signedIn = false;
+    await act(async () => { await refreshSession(); });
+    expect(screen.queryByRole('cell', { name: 'Lake' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in to local demo' })).toBeInTheDocument();
+    signedIn = true;
+    await act(async () => { await refreshSession(); });
+    expect(within(screen.getByRole('form', { name: 'Create customer', exact: true })).getByLabelText('First name')).toHaveValue('Retained');
+    expect(screen.queryByRole('cell', { name: 'Lake' })).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
 });

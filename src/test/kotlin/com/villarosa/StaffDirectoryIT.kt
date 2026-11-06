@@ -70,7 +70,7 @@ constructor(
 
     @BeforeEach
     fun emptyPrivateDatabase() {
-        TestData.reset(jdbc, database.jdbcUrl)
+        TestData.reset(jdbc, database.jdbcUrl, authenticatedOwner = false)
         clock.time.set(Instant.parse("2026-11-06T00:00:00Z"))
     }
 
@@ -117,7 +117,7 @@ constructor(
             assertThat(child.exitValue()).isZero()
             val output = Files.readString(log)
             assertThat(output)
-                .contains("Initial owner invitation is ready")
+                .contains("Owner invitation is ready")
                 .doesNotContain("Tomcat started", "cli-owner@example.test")
             assertThat(staff.count()).isZero()
             assertThat(invitations.findAll().single().state).isEqualTo(InvitationState.PENDING)
@@ -396,6 +396,32 @@ constructor(
         }
     }
 
+    @Test
+    fun offlineRecoveryCreatesOnlyAnAuditedInvitationThatStillRequiresVerifiedIdentity() {
+        val invite = directory.recover("recovery@example.test")
+        assertThat(staff.count()).isZero()
+        assertThat(directory.recover("recovery@example.test").id).isEqualTo(invite.id)
+        assertThat(
+                jdbc.queryForObject(
+                    "SELECT kind FROM staff_events WHERE subject_id = ?",
+                    String::class.java,
+                    invite.id,
+                )
+            )
+            .isEqualTo("OWNER_RECOVERY")
+        val account =
+            directory.accept(
+                VerifiedStaffIdentity(
+                    "https://accounts.google.com",
+                    "recovery-subject",
+                    "recovery@example.test",
+                    true,
+                )
+            )
+        assertThat(account.active).isTrue()
+        assertThat(account.role).isEqualTo(StaffRole.OWNER)
+    }
+
     companion object {
         @Container @JvmField val database = TestDatabases.mariaDb()
 
@@ -408,6 +434,7 @@ constructor(
         @JvmStatic
         @DynamicPropertySource
         fun properties(registry: DynamicPropertyRegistry) {
+            registry.add("spring.session.jdbc.initialize-schema") { "never" }
             registry.add("spring.datasource.url", database::getJdbcUrl)
             registry.add("spring.datasource.username", database::getUsername)
             registry.add("spring.datasource.password", database::getPassword)

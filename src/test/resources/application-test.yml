@@ -7,12 +7,20 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+  session:
+    jdbc:
+      initialize-schema: always
+      schema: classpath:test-session-schema.sql
 
 villas:
   mode: test
-  local-auth:
-    username: test
-    password: test
+  public-url: http://localhost:5173
+  google:
+    client-id: villas-test
+    client-secret: synthetic-secret
+  auth:
+    provider: synthetic
+    synthetic-issuer: http://127.0.0.1:19099
 
 springdoc:
   api-docs:

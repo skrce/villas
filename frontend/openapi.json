@@ -71,6 +71,60 @@
         },
         "type": "object"
       },
+      "CustomerCreateRequest": {
+        "properties": {
+          "address": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "firstName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "lastName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "firstName",
+          "lastName",
+          "phone"
+        ],
+        "type": "object"
+      },
+      "CustomerSearchRequest": {
+        "properties": {
+          "firstName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          },
+          "limit": {
+            "format": "int32",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "phone": {
+            "maxLength": 200,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ErrorResponse": {
         "properties": {
           "code": {
@@ -151,6 +205,48 @@
         },
         "required": [
           "items"
+        ],
+        "type": "object"
+      },
+      "InvitationView": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "REVOKED",
+              "EXPIRED"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "InviteOwnerRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
         ],
         "type": "object"
       },
@@ -318,18 +414,91 @@
           "items"
         ],
         "type": "object"
+      },
+      "SessionView": {
+        "properties": {
+          "authenticated": {
+            "type": "boolean"
+          },
+          "csrfToken": {
+            "nullable": true,
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "staff": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StaffView"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "type": "object"
+      },
+      "StaffVersionRequest": {
+        "properties": {
+          "expectedVersion": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "StaffView": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "OWNER"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
       }
     },
     "securitySchemes": {
-      "basicAuth": {
-        "description": "Local/test compatibility only. Production access is disabled pending staff Google login.",
-        "scheme": "basic",
-        "type": "http"
+      "staffSession": {
+        "description": "HttpOnly, host-scoped session cookie. Local HTTP uses VILLAS_LOCAL_SESSION. Browser requests use same-origin credentials; never read or copy this cookie in JavaScript.",
+        "in": "cookie",
+        "name": "__Host-villas",
+        "type": "apiKey"
       }
     }
   },
   "info": {
-    "description": "Staff API. Basic Auth is available only for local development and tests.",
+    "description": "Owner staff API. Google OIDC establishes a server-side session. Unsafe requests require the current CSRF header.",
     "title": "Villarosa API",
     "version": "1.0.0"
   },
@@ -369,33 +538,120 @@
         ]
       }
     },
-    "/customers": {
-      "get": {
-        "operationId": "searchCustomer",
-        "parameters": [
-          {
-            "description": "First name",
-            "in": "query",
-            "name": "firstName",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
+    "/auth/logout": {
+      "post": {
+        "operationId": "logoutStaff",
+        "responses": {
+          "200": {
+            "description": "OK"
           },
-          {
-            "description": "Phone number",
-            "in": "query",
-            "name": "phone",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
           }
-        ],
+        },
+        "summary": "Invalidate the current staff session",
+        "tags": [
+          "Staff"
+        ]
+      }
+    },
+    "/auth/session": {
+      "get": {
+        "operationId": "staffSession",
         "responses": {
           "200": {
             "content": {
-              "application/json": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read the current server-side staff session",
+        "tags": [
+          "Staff"
+        ]
+      }
+    },
+    "/customers": {
+      "post": {
+        "operationId": "createCustomer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "format": "int32",
+                  "type": "integer"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Create a guest using a private JSON body",
+        "tags": [
+          "Customer"
+        ]
+      }
+    },
+    "/customers/search": {
+      "post": {
+        "operationId": "searchCustomer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
                 "schema": {
                   "items": {
                     "$ref": "#/components/schemas/Customer"
@@ -417,58 +673,32 @@
             "description": "Bad Request"
           }
         },
-        "summary": "Search customer by part of firstName or phone.",
+        "summary": "Search guests without putting contact criteria in a URL",
         "tags": [
           "Customer"
         ]
-      },
-      "post": {
-        "operationId": "createCustomer",
+      }
+    },
+    "/customers/{customerId}": {
+      "get": {
+        "operationId": "getCustomer",
         "parameters": [
           {
-            "description": "First name",
-            "in": "query",
-            "name": "firstName",
+            "in": "path",
+            "name": "customerId",
             "required": true,
             "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Last name",
-            "in": "query",
-            "name": "lastName",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Phone number",
-            "in": "query",
-            "name": "phone",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "Address (Country, City, Street, Number)",
-            "in": "query",
-            "name": "address",
-            "required": true,
-            "schema": {
-              "type": "string"
+              "format": "int32",
+              "type": "integer"
             }
           }
         ],
         "responses": {
           "200": {
             "content": {
-              "application/json": {
+              "*/*": {
                 "schema": {
-                  "format": "int32",
-                  "type": "integer"
+                  "$ref": "#/components/schemas/Customer"
                 }
               }
             },
@@ -485,7 +715,7 @@
             "description": "Bad Request"
           }
         },
-        "summary": "Creates a customer.",
+        "summary": "Read a property-scoped guest",
         "tags": [
           "Customer"
         ]
@@ -1389,11 +1619,271 @@
           "Inventory"
         ]
       }
+    },
+    "/staff": {
+      "get": {
+        "operationId": "listStaff",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StaffView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read Owner accounts",
+        "tags": [
+          "Staff"
+        ]
+      }
+    },
+    "/staff/invitations": {
+      "get": {
+        "operationId": "listStaffInvitations",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read unexpired Owner invitations",
+        "tags": [
+          "Staff"
+        ]
+      },
+      "post": {
+        "operationId": "inviteOwner",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteOwnerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Invite a Google account as an Owner",
+        "tags": [
+          "Staff"
+        ]
+      }
+    },
+    "/staff/invitations/{invitationId}": {
+      "delete": {
+        "operationId": "revokeStaffInvitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invitationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Revoke an unclaimed invitation",
+        "tags": [
+          "Staff"
+        ]
+      }
+    },
+    "/staff/{staffId}/deactivate": {
+      "post": {
+        "operationId": "deactivateStaff",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "staffId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Deactivate an Owner while retaining the last active Owner",
+        "tags": [
+          "Staff"
+        ]
+      }
+    },
+    "/staff/{staffId}/revoke-sessions": {
+      "post": {
+        "operationId": "revokeStaffSessions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "staffId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Invalidate every current session for an Owner",
+        "tags": [
+          "Staff"
+        ]
+      }
     }
   },
   "security": [
     {
-      "basicAuth": []
+      "staffSession": []
     }
   ],
   "servers": [

@@ -1,7 +1,8 @@
 import type { FormEvent } from 'react';
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import './App.css';
-import { buildApis, type ApiConfig } from './api/client';
+import { buildApis } from './api/client';
+import { API_BASE, getSessionEpoch, getSessionOwnerKey, installSessionEvents, logout, refreshSession, startSignIn, useStaffSession } from './api/session';
 import { buildBookingActions } from './api/bookingActions';
 import type { Apartment, Customer, ReservationInfo } from './api/generated';
 import { FetchError, ResponseError } from './api/generated';
@@ -18,49 +19,6 @@ type CalendarInputProps = {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-};
-
-const STORAGE_KEY = 'villarosa.apiConfig';
-const DEFAULT_CONFIG: ApiConfig = {
-  basePath: '/api/v1',
-  username: 'test',
-  password: '',
-};
-
-const normalizeBasePath = (value: string) =>
-  value.trim().replace(/\/+$/, '');
-
-const normalizeConfig = (config: ApiConfig): ApiConfig => {
-  const normalizedBasePath = normalizeBasePath(
-    config.basePath || DEFAULT_CONFIG.basePath,
-  );
-  const legacyBasePath = 'http://localhost:9098';
-  return {
-    basePath:
-      (normalizedBasePath === legacyBasePath || normalizedBasePath === '/api')
-        ? DEFAULT_CONFIG.basePath
-        : normalizedBasePath,
-    username: config.username ?? DEFAULT_CONFIG.username,
-    password: config.password ?? DEFAULT_CONFIG.password,
-  };
-};
-
-const loadConfig = (): ApiConfig => {
-  if (typeof localStorage === 'undefined') {
-    return DEFAULT_CONFIG;
-  }
-
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (!saved) {
-    return DEFAULT_CONFIG;
-  }
-
-  try {
-    const parsed = JSON.parse(saved) as ApiConfig;
-    return normalizeConfig(parsed);
-  } catch {
-    return DEFAULT_CONFIG;
-  }
 };
 
 const formatValue = (value: unknown) => {
@@ -125,11 +83,48 @@ const CalendarInput = ({ label, value, onChange, placeholder }: CalendarInputPro
   );
 };
 
-function App() {
-  const [draftConfig, setDraftConfig] = useState<ApiConfig>(() => loadConfig());
-  const [apiConfig, setApiConfig] = useState<ApiConfig>(() => loadConfig());
-  const apis = useMemo(() => buildApis(apiConfig), [apiConfig]);
+function Login() {
+  const session = useStaffSession();
+  const [error, setError] = useState('');
+  return <main className="page"><section className="card"><p className="eyebrow">Villas staff workspace</p><h1>Welcome to Villas</h1>
+    <p>Sign in with an invited Google account to manage your property.</p>
+    {session.status !== 'loading' && session.provider === 'synthetic' && <p role="status">Local demo: synthetic accounts and test data.</p>}
+    {session.status === 'loading' ? <p role="status">Checking your session…</p> : <>
+      {session.status !== 'authenticated' && session.reason === 'expired' && <p role="alert">Your session expired. Sign in again, then review your entered details before submitting.</p>}
+      {session.status !== 'authenticated' && session.reason === 'logout-unconfirmed' && <p role="alert">Sign-out could not be confirmed. Check your session before leaving this browser.</p>}
+      {session.status === 'unavailable' && <p role="alert">{session.reason}</p>}
+      {new URLSearchParams(window.location.search).has('error') && <p role="alert">Sign-in was declined. Use a verified account with an unexpired invitation.</p>}
+      <button className="btn primary" onClick={() => { try { startSignIn(); } catch (error) { setError(String(error)); } }}>Sign in{session.provider === 'synthetic' ? ' to local demo' : ' with Google'}</button>
+      <button className="btn" onClick={() => void refreshSession()}>Check session</button>
+      {error && <p role="alert">{error} <a href="/auth/start" target="_blank" rel="noreferrer">Open sign-in</a></p>}
+    </>}
+  </section></main>;
+}
 
+function AuthReturn() {
+  useEffect(() => {
+    if (window.location.pathname === '/auth/start') { sessionStorage.setItem('villas.signinPopup', 'yes'); window.location.replace('/oauth2/authorization/google'); return; }
+    const channel = typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel('villas.session');
+    const completed = () => { if (sessionStorage.getItem('villas.signinPopup')) { sessionStorage.removeItem('villas.signinPopup'); window.close(); } };
+    channel?.addEventListener('message', (event) => { if (event.data === 'received') completed(); });
+    void refreshSession().then(() => { channel?.postMessage('changed'); });
+    return () => channel?.close();
+  }, []);
+  return <main className="page"><h1>Sign-in complete</h1><p>You can return to your Villas workspace.</p><a href="/">Open workspace</a></main>;
+}
+
+function App() {
+  useStaffSession();
+  useEffect(installSessionEvents, []);
+  if (['/auth/start', '/auth/complete'].includes(window.location.pathname)) return <AuthReturn />;
+  return <StaffConsole key={getSessionOwnerKey()} />;
+}
+
+function StaffConsole() {
+  const session = useStaffSession();
+  const ownerKey = getSessionOwnerKey();
+  const sessionEpoch = getSessionEpoch();
+  const apis = useMemo(() => buildApis(ownerKey, sessionEpoch), [ownerKey, sessionEpoch]);
   const [alert, setAlert] = useState<Alert | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -158,7 +153,7 @@ function App() {
 
   const [reservationsCustomerId, setReservationsCustomerId] = useState('');
 
-  const bookingActions = useMemo(() => buildBookingActions(apis.reservationApi, JSON.stringify([apiConfig.basePath, apiConfig.username])), [apis, apiConfig.basePath, apiConfig.username]);
+  const bookingActions = useMemo(() => buildBookingActions(apis.reservationApi, JSON.stringify([API_BASE, ownerKey])), [apis, ownerKey]);
 
   const [cancelReservationId, setCancelReservationId] = useState('');
   const [updateReservationId, setUpdateReservationId] = useState('');
@@ -169,17 +164,15 @@ function App() {
   const [cancelStatus, setCancelStatus] = useState<string | null>(null);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 
-  const handleApplyConfig = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nextConfig = {
-      ...draftConfig,
-      basePath: normalizeBasePath(draftConfig.basePath),
-    };
-    setDraftConfig(nextConfig);
-    setApiConfig(nextConfig);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextConfig));
-    setAlert({ type: 'success', message: 'API settings updated.' });
-  };
+  const sessionReason = session.status === 'anonymous' || session.status === 'unavailable' ? session.reason : undefined;
+  useEffect(() => {
+    setApartments(null); setAvailableApartments(null); setCustomers(null); setReservations(null);
+    setAlert(null); setCreatedCustomerId(null); setCreatedReservationId(null); setCancelStatus(null); setUpdateStatus(null);
+    if (session.status === 'anonymous' && sessionReason?.startsWith('logout')) {
+      setCustomerFirstName(''); setCustomerLastName(''); setCustomerPhone(''); setCustomerAddress('');
+      setSearchFirstName(''); setSearchPhone(''); setReservationCustomerId(''); setReservationsCustomerId('');
+    }
+  }, [sessionEpoch, session.status, sessionReason]);
 
   const handleListApartments = async () => {
     setAlert(null);
@@ -206,12 +199,12 @@ function App() {
 
     setIsLoading(true);
     try {
-      const id = await apis.customerApi.createCustomer({
+      const id = await apis.customerApi.createCustomer({ customerCreateRequest: {
         firstName: customerFirstName.trim(),
         lastName: customerLastName.trim(),
         phone: customerPhone.trim(),
         address: customerAddress.trim(),
-      });
+      } });
       setCreatedCustomerId(id);
       setAlert({ type: 'success', message: `Customer created with ID ${id}.` });
     } catch (error) {
@@ -232,10 +225,10 @@ function App() {
 
     setIsLoading(true);
     try {
-      const data = await apis.customerApi.searchCustomer({
+      const data = await apis.customerApi.searchCustomer({ customerSearchRequest: {
         firstName: searchFirstName.trim() || undefined,
         phone: searchPhone.trim() || undefined,
-      });
+      } });
       setCustomers(data);
       setAlert({ type: 'success', message: `Found ${data.length} customers.` });
     } catch (error) {
@@ -516,99 +509,18 @@ function App() {
     );
   };
 
+  if (session.status !== 'authenticated') return <Login />;
+
   return (
     <div className="page">
-      <header className="hero">
-        <div>
-          <p className="eyebrow">Local Console</p>
-          <h1 className="hero-title">Villarosa Front Desk</h1>
-          <p className="hero-sub">
-            A lightweight workspace for managing apartments, customers, and reservations.
-          </p>
-          <div className="chip-row">
-            <span className="chip">API: {apiConfig.basePath}</span>
-            <span className="chip">Auth: Basic</span>
-          </div>
-        </div>
-        <div className="hero-panel">
-          <h2>Connection Snapshot</h2>
-          <p className="muted">Use the settings below to match your local backend.</p>
-          <div className="panel-grid">
-            <div>
-              <span className="panel-label">User</span>
-              <div className="panel-value">{apiConfig.username || '—'}</div>
-            </div>
-            <div>
-              <span className="panel-label">Password</span>
-              <div className="panel-value">{apiConfig.password ? '••••••' : 'Not set'}</div>
-            </div>
-          </div>
-        </div>
-      </header>
-
+      <header className="hero"><div><p className="eyebrow">Staff workspace</p><h1>Villas</h1><p>{session.staff.email} · Owner</p>
+      {session.provider === 'synthetic' && <p role="status">Local demo: synthetic accounts and test data.</p>}</div>
+      <button className="btn" onClick={() => void logout()}>Sign out</button></header>
       {alert && (
         <div className={`alert ${alert.type}`} role="status">
           {alert.message}
         </div>
       )}
-
-      <section className="card" id="api-settings">
-        <div className="card-header">
-          <h2>API Settings</h2>
-          <p className="muted">
-            Update the base URL and credentials used for all requests.
-          </p>
-        </div>
-        <form className="form-grid" aria-label="API settings" onSubmit={handleApplyConfig}>
-          <label className="field">
-            <span>Base URL</span>
-            <input
-              type="text"
-              value={draftConfig.basePath}
-              onChange={(event) =>
-                setDraftConfig((prev) => ({
-                  ...prev,
-                  basePath: event.target.value,
-                }))
-              }
-              placeholder="/api/v1"
-            />
-          </label>
-          <label className="field">
-            <span>Username</span>
-            <input
-              type="text"
-              value={draftConfig.username}
-              onChange={(event) =>
-                setDraftConfig((prev) => ({
-                  ...prev,
-                  username: event.target.value,
-                }))
-              }
-              placeholder="test"
-            />
-          </label>
-          <label className="field">
-            <span>Password</span>
-            <input
-              type="password"
-              value={draftConfig.password}
-              onChange={(event) =>
-                setDraftConfig((prev) => ({
-                  ...prev,
-                  password: event.target.value,
-                }))
-              }
-              placeholder="Local password"
-            />
-          </label>
-          <div className="form-actions">
-            <button className="btn primary" type="submit" disabled={isLoading}>
-              Apply settings
-            </button>
-          </div>
-        </form>
-      </section>
 
       <section className="card" id="apartments">
         <div className="card-header">

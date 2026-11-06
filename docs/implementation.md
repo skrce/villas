@@ -10,7 +10,7 @@ start are recorded in [decisions](decisions.md).
 | --- | --- | --- | --- |
 | 1 | [Modernize the foundation and establish regression checks](https://github.com/skrce/villas/issues/2) | None | Implemented and verified; review/merge evidence is in the linked issue |
 | 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Implemented and locally verified; final review/merge evidence is in the linked issue |
-| 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | In progress: Owner-only account/invitation foundation, then Google/session and browser integration |
+| 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Owner-only foundation merged; local OIDC/session/browser integration under verification; live Google setup explicitly deferred |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | Authorized after milestone 3's verified local authentication checkpoint |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Planned |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Planned |
@@ -139,7 +139,7 @@ production acceptance is implied by the local checks.
 | Launcher lifecycle | Six checks pass, including signals, real Playwright server cleanup, and cleanup failure recovery | CI required |
 | Browser with real API/database | Chromium guest creation, room move, cancellation, and persistence checks pass locally and in CI | Extend through later workflows |
 | Generated snapshot/client | Fresh generation and drift checks pass locally and in CI | Required for every API change |
-| Real Google identity | Not implemented | Milestone 3 |
+| Real Google identity | Client setup and live acceptance explicitly deferred by owner | Milestone 3 remains open |
 | Cloud deployment and recovery | Not performed; D04 remains open | Milestone 10 |
 | Staff pilot | Not performed | Milestone 10 |
 
@@ -149,5 +149,21 @@ The frontend remains a single basic console until milestone 4. The schema has
 versioned migrations, reference constraints, and strict calendar dates. Inventory
 transactions, version checks, retry reconciliation, and bounded queries are implemented.
 Cancellation retains the record and events. Price integers are fixture values, not the
-implemented EUR-cent model. Roles, sessions, rates, a ledger, and a calendar remain
-planned. These limitations are not relaxed by the new test setup.
+implemented EUR-cent model. Owner accounts and server sessions are implemented locally. Rates, a ledger, and a
+calendar remain planned. Real Google setup and verification remain open. These limitations are not relaxed by the new test setup.
+
+## Milestone 3 local checkpoint
+
+[PR #18](https://github.com/skrce/villas/pull/18) is merged after independent review.
+The integration replaces Basic Auth with invited Google OIDC and native JDBC sessions,
+requires CSRF/Origin on writes, rechecks current Owners inside business transactions,
+and scopes operation recovery/audit actors to the canonical Owner. Guest writes and
+normal searches use JSON. The browser deletes legacy credentials, rejects stale
+responses, confirms logout by read-back and requires explicit resubmission after
+reauthentication. Offline bootstrap/recovery creates only an expiring invitation.
+
+The initial Owner email was supplied privately and must not be copied into source or
+GitHub. The owner explicitly deferred Google client creation and live-provider checks.
+Synthetic OIDC is loopback-only and rejected in production. Milestone 3 remains open
+for real Google callback/cookie/logout/invitation/recovery acceptance. The verified
+local checkpoint is the dependency for the authorized milestone 4 work.

@@ -4,9 +4,9 @@ Staff management for Villa Rosa, starting in North Macedonia with EUR and the
 `Europe/Skopje` property timezone. The application uses Kotlin/Spring, Java 21,
 React/TypeScript/Vite, and MariaDB.
 
-Milestone 1 establishes the development and verification setup. The current frontend
-is still the basic staff console. The routed interface, calendar, Google staff login,
-rates, payments, and production deployment follow the
+Invited Google accounts establish server-side Owner sessions. The current frontend
+is still the basic staff console. The routed interface, calendar, rates, payments,
+and production deployment follow the
 [ten-step implementation tracker](docs/implementation.md).
 
 ## Requirements
@@ -31,13 +31,17 @@ Work in a standalone Villas checkout. From its root:
 cp .env.local.example .env.local
 ```
 
-Replace `VILLAS_LOCAL_PASSWORD` with a unique throwaway local value. Do not use a
-personal password. Then start an empty database and the API:
+For real Google sign-in, configure a Villas-specific web client and the initial owner
+email privately in `.env.local`. See [Google setup and recovery](docs/security.md).
+Register `http://localhost:5173/login/oauth2/code/google`. Google setup and live-provider
+acceptance were explicitly deferred by the owner. The automated checks use their own
+synthetic provider and private database. Then start an empty database and the API:
 
 ```sh
 node scripts/dev-db.mjs start
 ./mvnw --batch-mode verify
 node scripts/run-api.mjs --migrate
+node scripts/run-api.mjs --bootstrap-owner
 node scripts/run-api.mjs
 ```
 
@@ -57,10 +61,11 @@ npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. In the console's API settings, keep `/api/v1`, enter
-the local username and password from `.env.local`, and apply the settings. The
-development username defaults to `test`. The console currently stores these local
-settings in browser storage. Use synthetic data and a throwaway password.
+Open `http://localhost:5173` and choose Google sign-in. An unexpired invitation and
+verified matching Google account are required. Villas has no staff passwords or
+browser API connection settings. Session/CSRF tokens and protected records are not
+persisted in browser storage. Sign-in opens a separate window so expired sessions can
+retain entered form details in memory. Review and submit again explicitly afterward.
 
 Rooms can be loaded explicitly for development:
 
@@ -112,7 +117,9 @@ files before running the drift check. Docker must be available; database tests a
 not silently skipped.
 
 The browser check uses a separate randomly named database, generated test credentials,
-the packaged API on port 19098, and the production frontend build on port 15073. It
+the packaged API on port 19098, a synthetic OIDC provider on port 19108, and the
+production frontend build on port 15073. It exercises real HTTP authorization-code
+redirects and signed ID tokens against the private MariaDB database. It
 removes its own database volume on completion or SIGINT/SIGTERM interruption. If Docker
 cleanup fails, it retains local state for recovery and returns a failure. It refuses
 to reuse running servers.
@@ -157,10 +164,12 @@ Local API docs are at `http://127.0.0.1:9098/swagger-ui.html` and `/v3/api-docs`
 
 ## Production status
 
-This checkpoint is not a deployment. The default production mode denies business
-access and disables API docs until milestone 3 implements invited Google sign-in with
-server-side sessions. Development Basic Auth is available only in explicit local/test
-modes. Villas will not collect staff passwords in production.
+This checkpoint is not a deployment. Production requires HTTPS, a Villas-specific
+Google client and invitation-only sign-in. It rejects synthetic providers and legacy
+password settings. API docs are disabled. Cookies are host-only, HttpOnly, SameSite=Lax
+and Secure in production, with server-enforced seven-day maximum and three-day idle
+limits. Logout and account revocation invalidate access. Real Google setup and live
+verification remain open at the owner's request; local OIDC tests do not close them.
 
 A new production database starts empty. Application startup neither creates tables
 nor loads demo records. Immutable SQL versions in `src/main/resources/db/migration`
@@ -175,6 +184,5 @@ cancellations, and support operation-key reconciliation. Calendar/history querie
 are bounded in the database. The basic console accepts guest counts and recovers
 pending booking changes across reloads and tabs. Its booking changes require browser
 Web Locks over HTTPS or localhost. See the [reservation contract](docs/contracts/reservations.md).
-This console remains for synthetic local checks until Google sessions, permissions,
-and the later staff workflows are complete. See [decisions](docs/decisions.md) and
+The later staff workflows and live Google acceptance remain separate gates. See [decisions](docs/decisions.md) and
 [proposed permissions](docs/contracts/permissions.md).

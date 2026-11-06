@@ -5,6 +5,7 @@ import com.villarosa.exception.invalid
 import com.villarosa.exception.missing
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
+import com.villarosa.security.CurrentStaff
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -18,6 +19,7 @@ class InventoryWriter(
     private val blocks: MaintenanceRepository,
     private val events: InventoryEventRepository,
     private val availability: InventoryAvailability,
+    private val currentStaff: CurrentStaff,
 ) {
     fun create(
         customerId: Int,
@@ -193,6 +195,7 @@ class InventoryWriter(
     ) {
         events.saveAndFlush(
             InventoryEvent(
+                actorId = currentStaff.identity().id,
                 operationKey = key,
                 kind = kind,
                 reservationId = booking.id,
@@ -209,6 +212,7 @@ class InventoryWriter(
     private fun blockEvent(block: MaintenanceBlock, key: String, kind: String) {
         events.saveAndFlush(
             InventoryEvent(
+                actorId = currentStaff.identity().id,
                 operationKey = key,
                 kind = kind,
                 maintenanceBlockId = block.id,

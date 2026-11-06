@@ -6,7 +6,7 @@ import {
   type OperationResult,
 } from './generated';
 
-const STORAGE_KEY = 'villarosa.pendingOperations.v1';
+const STORAGE_KEY = 'villarosa.pendingOperations.v2';
 const DEFINITIVE_ERRORS = new Set([
   'INVALID_REQUEST', 'INVALID_OPERATION_KEY', 'INVALID_ID', 'INVALID_VERSION',
   'INVALID_GUEST_COUNT', 'CAPACITY_EXCEEDED', 'NOT_FOUND', 'STALE_VERSION',
@@ -97,14 +97,15 @@ export const buildBookingActions = (api: ReservationApi, scope: string) => {
     return confirm();
   };
 
-  const run = <T>(
+  const run = async <T>(
     kind: GetOperationKindEnum,
     input: unknown,
     prepare: () => Promise<number | undefined>,
     send: (intent: Intent) => Promise<unknown>,
     recovered: (result: OperationResult) => T,
   ): Promise<T> => {
-    const identity = JSON.stringify([scope, kind, input]);
+    const fingerprint = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([scope, kind, input])));
+    const identity = Array.from(new Uint8Array(fingerprint), (byte) => byte.toString(16).padStart(2, '0')).join('');
     const existing = pending.get(identity);
     if (existing) return existing as Promise<T>;
     const request = execute(kind, identity, prepare, send, recovered).finally(() => pending.delete(identity));

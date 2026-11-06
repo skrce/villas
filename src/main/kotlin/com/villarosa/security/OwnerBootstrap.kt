@@ -5,7 +5,7 @@ import org.springframework.boot.WebApplicationType
 import org.springframework.boot.builder.SpringApplicationBuilder
 
 object OwnerBootstrap {
-    fun run(replacePending: Boolean) {
+    fun run(replacePending: Boolean, recovery: Boolean = false) {
         val email =
             System.getenv("VILLAS_INITIAL_OWNER_EMAIL")?.takeIf { it.isNotBlank() }
                 ?: error(
@@ -16,9 +16,11 @@ object OwnerBootstrap {
             .web(WebApplicationType.NONE)
             .run("--villas.mode=production")
             .use { context ->
-                context.getBean(StaffDirectory::class.java).bootstrap(email, replacePending)
+                val directory = context.getBean(StaffDirectory::class.java)
+                if (recovery) directory.recover(email)
+                else directory.bootstrap(email, replacePending)
                 println(
-                    "Initial owner invitation is ready. Google verification is required to activate the account."
+                    "Owner invitation is ready. Google verification is required to activate the account."
                 )
             }
     }

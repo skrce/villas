@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Villarosa API
- * Staff API. Basic Auth is available only for local development and tests.
+ * Owner staff API. Google OIDC establishes a server-side session. Unsafe requests require the current CSRF header.
  *
  * The version of the OpenAPI document: 1.0.0
  * 
@@ -16,25 +16,31 @@
 import * as runtime from '../runtime';
 import type {
   Customer,
+  CustomerCreateRequest,
+  CustomerSearchRequest,
   ErrorResponse,
 } from '../models/index';
 import {
     CustomerFromJSON,
     CustomerToJSON,
+    CustomerCreateRequestFromJSON,
+    CustomerCreateRequestToJSON,
+    CustomerSearchRequestFromJSON,
+    CustomerSearchRequestToJSON,
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
 } from '../models/index';
 
 export interface CreateCustomerRequest {
-    firstName: string;
-    lastName: string;
-    phone: string;
-    address: string;
+    customerCreateRequest: CustomerCreateRequest;
+}
+
+export interface GetCustomerRequest {
+    customerId: number;
 }
 
 export interface SearchCustomerRequest {
-    firstName?: string;
-    phone?: string;
+    customerSearchRequest: CustomerSearchRequest;
 }
 
 /**
@@ -43,60 +49,22 @@ export interface SearchCustomerRequest {
 export class CustomerApi extends runtime.BaseAPI {
 
     /**
-     * Creates a customer.
+     * Create a guest using a private JSON body
      */
     async createCustomerRaw(requestParameters: CreateCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<number>> {
-        if (requestParameters['firstName'] == null) {
+        if (requestParameters['customerCreateRequest'] == null) {
             throw new runtime.RequiredError(
-                'firstName',
-                'Required parameter "firstName" was null or undefined when calling createCustomer().'
-            );
-        }
-
-        if (requestParameters['lastName'] == null) {
-            throw new runtime.RequiredError(
-                'lastName',
-                'Required parameter "lastName" was null or undefined when calling createCustomer().'
-            );
-        }
-
-        if (requestParameters['phone'] == null) {
-            throw new runtime.RequiredError(
-                'phone',
-                'Required parameter "phone" was null or undefined when calling createCustomer().'
-            );
-        }
-
-        if (requestParameters['address'] == null) {
-            throw new runtime.RequiredError(
-                'address',
-                'Required parameter "address" was null or undefined when calling createCustomer().'
+                'customerCreateRequest',
+                'Required parameter "customerCreateRequest" was null or undefined when calling createCustomer().'
             );
         }
 
         const queryParameters: any = {};
 
-        if (requestParameters['firstName'] != null) {
-            queryParameters['firstName'] = requestParameters['firstName'];
-        }
-
-        if (requestParameters['lastName'] != null) {
-            queryParameters['lastName'] = requestParameters['lastName'];
-        }
-
-        if (requestParameters['phone'] != null) {
-            queryParameters['phone'] = requestParameters['phone'];
-        }
-
-        if (requestParameters['address'] != null) {
-            queryParameters['address'] = requestParameters['address'];
-        }
-
         const headerParameters: runtime.HTTPHeaders = {};
 
-        if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
-            headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
-        }
+        headerParameters['Content-Type'] = 'application/json';
+
 
         let urlPath = `/customers`;
 
@@ -105,6 +73,7 @@ export class CustomerApi extends runtime.BaseAPI {
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
+            body: CustomerCreateRequestToJSON(requestParameters['customerCreateRequest']),
         }, initOverrides);
 
         if (this.isJsonMime(response.headers.get('content-type'))) {
@@ -115,7 +84,7 @@ export class CustomerApi extends runtime.BaseAPI {
     }
 
     /**
-     * Creates a customer.
+     * Create a guest using a private JSON body
      */
     async createCustomer(requestParameters: CreateCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<number> {
         const response = await this.createCustomerRaw(requestParameters, initOverrides);
@@ -123,26 +92,23 @@ export class CustomerApi extends runtime.BaseAPI {
     }
 
     /**
-     * Search customer by part of firstName or phone.
+     * Read a property-scoped guest
      */
-    async searchCustomerRaw(requestParameters: SearchCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<Customer>>> {
+    async getCustomerRaw(requestParameters: GetCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Customer>> {
+        if (requestParameters['customerId'] == null) {
+            throw new runtime.RequiredError(
+                'customerId',
+                'Required parameter "customerId" was null or undefined when calling getCustomer().'
+            );
+        }
+
         const queryParameters: any = {};
-
-        if (requestParameters['firstName'] != null) {
-            queryParameters['firstName'] = requestParameters['firstName'];
-        }
-
-        if (requestParameters['phone'] != null) {
-            queryParameters['phone'] = requestParameters['phone'];
-        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 
-        if (this.configuration && (this.configuration.username !== undefined || this.configuration.password !== undefined)) {
-            headerParameters["Authorization"] = "Basic " + btoa(this.configuration.username + ":" + this.configuration.password);
-        }
 
-        let urlPath = `/customers`;
+        let urlPath = `/customers/{customerId}`;
+        urlPath = urlPath.replace(`{${"customerId"}}`, encodeURIComponent(String(requestParameters['customerId'])));
 
         const response = await this.request({
             path: urlPath,
@@ -151,13 +117,52 @@ export class CustomerApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
+        return new runtime.JSONApiResponse(response, (jsonValue) => CustomerFromJSON(jsonValue));
+    }
+
+    /**
+     * Read a property-scoped guest
+     */
+    async getCustomer(requestParameters: GetCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Customer> {
+        const response = await this.getCustomerRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Search guests without putting contact criteria in a URL
+     */
+    async searchCustomerRaw(requestParameters: SearchCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<Customer>>> {
+        if (requestParameters['customerSearchRequest'] == null) {
+            throw new runtime.RequiredError(
+                'customerSearchRequest',
+                'Required parameter "customerSearchRequest" was null or undefined when calling searchCustomer().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/customers/search`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CustomerSearchRequestToJSON(requestParameters['customerSearchRequest']),
+        }, initOverrides);
+
         return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(CustomerFromJSON));
     }
 
     /**
-     * Search customer by part of firstName or phone.
+     * Search guests without putting contact criteria in a URL
      */
-    async searchCustomer(requestParameters: SearchCustomerRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<Customer>> {
+    async searchCustomer(requestParameters: SearchCustomerRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<Customer>> {
         const response = await this.searchCustomerRaw(requestParameters, initOverrides);
         return await response.value();
     }
