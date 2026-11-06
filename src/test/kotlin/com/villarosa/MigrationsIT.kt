@@ -26,7 +26,7 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(5)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
@@ -38,6 +38,9 @@ class MigrationsIT {
                     "maintenance_blocks",
                     "inventory_operations",
                     "inventory_events",
+                    "staff_accounts",
+                    "staff_invitations",
+                    "staff_events",
                 )) {
                 connection.createStatement().use { statement ->
                     statement.executeQuery("SELECT COUNT(*) FROM $table").use { result ->
@@ -71,7 +74,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(3)
+            .isEqualTo(4)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement
@@ -125,6 +128,29 @@ class MigrationsIT {
                     result.next()
                     assertThat(result.getInt(1)).isEqualTo(1)
                 }
+            }
+        }
+    }
+
+    @Test
+    fun staffSchemaRejectsUnapprovedRolesNoncanonicalEmailsAndBrokenReferences() {
+        DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                val id = "00000000-0000-0000-0000-000000000001"
+                statement.executeUpdate(
+                    "INSERT INTO staff_accounts (id, property_id, issuer, subject, email, created_at) VALUES ('$id', 'villa-rosa', 'https://accounts.google.com', 'synthetic-owner', 'owner@example.test', CURRENT_TIMESTAMP(6))"
+                )
+                for (sql in
+                    listOf(
+                        "UPDATE staff_accounts SET role='FRONT_DESK' WHERE id='$id'",
+                        "UPDATE staff_accounts SET active=2 WHERE id='$id'",
+                        "UPDATE staff_accounts SET role='owner' WHERE id='$id'",
+                        "UPDATE staff_accounts SET email='Owner@example.test' WHERE id='$id'",
+                        "UPDATE staff_accounts SET security_version=-1 WHERE id='$id'",
+                        "INSERT INTO staff_events (property_id, actor_id, kind, subject_type, subject_id, occurred_at) VALUES ('other', '$id', 'TEST', 'STAFF', '$id', CURRENT_TIMESTAMP(6))",
+                        "INSERT INTO staff_invitations (id, property_id, email, state, created_at, expires_at) VALUES ('$id', 'villa-rosa', 'owner@example.test', 'PENDING', '2026-11-06 00:00:00', '2026-11-06 00:00:00')",
+                    )) assertThrows<SQLException> { statement.executeUpdate(sql) }
             }
         }
     }
@@ -189,7 +215,12 @@ class MigrationsIT {
             }
         }
         val flyway =
-            DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
+            DatabaseMigrations.configured(
+                database.jdbcUrl,
+                database.username,
+                database.password,
+                "4",
+            )
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         connection().use { connection ->

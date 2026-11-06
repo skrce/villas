@@ -1,6 +1,6 @@
 # Implementation tracker
 
-The owner approved execution through milestone 2 on November 5, 2026. The plan is a
+The owner approved milestones 3 and 4 in sequence after milestone 2. The plan is a
 staff-only application. Google sign-in, EUR, `Europe/Skopje`, and an empty production
 start are recorded in [decisions](decisions.md).
 
@@ -10,8 +10,8 @@ start are recorded in [decisions](decisions.md).
 | --- | --- | --- | --- |
 | 1 | [Modernize the foundation and establish regression checks](https://github.com/skrce/villas/issues/2) | None | Implemented and verified; review/merge evidence is in the linked issue |
 | 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Implemented and locally verified; final review/merge evidence is in the linked issue |
-| 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Planned |
-| 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | Planned |
+| 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | In progress: Owner-only account/invitation foundation, then Google/session and browser integration |
+| 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | Authorized after milestone 3's verified local authentication checkpoint |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Planned |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Planned |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Planned |

@@ -56,6 +56,9 @@ constructor(
                     "maintenance_blocks" to 0L,
                     "inventory_operations" to 0L,
                     "inventory_events" to 0L,
+                    "staff_accounts" to 0L,
+                    "staff_invitations" to 0L,
+                    "staff_events" to 0L,
                 )
             )
     }
@@ -379,6 +382,9 @@ constructor(
                                     "maintenance_blocks",
                                     "inventory_operations",
                                     "inventory_events",
+                                    "staff_accounts",
+                                    "staff_invitations",
+                                    "staff_events",
                                 )
                                 .associateWith { table ->
                                     statement.executeQuery("SELECT COUNT(*) FROM $table").use {

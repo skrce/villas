@@ -14,6 +14,9 @@ object TestData {
         }
         for (table in
             listOf(
+                "staff_events",
+                "staff_invitations",
+                "staff_accounts",
                 "inventory_events",
                 "inventory_operations",
                 "reservations",
