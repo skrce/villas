@@ -86,6 +86,74 @@
         ],
         "type": "object"
       },
+      "InventoryEventInfo": {
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "endDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "guestCount": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "operationKey": {
+            "type": "string"
+          },
+          "previousRoomId": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "resourceVersion": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "startDate": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "InventoryEventPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryEventInfo"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "MaintenanceBlock": {
         "properties": {
           "endDate": {
@@ -120,6 +188,25 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "MaintenancePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MaintenanceBlock"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items"
+        ],
         "type": "object"
       },
       "OperationResult": {
@@ -211,6 +298,25 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "ReservationPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReservationInfo"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items"
+        ],
         "type": "object"
       }
     },
@@ -386,6 +492,85 @@
       }
     },
     "/maintenance-blocks": {
+      "get": {
+        "operationId": "listMaintenanceBlocks",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "ACTIVE",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "afterId",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenancePage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read a bounded maintenance calendar page",
+        "tags": [
+          "Inventory"
+        ]
+      },
       "post": {
         "operationId": "createMaintenanceBlock",
         "parameters": [
@@ -519,6 +704,67 @@
         ]
       }
     },
+    "/maintenance-blocks/{blockId}/events": {
+      "get": {
+        "operationId": "maintenanceHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "blockId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "afterId",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryEventPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read a bounded maintenance event page",
+        "tags": [
+          "Inventory"
+        ]
+      }
+    },
     "/operations/{operationKey}": {
       "get": {
         "operationId": "getOperation",
@@ -625,6 +871,85 @@
         "summary": "Retain a cancellation and release inventory",
         "tags": [
           "Reservation"
+        ]
+      },
+      "get": {
+        "operationId": "listReservations",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "ACTIVE",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "afterId",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReservationPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read a bounded overlapping-stay calendar page",
+        "tags": [
+          "Inventory"
         ]
       },
       "patch": {
@@ -1001,6 +1326,67 @@
         "summary": "Change stay dates and guest count",
         "tags": [
           "Reservation"
+        ]
+      }
+    },
+    "/reservations/{reservationId}/events": {
+      "get": {
+        "operationId": "reservationHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reservationId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "afterId",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryEventPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read a bounded reservation event page",
+        "tags": [
+          "Inventory"
         ]
       }
     }

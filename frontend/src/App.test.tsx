@@ -121,4 +121,21 @@ describe('staff console API integration', () => {
     await screen.findByText('Loaded 0 apartments.');
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/apartments');
   });
+
+  it('includes the requested guest count in availability', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('[]', { headers: { 'Content-Type': 'application/json' } }));
+    render(<App />);
+    const form = screen.getByRole('form', { name: 'Find availability' });
+    await userEvent.type(within(form).getByLabelText('Start date'), '2026-11-06');
+    await userEvent.tab();
+    await userEvent.type(within(form).getByLabelText('End date'), '2026-11-09');
+    await userEvent.tab();
+    const count = within(form).getByLabelText('Guest count');
+    await userEvent.clear(count);
+    await userEvent.type(count, '3');
+    await userEvent.click(within(form).getByRole('button', { name: 'Find availability' }));
+    expect(await screen.findByText('Found 0 available apartments.')).toBeInTheDocument();
+    const url = new URL(String(fetchMock.mock.calls[0][0]), 'http://local');
+    expect(url.searchParams.get('guestCount')).toBe('3');
+  });
 });

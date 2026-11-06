@@ -9,7 +9,7 @@ start are recorded in [decisions](decisions.md).
 | Step | Issue | Dependencies | Implementation state |
 | --- | --- | --- | --- |
 | 1 | [Modernize the foundation and establish regression checks](https://github.com/skrce/villas/issues/2) | None | Implemented and verified; review/merge evidence is in the linked issue |
-| 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | In progress: schema/date PR merged; transactional inventory and shared queries follow |
+| 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Implemented and locally verified; final review/merge evidence is in the linked issue |
 | 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Planned |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | Planned |
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Planned |
@@ -98,12 +98,36 @@ room references before a foreign-key write. Backend verification passed 79
 unit/HTTP/configuration cases and 10 MariaDB cases. Its complete check also passed
 six frontend interactions, six launcher tests, and the browser workflow.
 
-The next PR implements shared apartment locks, expected versions, retained
-cancellation, maintenance, operation reconciliation, and atomic events. Native
-tests exercise competing writes and injected audit failure. The console integrates
-the required keys/versions and preserves pending intents across reloads. Bounded
-date-filtered queries, final coverage evidence, and operating checks remain in the
-last milestone 2 PR. Google identity and production recovery remain their own gates.
+[PR #16](https://github.com/skrce/villas/pull/16) is merged with shared apartment locks,
+expected versions, retained cancellation, maintenance, operation reconciliation, and
+atomic events. Backend review independently verified outer-transaction suspension,
+historical replay, and all mutation rollback paths. Frontend review found two gaps
+in successful-response validation and shared retry state. The fixes confirm saved
+operation outcomes, serialize storage updates across tabs, and clear only a matching
+key. Independent re-review cleared both findings. The final PR revision passes 23
+frontend tests and two real Chromium workflows, including a lost response across tabs.
+
+The final query change adds database-bounded calendar/history pages, read indexes,
+guest-count console fields, and stable date-input labels. It checks V3-to-V4 record
+preservation and partial-DDL recovery without dropping saved bookings. Permanent
+native regressions cover historical results after later edits and audit-failure
+rollback for every inventory mutation. The milestone verification suite now contains
+79 unit/HTTP/configuration tests, 46 native MariaDB tests, 24 frontend tests, six
+launcher checks, and two Chromium workflows. The linked issue records the exact
+verified revision and CI result before closure.
+
+The raw JaCoCo report measures 92.82% backend line coverage and 72.69% branch coverage
+at the query checkpoint. Strict dates have 100% branch coverage and bounded queries
+have 90%. InventoryWriter has 95.80% line/71.15% branch coverage; OperationCoordinator
+has 96.97% line/66.67% branch coverage. Those two remain below the 90% branch target;
+retain the target as the full lifecycle is implemented rather than hiding the raw
+report. The required native validation, rollback, replay, and concurrency cases pass.
+The frontend retry adapter has 91.52% branch coverage. The basic console still needs
+the broader interaction coverage and routed design planned in milestone 4.
+
+Google identity, verified staff actors, business policies, accepted pricing, production
+initialization, and backup/restore remain their own milestone gates. No live or
+production acceptance is implied by the local checks.
 
 ## Acceptance states
 
@@ -123,8 +147,7 @@ last milestone 2 PR. Google identity and production recovery remain their own ga
 
 The frontend remains a single basic console until milestone 4. The schema has
 versioned migrations, reference constraints, and strict calendar dates. Inventory
-transactions, version checks, and retry reconciliation are implemented in the
-current inventory PR, while bounded queries are still in progress.
+transactions, version checks, retry reconciliation, and bounded queries are implemented.
 Cancellation retains the record and events. Price integers are fixture values, not the
 implemented EUR-cent model. Roles, sessions, rates, a ledger, and a calendar remain
 planned. These limitations are not relaxed by the new test setup.

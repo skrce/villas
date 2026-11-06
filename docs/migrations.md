@@ -26,8 +26,10 @@ pending versions. No guest, room, booking, rate, or payment demo data is inserte
 | V1 | Empty InnoDB/utf8mb4 business tables, property-scoped reference keys, SQL DATE stays, positive capacities, nonnegative legacy prices, and half-open date constraints |
 | V2 | Room active state, entity versions, reservation guest count/status, and range checks |
 | V3 | Maintenance blocks, transactional operation claims/results, and inventory events with subject/version and property-scoped reference constraints |
+| V4 | Calendar, guest-list, and event-history read indexes; no business data changes |
 
-V1 to V3 upgrade tests preserve synthetic Unicode guests and saved bookings. Runtime
+V1 to latest and V3 to V4 upgrade tests preserve synthetic Unicode guests, bookings,
+operation results, and events. Runtime
 inventory writes use the transaction and lock protocol in the
 [reservation contract](contracts/reservations.md). New installations contain no
 business records, operation results, or events until an explicit workflow writes them.
@@ -63,3 +65,10 @@ milestone's evidence uses disposable local MariaDB, not a live deployment.
 initialization, reruns, V1 upgrade preservation, foreign keys, property scope,
 date/range constraints, and rejection of unversioned schemas. H2 tests do not replace
 native migration/locking verification.
+
+A disposable recovery test adds a deliberately failing synthetic migration after
+the packaged versions. It proves that early DDL and its marker remain committed,
+an unreviewed retry is refused, and completing the missing precondition followed by
+explicit repair allows the identical SQL to rerun. Unicode guests and bookings
+survive throughout. This test is not a production backup/restore rehearsal and does
+not authorize automatic repair of a real database.

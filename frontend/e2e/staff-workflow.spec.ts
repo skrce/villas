@@ -78,6 +78,7 @@ test('separate tabs share a pending booking key when one response is lost', asyn
     const form = tab.getByRole('form', { name: 'Create reservation', exact: true });
     await form.getByLabel('Customer ID').fill(String(customerId));
     await form.getByLabel('Room ID').fill(String(roomId));
+    await form.getByLabel('Guest count').fill('2');
     await form.getByLabel('Start date').fill('2026-11-12');
     await form.getByLabel('End date').fill('2026-11-14');
     await form.getByLabel('End date').press('Tab');
@@ -112,7 +113,7 @@ test('separate tabs share a pending booking key when one response is lost', asyn
     expect(keys).toHaveLength(2);
     expect(new Set(keys).size).toBe(1);
     const saved = await request.get('/api/v1/reservations/customer', { headers, params: { customerId } });
-    expect(await saved.json()).toHaveLength(1);
+    expect(await saved.json()).toEqual([expect.objectContaining({ guestCount: 2, nights: 2 })]);
   } finally {
     releaseFirst();
     await other.close();

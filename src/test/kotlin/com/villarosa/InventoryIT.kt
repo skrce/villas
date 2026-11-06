@@ -13,12 +13,16 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
@@ -35,6 +39,7 @@ constructor(
     private val blocks: MaintenanceRepository,
     private val events: InventoryEventRepository,
     private val jdbc: JdbcTemplate,
+    private val transactionManager: PlatformTransactionManager,
 ) {
     private lateinit var guest: Customer
     private lateinit var first: Apartment
@@ -288,6 +293,127 @@ constructor(
         }
         create(operation = operation)
         assertThat(reservations.count()).isEqualTo(1)
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+        value = OperationKind::class,
+        names = ["MOVE", "CHANGE", "CANCEL", "BLOCK", "UNBLOCK"],
+    )
+    fun auditFailureRollsBackEveryInventoryMutation(kind: OperationKind) {
+        val booking =
+            if (kind in setOf(OperationKind.MOVE, OperationKind.CHANGE, OperationKind.CANCEL))
+                create()
+            else null
+        val block =
+            if (kind == OperationKind.UNBLOCK)
+                service.block(first.id!!, "2026-11-06", "2026-11-09", "Synthetic", key())
+            else null
+        val beforeBookings = reservations.findAll().map { it.copy() }
+        val beforeBlocks = blocks.findAll().map { it.copy() }
+        val beforeEvents = events.count()
+        val beforeOperations =
+            jdbc.queryForObject("SELECT COUNT(*) FROM inventory_operations", Long::class.java)
+        val operation = key()
+        val action = {
+            when (kind) {
+                OperationKind.MOVE -> service.move(booking!!.resourceId, second.id!!, 0, operation)
+                OperationKind.CHANGE ->
+                    service.change(
+                        booking!!.resourceId,
+                        "2026-11-05",
+                        "2026-11-10",
+                        2,
+                        0,
+                        operation,
+                    )
+                OperationKind.CANCEL -> service.cancel(booking!!.resourceId, 0, operation)
+                OperationKind.BLOCK ->
+                    service.block(first.id!!, "2026-11-06", "2026-11-09", "Synthetic", operation)
+                OperationKind.UNBLOCK -> service.unblock(block!!.resourceId, 0, operation)
+                else -> error("Creation has a separate rollback regression.")
+            }
+        }
+        jdbc.execute(
+            "CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON inventory_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Synthetic audit failure'"
+        )
+        try {
+            assertThrows<RuntimeException> { action() }
+            assertThat(reservations.findAll()).containsExactlyInAnyOrderElementsOf(beforeBookings)
+            assertThat(blocks.findAll()).containsExactlyInAnyOrderElementsOf(beforeBlocks)
+            assertThat(events.count()).isEqualTo(beforeEvents)
+            assertThat(
+                    jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM inventory_operations",
+                        Long::class.java,
+                    )
+                )
+                .isEqualTo(beforeOperations)
+            assertThat(assertThrows<DomainException> { service.operation(kind, operation) }.code)
+                .isEqualTo("OPERATION_NOT_COMMITTED")
+        } finally {
+            jdbc.execute("DROP TRIGGER IF EXISTS synthetic_audit_failure")
+        }
+        action()
+        assertThat(events.count()).isEqualTo(beforeEvents + 1)
+    }
+
+    @Test
+    fun historicalResultsReplayAfterLaterMovesChangesAndCancellations() {
+        val creationKey = key()
+        val original = create(operation = creationKey)
+        val moveKey = key()
+        val moved = service.move(original.resourceId, second.id!!, 0, moveKey)
+        val changeKey = key()
+        val changed =
+            service.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, changeKey)
+        val cancelKey = key()
+        val cancelled = service.cancel(original.resourceId, 2, cancelKey)
+        assertThat(create(operation = creationKey)).isEqualTo(original)
+        assertThat(service.move(original.resourceId, second.id!!, 0, moveKey)).isEqualTo(moved)
+        assertThat(service.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, changeKey))
+            .isEqualTo(changed)
+        assertThat(service.cancel(original.resourceId, 2, cancelKey)).isEqualTo(cancelled)
+        assertThat(service.reservation(original.resourceId).version).isEqualTo(3)
+        val blockKey = key()
+        val blocked = service.block(third.id!!, "2026-11-06", "2026-11-09", "Synthetic", blockKey)
+        val unblockKey = key()
+        val unblocked = service.unblock(blocked.resourceId, 0, unblockKey)
+        assertThat(service.block(third.id!!, "2026-11-06", "2026-11-09", "Synthetic", blockKey))
+            .isEqualTo(blocked)
+        assertThat(service.unblock(blocked.resourceId, 0, unblockKey)).isEqualTo(unblocked)
+        assertThat(events.count()).isEqualTo(6)
+    }
+
+    @Test
+    fun oppositeMovesOfNonoverlappingStaysCompleteWithoutALockCycle() {
+        val one = create(first, end = "2026-11-08")
+        val two = create(second, start = "2026-11-08", end = "2026-11-10")
+        assertThat(
+                race(
+                    { service.move(one.resourceId, second.id!!, 0, key()) },
+                    { service.move(two.resourceId, first.id!!, 0, key()) },
+                )
+            )
+            .containsOnly("COMMITTED")
+        assertThat(service.reservation(one.resourceId).roomId).isEqualTo(second.id)
+        assertThat(service.reservation(two.resourceId).roomId).isEqualTo(first.id)
+    }
+
+    @Test
+    fun committedInventoryWritesDoNotReuseOrRollBackWithAnOuterPersistenceContext() {
+        val original = create()
+        TransactionTemplate(transactionManager).execute { outer ->
+            val cached = reservations.findById(original.resourceId).get()
+            assertThat(cached.roomId).isEqualTo(first.id)
+            service.move(original.resourceId, second.id!!, 0, key())
+            service.change(original.resourceId, "2026-11-05", "2026-11-10", 2, 1, key())
+            outer.setRollbackOnly()
+        }
+        val current = service.reservation(original.resourceId)
+        assertThat(current.roomId).isEqualTo(second.id)
+        assertThat(current.startDate).isEqualTo("2026-11-05")
+        assertThat(current.version).isEqualTo(2)
     }
 
     @Test

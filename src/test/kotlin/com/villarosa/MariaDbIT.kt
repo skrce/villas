@@ -262,6 +262,81 @@ constructor(
         assertThat(request("POST", path).statusCode()).isEqualTo(200)
     }
 
+    @Test
+    fun calendarAndHistoryHttpQueriesValidateBoundsAndExposeCursors() {
+        val json = tools.jackson.databind.json.JsonMapper.builder().build()
+        val guest =
+            customers.save(
+                com.villarosa.repository.model.Customer.buildCustomer(
+                    "Query",
+                    "Guest",
+                    "000",
+                    "Synthetic",
+                )
+            )
+        val room = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
+        val first =
+            request(
+                    "POST",
+                    "/api/v1/reservations?customerId=${guest.id}&roomId=${room.id}&startDate=2026-11-01&endDate=2026-11-03",
+                )
+                .body()
+                .toInt()
+        val second =
+            request(
+                    "POST",
+                    "/api/v1/reservations?customerId=${guest.id}&roomId=${room.id}&startDate=2026-11-03&endDate=2026-11-05",
+                )
+                .body()
+                .toInt()
+        assertThat(
+                request("DELETE", "/api/v1/reservations?reservationId=$first&expectedVersion=0")
+                    .statusCode()
+            )
+            .isEqualTo(200)
+        val path = "/api/v1/reservations?startDate=2026-11-01&endDate=2026-11-06"
+        val firstPage = request("GET", "$path&limit=1")
+        assertThat(firstPage.statusCode()).isEqualTo(200)
+        val page = json.readTree(firstPage.body())
+        assertThat(page.get("items").size()).isEqualTo(1)
+        assertThat(page.get("nextCursor").asInt()).isEqualTo(first)
+        val next = json.readTree(request("GET", "$path&limit=1&afterId=$first").body())
+        assertThat(next.get("items").get(0).get("id").asInt()).isEqualTo(second)
+        assertThat(next.get("nextCursor").isNull).isTrue()
+        val active = json.readTree(request("GET", "$path&status=ACTIVE").body())
+        assertThat(active.get("items").size()).isEqualTo(1)
+        assertThat(active.get("items").get(0).get("id").asInt()).isEqualTo(second)
+        val history = request("GET", "/api/v1/reservations/$first/events?limit=1")
+        assertThat(history.statusCode()).isEqualTo(200)
+        val events = json.readTree(history.body())
+        assertThat(events.get("nextCursor").isString).isTrue()
+        assertThat(events.get("items").get(0).get("occurredAt").asString()).endsWith("Z")
+        assertThat(history.body()).doesNotContain("phone", "address", "Guest")
+        val badLimit = request("GET", "$path&limit=201")
+        assertThat(badLimit.statusCode()).isEqualTo(400)
+        assertThat(badLimit.body()).contains("INVALID_PAGE_SIZE")
+        val badCursor = request("GET", "/api/v1/reservations/$first/events?afterId=1.5")
+        assertThat(badCursor.statusCode()).isEqualTo(400)
+        assertThat(badCursor.body()).contains("INVALID_CURSOR")
+        assertThat(request("GET", "$path&status=active").statusCode()).isEqualTo(400)
+        assertThat(request("GET", "/api/v1/reservations/999999/events").statusCode()).isEqualTo(404)
+        val block =
+            request(
+                "POST",
+                "/api/v1/maintenance-blocks?roomId=${room.id}&startDate=2026-12-01&endDate=2026-12-03",
+            )
+        val blockId = json.readTree(block.body()).get("id").asInt()
+        val blocks =
+            request(
+                "GET",
+                "/api/v1/maintenance-blocks?startDate=2026-12-01&endDate=2026-12-04&limit=1",
+            )
+        assertThat(blocks.statusCode()).isEqualTo(200)
+        assertThat(json.readTree(blocks.body()).get("items").size()).isEqualTo(1)
+        assertThat(request("GET", "/api/v1/maintenance-blocks/$blockId/events").statusCode())
+            .isEqualTo(200)
+    }
+
     private fun request(
         method: String,
         path: String,

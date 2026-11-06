@@ -26,7 +26,9 @@ does not prevent competing creates. Cancelled reservations and maintenance block
 remain stored but no longer occupy inventory. Events and successful operation results
 are retained; no purge job is installed. See the [reservation contract](contracts/reservations.md)
 for lock ordering, replay, and the temporary development actor. Date-filtered bounded
-read models and their indexes follow in the final milestone 2 PR.
+read models use database pagination. Indexes support calendar windows, guest lists,
+and event cursors without changing the inventory predicate. Event IDs are exposed
+as decimal strings so BIGINT values preserve precision in browser clients.
 
 Legacy price integers have no production rate meaning. Exact EUR-cent rate and quote
 records belong to milestone 6; no historical conversion is performed. Business

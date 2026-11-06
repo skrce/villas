@@ -7,6 +7,8 @@ import com.villarosa.repository.InventoryAvailability
 import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.*
 import java.util.UUID
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -117,9 +119,12 @@ class ReservationService(
                 PropertyScope.ID,
                 customerId,
                 ReservationStatus.ACTIVE,
+                PageRequest.of(
+                    0,
+                    100,
+                    Sort.by(Sort.Order.desc("startDate"), Sort.Order.desc("id")),
+                ),
             )
-            .sortedByDescending { it.startDate }
-            .take(100)
             .map { it.toReservationInfo() }
 
     fun createReservation(

@@ -97,8 +97,26 @@ retention remain deployment work.
 Availability is advisory. It filters active rooms by capacity and uses exactly the
 same overlap predicate as the writer, but a write always locks and checks again.
 `GET /api/v1/reservations/{id}` includes status and version. The compatibility guest
-list returns active reservations. Bounded date-filtered reservation, maintenance,
-and event queries are the remaining milestone 2 query PR.
+list returns the latest 100 active reservations, ordered by check-in then ID
+descending, with the limit applied in SQL.
+
+Calendar reads use `GET /api/v1/reservations` and `GET /api/v1/maintenance-blocks`.
+Both require `startDate` and `endDate`, select overlapping half-open intervals, and
+optionally filter `status=ACTIVE|CANCELLED`. Without a status filter they include both.
+A query may span at most 366 calendar days. This is a query bound, not a maximum-stay
+policy. Both accept `limit` (default 100, range 1-200) and exclusive `afterId` (default
+0). Results are `{items, nextCursor}` in ascending ID order. When `nextCursor` is not
+null, request the next page with that value and the same filters. The database loads
+at most `limit + 1` rows; it does not fetch the entire dataset and slice in memory.
+
+History reads use `GET /api/v1/reservations/{id}/events` and
+`GET /api/v1/maintenance-blocks/{id}/events` with the same limit and exclusive cursor
+convention. A missing or foreign-property subject returns 404. Event IDs and cursors
+are decimal strings so BIGINT identifiers cannot lose precision in JavaScript.
+Each item contains actor, key, kind, resource version, affected room/dates/count,
+and UTC event time. No guest contact fields are returned. All calendar and history
+queries are property-scoped. Pages reflect state at each request; they are not a
+frozen snapshot across concurrent edits. Refresh a calendar after a successful write.
 
 `InventoryIT` runs the selected MariaDB image and real migrations. It races creates,
 moves, extensions, cancellation, and maintenance, checks replay/rollback/property
@@ -106,3 +124,8 @@ scope, and rejects each overlap shape while accepting adjacent stays. HTTP tests
 exercise keys, versions, and 400/404/409 responses. Browser checks use the packaged
 API and a private MariaDB. H2 is useful for fast regressions but is not evidence for
 these native locking guarantees.
+
+`InventoryQueriesIT` checks half-open filters, cancellation/history visibility,
+pagination, property isolation, limits, and actual Hibernate entity-load counts.
+Native rollback tests inject failures after every type of inventory mutation.
+Historical replay and suspended outer transactions also have permanent regressions.

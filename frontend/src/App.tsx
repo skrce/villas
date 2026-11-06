@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import './App.css';
 import { buildApis, type ApiConfig } from './api/client';
 import { buildBookingActions } from './api/bookingActions';
@@ -103,23 +103,27 @@ const parseErrorMessage = async (error: unknown) => {
   return 'Unexpected error.';
 };
 
-const CalendarInput = ({ label, value, onChange, placeholder }: CalendarInputProps) => (
-  <label className="field">
-    <span>{label}</span>
-    <DatePicker
-      selected={parseDateString(value)}
-      onChange={(date: Date | null) => onChange(date ? formatDate(date) : '')}
-      dateFormat="yyyy-MM-dd"
-      placeholderText={placeholder ?? 'YYYY-MM-DD'}
-      className="date-input"
-      showPopperArrow={false}
-      popperPlacement="bottom-start"
-      isClearable
-      showIcon
-      toggleCalendarOnIconClick
-    />
-  </label>
-);
+const CalendarInput = ({ label, value, onChange, placeholder }: CalendarInputProps) => {
+  const id = useId();
+  return (
+    <div className="field">
+      <label htmlFor={id}><span>{label}</span></label>
+      <DatePicker
+        id={id}
+        selected={parseDateString(value)}
+        onChange={(date: Date | null) => onChange(date ? formatDate(date) : '')}
+        dateFormat="yyyy-MM-dd"
+        placeholderText={placeholder ?? 'YYYY-MM-DD'}
+        className="date-input"
+        showPopperArrow={false}
+        popperPlacement="bottom-start"
+        isClearable
+        showIcon
+        toggleCalendarOnIconClick
+      />
+    </div>
+  );
+};
 
 function App() {
   const [draftConfig, setDraftConfig] = useState<ApiConfig>(() => loadConfig());
@@ -146,9 +150,11 @@ function App() {
   const [reservationRoomId, setReservationRoomId] = useState('');
   const [reservationStartDate, setReservationStartDate] = useState('');
   const [reservationEndDate, setReservationEndDate] = useState('');
+  const [reservationGuestCount, setReservationGuestCount] = useState('1');
 
   const [availabilityStartDate, setAvailabilityStartDate] = useState('');
   const [availabilityEndDate, setAvailabilityEndDate] = useState('');
+  const [availabilityGuestCount, setAvailabilityGuestCount] = useState('1');
 
   const [reservationsCustomerId, setReservationsCustomerId] = useState('');
 
@@ -258,6 +264,11 @@ function App() {
       setAlert({ type: 'error', message: 'Customer ID and Room ID must be numbers.' });
       return;
     }
+    const guestCount = Number(reservationGuestCount);
+    if (!Number.isSafeInteger(guestCount) || guestCount <= 0) {
+      setAlert({ type: 'error', message: 'Guest count must be a positive whole number.' });
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -266,6 +277,7 @@ function App() {
         roomId,
         startDate: reservationStartDate,
         endDate: reservationEndDate,
+        guestCount,
       });
       setCreatedReservationId(id);
       setAlert({ type: 'success', message: `Reservation created with ID ${id}.` });
@@ -284,12 +296,18 @@ function App() {
       setAlert({ type: 'error', message: 'Start and end dates are required.' });
       return;
     }
+    const guestCount = Number(availabilityGuestCount);
+    if (!Number.isSafeInteger(guestCount) || guestCount <= 0) {
+      setAlert({ type: 'error', message: 'Guest count must be a positive whole number.' });
+      return;
+    }
 
     setIsLoading(true);
     try {
       const data = await apis.reservationApi.findAvailableApartments({
         startDate: availabilityStartDate,
         endDate: availabilityEndDate,
+        guestCount,
       });
       setAvailableApartments(data);
       setAlert({ type: 'success', message: `Found ${data.length} available apartments.` });
@@ -722,6 +740,11 @@ function App() {
                 value={reservationEndDate}
                 onChange={setReservationEndDate}
               />
+              <label className="field">
+                <span>Guest count</span>
+                <input type="number" min="1" step="1" required value={reservationGuestCount}
+                  onChange={(event) => setReservationGuestCount(event.target.value)} />
+              </label>
               <div className="form-actions">
                 <button className="btn primary" type="submit" disabled={isLoading}>
                   Create reservation
@@ -746,6 +769,11 @@ function App() {
                 value={availabilityEndDate}
                 onChange={setAvailabilityEndDate}
               />
+              <label className="field">
+                <span>Guest count</span>
+                <input type="number" min="1" step="1" required value={availabilityGuestCount}
+                  onChange={(event) => setAvailabilityGuestCount(event.target.value)} />
+              </label>
               <div className="form-actions">
                 <button className="btn" type="submit" disabled={isLoading}>
                   Find availability
