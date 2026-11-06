@@ -7,6 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { onlineManager } from "@tanstack/react-query";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
 import { refreshSession } from "../api/session";
@@ -322,6 +323,54 @@ async function navigate(path: string) {
 }
 
 describe("guest and room workflows", () => {
+  it("keeps an open recovery check read-only when another Owner restores the room and reconnect refreshes it", async () => {
+    rooms.set(7, { ...roomFixture, active: false, version: 1 });
+    await mount("/rooms/7?from=2030-02-01&to=2030-02-03");
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: "Check interrupted maintenance save",
+      }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Check interrupted maintenance save",
+    });
+    const started = Date.now();
+    try {
+      onlineManager.setOnline(false);
+      rooms.set(7, { ...roomFixture, active: true, version: 2 });
+      vi.setSystemTime(started + 31_000);
+      await act(async () => {
+        onlineManager.setOnline(true);
+      });
+      await waitFor(() =>
+        expect(calls("/api/v1/apartments/7", "GET")).toHaveLength(2),
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("button", { name: "Restore room" }),
+        ).not.toBeInTheDocument(),
+      );
+      expect(
+        screen.getByRole("dialog", {
+          name: "Check interrupted maintenance save",
+        }),
+      ).toBe(dialog);
+      expect(
+        within(dialog).queryByRole("button", { name: "Save maintenance" }),
+      ).not.toBeInTheDocument();
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Check saved result" }),
+      );
+      await within(dialog).findByText(
+        /No pending maintenance request matches these details/,
+      );
+      expect(calls("/api/v1/apartments/7/maintenance", "POST")).toHaveLength(0);
+      expect(blocks).toHaveLength(0);
+    } finally {
+      vi.setSystemTime(started);
+      onlineManager.setOnline(true);
+    }
+  });
   it("keeps guest drafts with their own record when browser Back changes the profile", async () => {
     guests.set(6, {
       ...guestFixture,

@@ -102,7 +102,7 @@ export function RoomDetail() {
   };
   const windowValid = periodSchema.safeParse(period).success;
   const [editing, setEditing] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<{ recoveryOnly: boolean }>();
   const [busy, setBusy] = useState(false);
   const [confirmedBlock, setConfirmedBlock] = useState<number>();
   const [statusTarget, setStatusTarget] = useState<Apartment>();
@@ -247,7 +247,9 @@ export function RoomDetail() {
               <h2>Availability & maintenance</h2>
               <button
                 className={`button${room.data.active === false ? " secondary" : ""}`}
-                onClick={() => setAdding(true)}
+                onClick={() =>
+                  setAdding({ recoveryOnly: room.data.active === false })
+                }
               >
                 {room.data.active === false
                   ? "Check interrupted maintenance save"
@@ -402,22 +404,22 @@ export function RoomDetail() {
       {adding && (
         <Dialog
           title={
-            room.data?.active === false
+            adding.recoveryOnly
               ? "Check interrupted maintenance save"
               : "Block for maintenance"
           }
           busy={busy}
-          onClose={() => setAdding(false)}
+          onClose={() => setAdding(undefined)}
         >
           <MaintenanceForm
             roomId={id}
-            recoveryOnly={room.data?.active === false}
+            recoveryOnly={adding.recoveryOnly}
             from={windowValid ? period.from : today}
             to={windowValid ? period.to : addDays(today, 1)}
             onPending={setBusy}
             onSaved={(blockId, from, to) => {
               setConfirmedBlock(blockId);
-              setAdding(false);
+              setAdding(undefined);
               setParams({
                 from,
                 to:

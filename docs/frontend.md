@@ -73,6 +73,8 @@ checks the key/kind/resource, room, dates, reason and maintenance state/version 
 clearing the intent. Archived rooms offer an explicit interrupted-save check that
 only looks up a retained operation. It cannot create a new block, including after a
 definitive uncommitted result; restore the room before making a new maintenance save.
+The recovery dialog stays read-only until closed, even if the room is restored while
+the dialog is open.
 Successful maintenance selects its dated room window, retaining cancelled history.
 
 Guest creation has no idempotency contract yet. Its unconfirmed-result message directs
