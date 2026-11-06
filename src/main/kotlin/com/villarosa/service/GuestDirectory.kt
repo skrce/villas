@@ -78,18 +78,25 @@ class GuestDirectory(private val guests: CustomerRepository) {
     }
 
     private fun phoneExpression(root: Root<Customer>, cb: CriteriaBuilder): Expression<String> {
-        var expression: Expression<String> = cb.coalesce(root.get("phone"), "")
-        for (separator in listOf(" ", "-", "(", ")", ".", "+")) expression =
+        val compact =
             cb.function(
-                "replace",
+                "regexp_replace",
                 String::class.java,
-                expression,
-                cb.literal(separator),
+                cb.coalesce(root.get("phone"), ""),
+                cb.literal("[\\p{Z}\\s().-]"),
                 cb.literal(""),
             )
-        return cb.selectCase<String>()
-            .`when`(cb.like(expression, "00%"), cb.substring(expression, 3))
-            .otherwise(expression)
+        val normalizedPrefix =
+            cb.selectCase<String>()
+                .`when`(cb.like(compact, "00%"), cb.substring(compact, 3))
+                .otherwise(compact)
+        return cb.function(
+            "replace",
+            String::class.java,
+            normalizedPrefix,
+            cb.literal("+"),
+            cb.literal(""),
+        )
     }
 
     private fun escape(value: String) =

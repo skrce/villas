@@ -145,6 +145,46 @@ constructor(
     }
 
     @Test
+    fun exactPhoneSearchAndDuplicateReviewPreserveAnAcceptedPlusZeroPrefix() {
+        val id = guest("Prefix", "Zero", "+00123")
+        assertThat(service.query(null, "+00123", false, 0, 10).items.map { it.id })
+            .containsExactly(id)
+        assertThat(
+                service
+                    .duplicates(GuestProfile("Other", "Person", "+00123", null, null, null))
+                    .map { it.id }
+            )
+            .containsExactly(id)
+    }
+
+    @Test
+    fun pastedUnicodeSpacesNormalizeInNamesPhonesAndLegacySearchValues() {
+        val id = guest("Јана", "Гостин", "+389\u00a070\u202f123\u00a0456")
+        assertThat(
+                service.query("гостин\u00a0јана", "+389 70 123 456", false, 0, 10).items.map {
+                    it.id
+                }
+            )
+            .containsExactly(id)
+        val legacy =
+            guests.saveAndFlush(
+                Customer(
+                    firstName = "Legacy",
+                    lastName = "Phone",
+                    phone = "00389\u00a070\u202f123-456",
+                )
+            )
+        assertThat(service.query(null, "+389\u00a070123456", false, 0, 10).items.map { it.id })
+            .containsExactly(id, legacy.id)
+        assertThat(
+                service
+                    .duplicates(GuestProfile("Other", "Person", "+38970123456", null, null, null))
+                    .map { it.id }
+            )
+            .containsExactly(id, legacy.id)
+    }
+
+    @Test
     fun profileEditsAndRestorationRequireTheReviewedVersionAndKeepOldValuesOnStaleWrites() {
         val id = guest()
         val profile =

@@ -59,7 +59,7 @@ data class GuestProfile(
                 )
             return text
                 .takeIf { it.isNotEmpty() }
-                ?.let { if (multiline) it else it.replace(Regex("\\s+"), " ") }
+                ?.let { if (multiline) it else it.replace(Regex("[\\p{Z}\\s]+"), " ") }
         }
 
         fun phone(value: String?): String? {

@@ -8,7 +8,8 @@ import org.junit.jupiter.api.assertThrows
 class GuestProfilesTest {
     @Test
     fun namesNormalizeComposedUnicodeAndWhitespaceWhileMissingContactsStayNull() {
-        val value = GuestProfile.normalize(" E\u0301va  Maria ", "  Гостин ", " ", null, "", "\n")
+        val value =
+            GuestProfile.normalize(" E\u0301va\u00a0\u202fMaria ", "  Гостин ", " ", null, "", "\n")
         assertThat(value.firstName).isEqualTo("Éva Maria")
         assertThat(value.lastName).isEqualTo("Гостин")
         assertThat(listOf(value.phone, value.address, value.email, value.notes)).containsOnlyNulls()
