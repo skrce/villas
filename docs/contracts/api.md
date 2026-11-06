@@ -2,6 +2,10 @@
 
 ## Current contract
 
+JSON integer fields require integer number tokens. Fractional/exponent numbers and
+quoted numbers are rejected instead of being truncated/coerced. Boolean flags also
+require JSON booleans. This applies to edit versions, cursors and numeric bodies.
+
 Backend mappings and annotations own the API description. `ApiContractTest` exports
 `target/openapi.json`; `scripts/sync-openapi.mjs` normalizes it into the committed
 `frontend/openapi.json`. OpenAPI Generator 7.19.0 produces
