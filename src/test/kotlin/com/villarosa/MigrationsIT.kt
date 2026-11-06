@@ -26,7 +26,7 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(7)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(8)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
@@ -74,7 +74,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(6)
+            .isEqualTo(7)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement
@@ -311,6 +311,52 @@ class MigrationsIT {
                         assertThat(result.getString(1)).isEqualTo("Гостин")
                         assertThat(result.getString(2)).isEqualTo("2026-03-28")
                     }
+            }
+        }
+    }
+
+    @Test
+    fun guestProfileUpgradeResumesPartialDdlAndPreservesOldContactsAndBookings() {
+        DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "7")
+            .migrate()
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate("INSERT INTO apartments (id, capacity) VALUES (1, 2)")
+                statement.executeUpdate(
+                    "INSERT INTO customers (id, first_name, last_name, phone, address) VALUES (1, 'Јана', 'Гостин', '070 123-456', 'Synthetic address')"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO reservations (id, customer_id, room_id, start_date, end_date) VALUES (1, 1, 1, '2026-03-28', '2026-03-30')"
+                )
+                statement.execute("ALTER TABLE customers ADD COLUMN email VARCHAR(254) NULL")
+                statement.execute("ALTER TABLE customers MODIFY COLUMN address VARCHAR(500) NULL")
+            }
+        }
+        val flyway =
+            DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
+        assertThat(flyway.migrate().migrationsExecuted).isZero()
+        connection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement
+                    .executeQuery(
+                        "SELECT c.first_name,c.phone,c.address,c.active,c.version,r.start_date FROM customers c JOIN reservations r ON r.customer_id=c.id WHERE c.id=1"
+                    )
+                    .use { row ->
+                        assertThat(row.next()).isTrue()
+                        assertThat(row.getString(1)).isEqualTo("Јана")
+                        assertThat(row.getString(2)).isEqualTo("070 123-456")
+                        assertThat(row.getString(3)).isEqualTo("Synthetic address")
+                        assertThat(row.getBoolean(4)).isTrue()
+                        assertThat(row.getLong(5)).isZero()
+                        assertThat(row.getString(6)).isEqualTo("2026-03-28")
+                    }
+                statement.executeUpdate(
+                    "INSERT INTO customers (first_name,last_name) VALUES ('Walk','In')"
+                )
+                assertThrows<SQLException> {
+                    statement.executeUpdate("UPDATE customers SET active=2 WHERE id=1")
+                }
             }
         }
     }

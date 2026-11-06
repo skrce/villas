@@ -6,10 +6,13 @@
 
 Name | Type
 ------------ | -------------
+`active` | boolean
 `address` | string
+`email` | string
 `firstName` | string
 `id` | number
 `lastName` | string
+`notes` | string
 `phone` | string
 `version` | number
 
@@ -20,10 +23,13 @@ import type { Customer } from ''
 
 // TODO: Update the object below with actual values
 const example = {
+  "active": null,
   "address": null,
+  "email": null,
   "firstName": null,
   "id": null,
   "lastName": null,
+  "notes": null,
   "phone": null,
   "version": null,
 } satisfies Customer

@@ -17,12 +17,12 @@ Kotlin/Spring, Java 21, React/TypeScript/Vite, and MariaDB stack remains in use.
 
 ## Business policy gates
 
-These proposals are not owner-approved policies. Their dependent milestone must
-record an explicit decision before shipping the corresponding feature.
+D05 is confirmed below. The remaining proposals require an owner decision before
+shipping their dependent features.
 
 | Gate | Current behavior or proposal | Required before |
 | --- | --- | --- |
-| D05: Guest fields | The legacy API requires nonblank first name, last name, phone, and address. Proposed staff form: require names, allow missing phone/address, and show missing contact information. Confirm the exact required fields before changing validation. | Guest management, milestone 5 |
+| D05: Guest fields | Confirmed by the owner on November 6, 2026. Require first and last names. Phone, email, operational address and notes are optional. Missing contacts remain visibly missing; never invent contact values or collect identity documents. | Guest management, milestone 5 |
 | D06: Cancellation and refunds | Milestone 2 retains cancelled bookings and events and releases inventory. It initiates no financial action. Confirm deadlines, fees, cancellation permissions, and refund rules before the complete staff workflow. | Booking workflow and settlement, milestones 7 and 8 |
 | D07: Rate overrides | Proposed: owners may override a saved quote with an explicit reason and audit entry. Front desk needs a separate permission. Confirm allowed discounts, rounding, taxes/fees, and minimum-stay rules. | Rates and quotes, milestone 6 |
 | D08: Manual settlement | Proposed v1 records payments/refunds collected outside Villas. Store no card data and initiate no financial transactions. Confirm permitted methods, refund permissions, reconciliation, and record correction policy. | Front-desk settlement, milestone 8 |

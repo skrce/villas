@@ -24,7 +24,19 @@ export interface CustomerCreateRequest {
      * @type {string}
      * @memberof CustomerCreateRequest
      */
-    address: string;
+    address?: string | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof CustomerCreateRequest
+     */
+    allowDuplicate?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof CustomerCreateRequest
+     */
+    email?: string | null;
     /**
      * 
      * @type {string}
@@ -42,17 +54,21 @@ export interface CustomerCreateRequest {
      * @type {string}
      * @memberof CustomerCreateRequest
      */
-    phone: string;
+    notes?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof CustomerCreateRequest
+     */
+    phone?: string | null;
 }
 
 /**
  * Check if a given object implements the CustomerCreateRequest interface.
  */
 export function instanceOfCustomerCreateRequest(value: object): value is CustomerCreateRequest {
-    if (!('address' in value) || value['address'] === undefined) return false;
     if (!('firstName' in value) || value['firstName'] === undefined) return false;
     if (!('lastName' in value) || value['lastName'] === undefined) return false;
-    if (!('phone' in value) || value['phone'] === undefined) return false;
     return true;
 }
 
@@ -66,10 +82,13 @@ export function CustomerCreateRequestFromJSONTyped(json: any, ignoreDiscriminato
     }
     return {
         
-        'address': json['address'],
+        'address': json['address'] == null ? undefined : json['address'],
+        'allowDuplicate': json['allowDuplicate'] == null ? undefined : json['allowDuplicate'],
+        'email': json['email'] == null ? undefined : json['email'],
         'firstName': json['firstName'],
         'lastName': json['lastName'],
-        'phone': json['phone'],
+        'notes': json['notes'] == null ? undefined : json['notes'],
+        'phone': json['phone'] == null ? undefined : json['phone'],
     };
 }
 
@@ -85,8 +104,11 @@ export function CustomerCreateRequestToJSONTyped(value?: CustomerCreateRequest |
     return {
         
         'address': value['address'],
+        'allowDuplicate': value['allowDuplicate'],
+        'email': value['email'],
         'firstName': value['firstName'],
         'lastName': value['lastName'],
+        'notes': value['notes'],
         'phone': value['phone'],
     };
 }

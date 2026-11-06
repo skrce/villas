@@ -6,7 +6,7 @@ requires an explicit capability decision, server enforcement, and denial tests.
 
 | Capability | Owner |
 | --- | --- |
-| Read and write the implemented guest and reservation workflows | Allowed |
+| List/search/edit/archive/restore guests and use the implemented reservation workflows | Allowed |
 | Read rooms and manage dated maintenance | Allowed |
 | Invite another Owner, revoke invitations, deactivate accounts, revoke sessions | Allowed, with current membership and last-owner protection |
 | Read operational and staff audit history | Allowed |
@@ -40,3 +40,9 @@ The routed UI shows Owner settings only with `staff:manage`; backend checks rema
 authority. Login-generation changes remount query observers and clear their old cache,
 while the same Owner's entered drafts remain above that boundary. An Owner change
 creates a new workspace/draft store. Logout hides and clears protected state immediately.
+
+Guest contacts, duplicate candidates and complete reservation history are Owner-only.
+Every new guest query and mutation checks current membership and property scope.
+Housekeeping is not an available role and direct requests with that authority are
+rejected. Guest writes lock the Owner and affected guest, require CSRF/Origin at the
+HTTP boundary, and record surrogate IDs without copying contact fields into audit.

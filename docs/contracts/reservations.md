@@ -7,7 +7,7 @@ An active stay occupies `[startDate, endDate)`. Two intervals overlap exactly wh
 `existing.startDate < requested.endDate AND existing.endDate > requested.startDate`.
 Adjacent stays are allowed. Active maintenance blocks consume the same inventory.
 
-Creation checks the configured property's guest and room references, a positive
+Creation checks the configured property's active guest and room references, a positive
 integral guest count, capacity, room active state, and overlapping inventory. Moves
 and date/count changes enforce those same room rules. Assigning the current room is
 a no-op, including when that room has subsequently been made inactive. It still
@@ -16,7 +16,7 @@ requires the current version and an active reservation.
 ## Transactions and versions
 
 Every inventory mutation uses a new READ COMMITTED transaction. It claims the
-operation key, locks apartment rows with `SELECT ... FOR UPDATE`, checks the current
+operation key, locks the guest for create/move/date changes, then locks apartment rows with `SELECT ... FOR UPDATE`, checks the current
 resource and inventory, writes the resource and its event, then records the result.
 All of these writes commit or roll back together.
 
@@ -25,7 +25,9 @@ mutations lock the affected apartment before the reservation or block row. A mov
 that discovers a changed original room fails rather than editing without its lock.
 The initial room lookup returns a scalar ID so it cannot cache a stale entity before
 the locked read. READ COMMITTED keeps an overlap query from using a snapshot taken
-before a competing writer finished. Future room deactivation and capacity edits must
+before a competing writer finished. Guest archival uses the same guest row lock and
+rejects current/future active bookings. Archived guests reject new booking, move and
+date/count changes while cancellation remains possible. Room deactivation and capacity edits must
 use this same apartment lock before checking affected reservations.
 
 Canonical edits require `expectedVersion`. A different current version returns

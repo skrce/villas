@@ -13,6 +13,9 @@ docs/CustomerApi.md
 docs/CustomerCreateRequest.md
 docs/CustomerSearchRequest.md
 docs/ErrorResponse.md
+docs/GuestPage.md
+docs/GuestQueryRequest.md
+docs/GuestUpdateRequest.md
 docs/InventoryApi.md
 docs/InventoryEventInfo.md
 docs/InventoryEventPage.md
@@ -22,6 +25,7 @@ docs/MaintenanceApi.md
 docs/MaintenanceBlock.md
 docs/MaintenancePage.md
 docs/OperationResult.md
+docs/RecordStatusRequest.md
 docs/ReservationApi.md
 docs/ReservationInfo.md
 docs/ReservationPage.md
@@ -35,6 +39,9 @@ models/Customer.ts
 models/CustomerCreateRequest.ts
 models/CustomerSearchRequest.ts
 models/ErrorResponse.ts
+models/GuestPage.ts
+models/GuestQueryRequest.ts
+models/GuestUpdateRequest.ts
 models/InventoryEventInfo.ts
 models/InventoryEventPage.ts
 models/InvitationView.ts
@@ -42,6 +49,7 @@ models/InviteOwnerRequest.ts
 models/MaintenanceBlock.ts
 models/MaintenancePage.ts
 models/OperationResult.ts
+models/RecordStatusRequest.ts
 models/ReservationInfo.ts
 models/ReservationPage.ts
 models/SessionView.ts

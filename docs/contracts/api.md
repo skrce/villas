@@ -38,17 +38,18 @@ Legacy aliases remain because callers outside the console have not been inventor
 Every legacy URL above accepts both forms with and without its trailing slash.
 Remove an alias only with its own compatibility review and tests.
 
-Create-customer query parameters are `firstName`, `lastName`, `phone`, and `address`,
-all nonblank. Guest search prioritizes a nonblank `firstName`, otherwise `phone`;
-it does not combine both filters. Create-booking parameters are `customerId`,
+Guest creation uses JSON with required first/last names and optional phone, email,
+address and notes. Full guest contracts, combined filters, bounded pages, archival
+and duplicate review are documented in [guests and rooms](guests-and-rooms.md).
+The compatibility first-name/phone search now applies both supplied filters with AND. Create-booking parameters are `customerId`,
 `roomId`, `startDate`, `endDate`, and integral `guestCount` (default 1). Availability
 also accepts `guestCount`. All canonical inventory mutations require the
 `Idempotency-Key` header. Move/cancel take `reservationId` and `expectedVersion`;
 move also takes `newRoomId`. Date/count changes take the path ID, dates, count, and
 version. Maintenance creation takes room, dates, and an optional reason (default
 `Maintenance`); cancellation takes the path block ID and expected version.
-JSON request DTOs and safer guest-data transport belong to the owning milestone.
-Avoid query logging in the meantime. See [reservation semantics](reservations.md)
+Inventory writes retain their existing parameter contract. Guest write/search bodies
+use JSON. Avoid logging request bodies and legacy guest query strings. See [reservation semantics](reservations.md)
 for transaction, replay, legacy compatibility, and unknown-outcome behavior.
 
 Calendar queries require a strict `startDate`/`endDate` interval of at most 366 days.
@@ -115,7 +116,7 @@ transactions/constraints. Check-in/out, housekeeping, and the manual payment/ref
 ledger belong to milestone 8. Dashboard/report aggregates belong to milestone 9.
 Update the generated contract and permission matrix with each domain.
 
-Guest fields, cancellation/refund rules, and rate-override rules are open gates in
+Guest fields are confirmed. Cancellation/refund and rate-override rules remain open in
 [decisions](../decisions.md). Do not silently turn proposals into policy.
 
 The staff workspace uses generated clients with same-origin sessions and cancellation
