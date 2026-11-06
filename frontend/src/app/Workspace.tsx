@@ -101,6 +101,7 @@ export default function Workspace() {
         String(epoch),
         apis.maintenanceApi,
         apis.apartmentApi,
+        apis.quotesApi,
       ),
     };
   }, [ownerId, epoch]);

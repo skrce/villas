@@ -23,6 +23,7 @@ class ReservationServiceIntegrationTest
 @Autowired
 constructor(
     private val reservationService: ReservationService,
+    private val quotes: QuoteService,
     private val reservationRepository: ReservationRepository,
     private val apartmentRepository: ApartmentRepository,
     private val customerRepository: CustomerRepository,
@@ -44,6 +45,7 @@ constructor(
                 apartment.id!!,
                 "2020-01-01",
                 "2020-01-05",
+                quotes.create(apartment.id!!, "2020-01-01", "2020-01-05", 1).id,
             )
 
         val saved = reservationRepository.findById(reservationId).orElse(null)
@@ -219,7 +221,11 @@ constructor(
                 )
             )
 
-        reservationService.updateReservationRoom(reservation.id!!, apartment2.id!!)
+        reservationService.updateReservationRoom(
+            reservation.id!!,
+            apartment2.id!!,
+            quotes.create(apartment2.id!!, "2020-01-01", "2020-01-05", 1).id,
+        )
 
         val updated = reservationRepository.findById(reservation.id!!).orElse(null)
         assertThat(updated).isNotNull
@@ -247,7 +253,11 @@ constructor(
 
         val exception =
             assertThrows<com.villarosa.exception.DomainException> {
-                reservationService.updateReservationRoom(reservation.id!!, apartment2.id!!)
+                reservationService.updateReservationRoom(
+                    reservation.id!!,
+                    apartment2.id!!,
+                    quotes.create(apartment2.id!!, "2020-01-01", "2020-01-05", 1).id,
+                )
             }
 
         assertThat(exception.message).contains("The room is unavailable for those dates.")
@@ -289,7 +299,16 @@ constructor(
         topSeasonPrice: Int = 150,
     ): Apartment =
         apartmentRepository.save(
-            Apartment(null, capacity, orientation, view, regularPrice, topSeasonPrice)
+            Apartment(
+                null,
+                capacity,
+                orientation,
+                view,
+                regularPrice,
+                topSeasonPrice,
+                baseRateCents = 5001,
+                rateVersion = 1,
+            )
         )
 
     private fun date(value: String): LocalDate = LocalDate.parse(value)

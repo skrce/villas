@@ -13,7 +13,7 @@ class ReservationController(private val service: ReservationService) {
     @PostMapping("/api/v1/reservations")
     @Operation(
         operationId = "createReservation",
-        summary = "Create a reservation with a stable operation key",
+        summary = "Create a reservation with an accepted quote and stable operation key",
     )
     fun createReservation(
         @RequestParam customerId: Int,
@@ -22,8 +22,10 @@ class ReservationController(private val service: ReservationService) {
         @RequestParam endDate: String,
         @RequestParam(defaultValue = "1") guestCount: Int,
         @RequestHeader("Idempotency-Key") key: String,
+        @RequestParam(required = false) quoteId: String?,
     ): ResponseEntity<Int> {
-        val result = service.create(customerId, roomId, startDate, endDate, guestCount, key)
+        val result =
+            service.create(customerId, roomId, startDate, endDate, guestCount, key, quoteId)
         return ResponseEntity.ok()
             .header("X-Operation-Key", result.key)
             .header("X-Resource-Version", result.reservation!!.version.toString())
@@ -40,8 +42,9 @@ class ReservationController(private val service: ReservationService) {
         @RequestParam newRoomId: Int,
         @RequestParam expectedVersion: Long,
         @RequestHeader("Idempotency-Key") key: String,
+        @RequestParam(required = false) quoteId: String?,
     ) {
-        service.move(reservationId, newRoomId, expectedVersion, key)
+        service.move(reservationId, newRoomId, expectedVersion, key, quoteId)
     }
 
     @DeleteMapping("/api/v1/reservations")
@@ -69,9 +72,10 @@ class ReservationController(private val service: ReservationService) {
         @RequestParam guestCount: Int,
         @RequestParam expectedVersion: Long,
         @RequestHeader("Idempotency-Key") key: String,
+        @RequestParam(required = false) quoteId: String?,
     ): ReservationInfo =
         service
-            .change(reservationId, startDate, endDate, guestCount, expectedVersion, key)
+            .change(reservationId, startDate, endDate, guestCount, expectedVersion, key, quoteId)
             .reservation!!
 
     @GetMapping("/api/v1/reservations/{reservationId}")

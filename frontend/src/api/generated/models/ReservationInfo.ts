@@ -21,6 +21,12 @@ import { mapValues } from '../runtime';
 export interface ReservationInfo {
     /**
      * 
+     * @type {string}
+     * @memberof ReservationInfo
+     */
+    acceptedQuoteId?: string | null;
+    /**
+     * 
      * @type {number}
      * @memberof ReservationInfo
      */
@@ -103,6 +109,7 @@ export function ReservationInfoFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
+        'acceptedQuoteId': json['acceptedQuoteId'] == null ? undefined : json['acceptedQuoteId'],
         'customerId': json['customerId'] == null ? undefined : json['customerId'],
         'endDate': json['endDate'] == null ? undefined : json['endDate'],
         'guestCount': json['guestCount'] == null ? undefined : json['guestCount'],
@@ -126,6 +133,7 @@ export function ReservationInfoToJSONTyped(value?: ReservationInfo | null, ignor
 
     return {
         
+        'acceptedQuoteId': value['acceptedQuoteId'],
         'customerId': value['customerId'],
         'endDate': value['endDate'],
         'guestCount': value['guestCount'],

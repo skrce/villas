@@ -7,6 +7,13 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.security.core.context.SecurityContextHolder
 
 object TestData {
+    fun configureSyntheticRate(jdbc: JdbcTemplate, roomId: Int) {
+        jdbc.update(
+            "UPDATE apartments SET base_rate_cents=5001, rate_version=1 WHERE property_id='villa-rosa' AND id=? AND base_rate_cents IS NULL",
+            roomId,
+        )
+    }
+
     fun reset(
         jdbc: JdbcTemplate,
         expectedUrl: String = "jdbc:h2:mem:villarosa",
@@ -40,14 +47,16 @@ object TestData {
             listOf(
                 "staff_events",
                 "staff_invitations",
-                "staff_accounts",
                 "inventory_events",
                 "inventory_operations",
+                "reservation_prices",
                 "reservations",
+                "booking_quotes",
                 "maintenance_blocks",
                 "seasonal_rates",
                 "customers",
                 "apartments",
+                "staff_accounts",
             )) {
             jdbc.update("DELETE FROM $table WHERE id IS NOT NULL")
         }

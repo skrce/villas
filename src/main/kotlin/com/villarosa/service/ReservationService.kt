@@ -23,7 +23,39 @@ class ReservationService(
     private val availability: InventoryAvailability,
     private val current: CurrentStaff,
     private val access: StaffAccess,
+    private val quotes: QuoteService,
 ) {
+    fun createQuoted(
+        customerId: Int,
+        suppliedQuote: String,
+        roomId: Int,
+        start: String,
+        end: String,
+        guestCount: Int,
+        key: String,
+    ): OperationResult {
+        val quoteId = quotes.id(suppliedQuote)
+        val dates = StayDates.parse(start, end)
+        try {
+            return operations.execute(
+                OperationKind.CREATE,
+                key,
+                listOf("QUOTED", customerId, quoteId, roomId, start, end, guestCount),
+            ) { operationKey ->
+                writer.create(
+                    customerId,
+                    roomId,
+                    dates,
+                    guestCount,
+                    operationKey,
+                    quoteId,
+                )
+            }
+        } catch (changed: QuoteReviewRequired) {
+            throw quotes.refresh(changed.quoteId)
+        }
+    }
+
     fun create(
         customerId: Int,
         roomId: Int,
@@ -31,7 +63,10 @@ class ReservationService(
         end: String,
         guestCount: Int,
         key: String,
+        quoteId: String? = null,
     ): OperationResult {
+        if (quoteId != null)
+            return createQuoted(customerId, quoteId, roomId, start, end, guestCount, key)
         val dates = StayDates.parse(start, end)
         return operations.execute(
             OperationKind.CREATE,
@@ -42,10 +77,27 @@ class ReservationService(
         }
     }
 
-    fun move(id: Int, roomId: Int, version: Long?, key: String): OperationResult =
-        operations.execute(OperationKind.MOVE, key, listOf(id, roomId, version)) {
-            writer.move(id, roomId, version, it)
+    fun move(
+        id: Int,
+        roomId: Int,
+        version: Long?,
+        key: String,
+        quoteId: String? = null,
+    ): OperationResult {
+        val quoted = quoteId?.let(quotes::id)
+        try {
+            return operations.execute(
+                OperationKind.MOVE,
+                key,
+                if (quoted == null) listOf(id, roomId, version)
+                else listOf("QUOTED", id, roomId, version, quoted),
+            ) {
+                writer.move(id, roomId, version, it, quoted)
+            }
+        } catch (changed: QuoteReviewRequired) {
+            throw quotes.refresh(changed.quoteId)
         }
+    }
 
     fun change(
         id: Int,
@@ -54,14 +106,21 @@ class ReservationService(
         guestCount: Int,
         version: Long,
         key: String,
+        quoteId: String? = null,
     ): OperationResult {
         val dates = StayDates.parse(start, end)
-        return operations.execute(
-            OperationKind.CHANGE,
-            key,
-            listOf(id, start, end, guestCount, version),
-        ) {
-            writer.change(id, dates, guestCount, version, it)
+        val quoted = quoteId?.let(quotes::id)
+        try {
+            return operations.execute(
+                OperationKind.CHANGE,
+                key,
+                if (quoted == null) listOf(id, start, end, guestCount, version)
+                else listOf("QUOTED", id, start, end, guestCount, version, quoted),
+            ) {
+                writer.change(id, dates, guestCount, version, it, quoted)
+            }
+        } catch (changed: QuoteReviewRequired) {
+            throw quotes.refresh(changed.quoteId)
         }
     }
 
@@ -141,12 +200,21 @@ class ReservationService(
         roomId: Int,
         startDateString: String,
         endDateString: String,
+        quoteId: String? = null,
     ): Int =
-        create(customerId, roomId, startDateString, endDateString, 1, UUID.randomUUID().toString())
+        create(
+                customerId,
+                roomId,
+                startDateString,
+                endDateString,
+                1,
+                UUID.randomUUID().toString(),
+                quoteId,
+            )
             .resourceId
 
-    fun updateReservationRoom(reservationId: Int, newRoomId: Int) {
-        move(reservationId, newRoomId, null, UUID.randomUUID().toString())
+    fun updateReservationRoom(reservationId: Int, newRoomId: Int, quoteId: String? = null) {
+        move(reservationId, newRoomId, null, UUID.randomUUID().toString(), quoteId)
     }
 
     fun cancelReservation(reservationId: Int) {

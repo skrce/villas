@@ -46,6 +46,11 @@ async function fillBooking(
   });
 }
 
+async function reviewAndConfirm(page: Page) {
+  await page.getByRole("button", { name: "Review price", exact: true }).click();
+  await page.getByRole("button", { name: /^Confirm reservation ·/ }).click();
+}
+
 test("an Owner creates a guest and booking, edits the stay, moves the room and cancels with persisted history", async ({
   page,
 }) => {
@@ -71,9 +76,7 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
   await page.getByLabel("Room", { exact: true }).selectOption({
     label: "Synthetic lake room · South · DEMO-LAKE · up to 2 guests",
   });
-  await page
-    .getByRole("button", { name: "Create reservation", exact: true })
-    .click();
+  await reviewAndConfirm(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     /^Reservation #\d+$/,
   );
@@ -81,14 +84,16 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
   await page.getByRole("button", { name: "Edit stay", exact: true }).click();
   const edit = page.getByRole("dialog", { name: "Edit stay" });
   await edit.getByLabel("Check-out", { exact: true }).fill("2026-11-10");
-  await edit.getByRole("button", { name: "Save changes" }).click();
+  await edit.getByRole("button", { name: "Review price", exact: true }).click();
+  await edit.getByRole("button", { name: /^Confirm changes ·/ }).click();
   await expect(edit).not.toBeVisible();
   await page.getByRole("button", { name: "Move room", exact: true }).click();
   const move = page.getByRole("dialog", { name: "Move room" });
   await move
     .getByLabel("New room")
     .selectOption({ label: "Synthetic garden room · East · DEMO-GARDEN" });
-  await move.getByRole("button", { name: "Save changes" }).click();
+  await move.getByRole("button", { name: "Review price", exact: true }).click();
+  await move.getByRole("button", { name: /^Confirm changes ·/ }).click();
   await expect(move).not.toBeVisible();
   const saved = await page.request.get(`/api/v1/reservations/${reservationId}`);
   expect(await saved.json()).toMatchObject({
@@ -113,6 +118,28 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
     `/api/v1/reservations/${reservationId}/events`,
   );
   expect((await history.json()).items).toHaveLength(4);
+  const agreements = await (
+    await page.request.get(`/api/v1/reservations/${reservationId}/prices`)
+  ).json();
+  expect(
+    agreements.items.map(
+      (value: {
+        reservationVersion: number;
+        quote: { price: { totalCents: number } };
+      }) => [value.reservationVersion, value.quote.price.totalCents],
+    ),
+  ).toEqual([
+    [2, 24004],
+    [1, 20004],
+    [0, 15003],
+  ]);
+  const accepted = await (
+    await page.request.get(`/api/v1/reservations/${reservationId}/price`)
+  ).json();
+  expect(accepted).toMatchObject({
+    recorded: true,
+    price: { reservationVersion: 2, quote: { price: { totalCents: 24004 } } },
+  });
   const stored = await page.evaluate(() => JSON.stringify(localStorage));
   for (const value of ["BrowserTest", "Гостин", "Synthetic test record"])
     expect(stored).not.toContain(value);
@@ -138,6 +165,10 @@ test("separate tabs reconcile a lost booking response with the same durable key"
   await fillBooking(page, id);
   const other = await context.newPage();
   await fillBooking(other, id);
+  await page.getByRole("button", { name: "Review price", exact: true }).click();
+  await other
+    .getByRole("button", { name: "Review price", exact: true })
+    .click();
   let release = () => {};
   const allowed = new Promise<void>((resolve) => {
     release = resolve;
@@ -147,7 +178,7 @@ test("separate tabs reconcile a lost booking response with the same durable key"
     started = resolve;
   });
   const keys: string[] = [];
-  await page.route("**/api/v1/reservations?**", async (route) => {
+  await page.route("**/api/v1/reservations/quoted", async (route) => {
     if (route.request().method() !== "POST") return route.continue();
     keys.push(route.request().headers()["idempotency-key"]);
     started();
@@ -156,7 +187,7 @@ test("separate tabs reconcile a lost booking response with the same durable key"
     expect(response.ok()).toBeTruthy();
     await route.abort("failed");
   });
-  await other.route("**/api/v1/reservations?**", async (route) => {
+  await other.route("**/api/v1/reservations/quoted", async (route) => {
     if (route.request().method() === "POST") {
       keys.push(route.request().headers()["idempotency-key"]);
       release();
@@ -164,13 +195,9 @@ test("separate tabs reconcile a lost booking response with the same durable key"
     await route.continue();
   });
   try {
-    await page
-      .getByRole("button", { name: "Create reservation", exact: true })
-      .click();
+    await page.getByRole("button", { name: /^Confirm reservation ·/ }).click();
     await inFlight;
-    await other
-      .getByRole("button", { name: "Create reservation", exact: true })
-      .click();
+    await other.getByRole("button", { name: /^Confirm reservation ·/ }).click();
     await expect(other.getByRole("heading", { level: 1 })).toHaveText(
       /^Reservation #\d+$/,
     );
@@ -187,7 +214,7 @@ test("separate tabs reconcile a lost booking response with the same durable key"
     ]);
     await fillBooking(page, id, "2026-11-12", "2026-11-14", true);
     await page
-      .getByRole("button", { name: "Create reservation", exact: true })
+      .getByRole("button", { name: "Check previous save", exact: true })
       .click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       /^Reservation #\d+$/,
@@ -232,6 +259,62 @@ test("deep links, keyboard dialogs and accessible layouts work at desktop and 32
   page,
 }, testInfo) => {
   await signIn(page);
+  const headers = await headersFor(page);
+  const roomResponse = await page.request.post("/api/v1/apartments", {
+    headers,
+    data: {
+      name: "Synthetic accessibility room",
+      reference: "ACCESS-6",
+      capacity: 2,
+    },
+  });
+  expect(roomResponse.ok()).toBeTruthy();
+  const room = await roomResponse.json();
+  expect(
+    (
+      await page.request.put(`/api/v1/apartments/${room.id}/rates`, {
+        headers,
+        data: {
+          expectedVersion: 0,
+          currency: "EUR",
+          baseNightlyCents: 5001,
+          seasons: [],
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  const guestResponse = await page.request.post("/api/v1/customers", {
+    headers,
+    data: { firstName: "Synthetic", lastName: "Accessibility" },
+  });
+  expect(guestResponse.ok()).toBeTruthy();
+  const customerId = await guestResponse.json();
+  const stay = {
+    roomId: room.id,
+    startDate: "2026-11-20",
+    endDate: "2026-11-22",
+    guestCount: 1,
+  };
+  const offered = await page.request.post("/api/v1/booking-quotes", {
+    headers,
+    data: stay,
+  });
+  expect(offered.ok()).toBeTruthy();
+  const quote = await offered.json();
+  const confirmed = await page.request.post("/api/v1/reservations/quoted", {
+    headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
+    data: { ...stay, customerId, quoteId: quote.id },
+  });
+  expect(confirmed.ok()).toBeTruthy();
+  const id = await confirmed.json();
+  expect(
+    (
+      await page.request.delete(
+        `/api/v1/reservations?reservationId=${id}&expectedVersion=0`,
+        { headers: { ...headers, "Idempotency-Key": crypto.randomUUID() } },
+      )
+    ).ok(),
+  ).toBeTruthy();
   await page.goto(
     "/reservations?from=2026-11-01&to=2026-12-01&status=CANCELLED",
   );
@@ -291,7 +374,7 @@ test("deep links, keyboard dialogs and accessible layouts work at desktop and 32
   });
   await page.getByRole("link", { name: /New reservation/ }).click();
   await expect(
-    page.getByRole("button", { name: "Create reservation" }),
+    page.getByRole("button", { name: "Review price", exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -356,7 +439,7 @@ test("session revocation preserves entered booking details and never resubmits a
   page.on("request", (request) => {
     if (
       request.method() === "POST" &&
-      request.url().includes("/api/v1/reservations?")
+      new URL(request.url()).pathname === "/api/v1/reservations/quoted"
     )
       writes++;
   });
@@ -390,6 +473,19 @@ test("Owner guest and room management protects stays and retains maintenance/his
     "Synthetic courtyard studio",
   );
   const roomId = Number(new URL(page.url()).pathname.split("/").pop());
+  const configured = await page.request.put(
+    `/api/v1/apartments/${roomId}/rates`,
+    {
+      headers: await headersFor(page),
+      data: {
+        expectedVersion: 0,
+        currency: "EUR",
+        baseNightlyCents: 6501,
+        seasons: [],
+      },
+    },
+  );
+  expect(configured.ok()).toBeTruthy();
   await page.getByRole("button", { name: "Edit room", exact: true }).click();
   const editRoom = page.getByRole("dialog", { name: "Edit room" });
   await editRoom.getByLabel("Amenities").fill("Synthetic terrace, Wi-Fi");
@@ -444,9 +540,7 @@ test("Owner guest and room management protects stays and retains maintenance/his
   await page.getByLabel("Room", { exact: true }).selectOption({
     label: "Synthetic courtyard studio · COURT-3 · up to 4 guests",
   });
-  await page
-    .getByRole("button", { name: "Create reservation", exact: true })
-    .click();
+  await reviewAndConfirm(page);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     /^Reservation #\d+$/,
   );
@@ -881,4 +975,346 @@ test("maintenance recovery survives another tab's confirmation, room archival an
     ),
   ).not.toContain("Synthetic interrupted repair");
   await second.close();
+});
+
+test("saved quotes require explicit acceptance, retain exact seasonal prices and survive rate changes", async ({
+  page,
+}, testInfo) => {
+  await signIn(page);
+  const headers = await headersFor(page);
+  const created = await page.request.post("/api/v1/apartments", {
+    headers,
+    data: { name: "Synthetic quote studio", reference: "QUOTE-6", capacity: 4 },
+  });
+  expect(created.ok()).toBeTruthy();
+  const room = await created.json();
+  const guestResponse = await page.request.post("/api/v1/customers", {
+    headers,
+    data: { firstName: "Synthetic", lastName: "QuoteGuest" },
+  });
+  expect(guestResponse.ok()).toBeTruthy();
+  const guestId = await guestResponse.json();
+  await page.goto(`/reservations/new?guest=${guestId}`);
+  await expect(
+    page.getByRole("combobox", { name: "Guest", exact: true }),
+  ).not.toHaveValue("");
+  await page.getByLabel("Check-in", { exact: true }).fill("2028-02-28");
+  await page.getByLabel("Check-out", { exact: true }).fill("2028-03-02");
+  await page.getByLabel("Guests", { exact: true }).fill("4");
+  await page.getByLabel("Room", { exact: true }).selectOption(String(room.id));
+  await page.getByRole("button", { name: "Review price", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Configure this room's rates" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Confirm reservation/ }),
+  ).toHaveCount(0);
+  const ratesPath = `/api/v1/apartments/${room.id}/rates`;
+  const seasons = [
+    {
+      name: "Synthetic leap-day season",
+      startDate: "2028-02-29",
+      endDate: "2028-03-02",
+      nightlyCents: 7501,
+    },
+  ];
+  expect(
+    (
+      await page.request.put(ratesPath, {
+        headers,
+        data: {
+          expectedVersion: 0,
+          currency: "EUR",
+          baseNightlyCents: 5001,
+          seasons,
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.getByRole("button", { name: "Review price", exact: true }).click();
+  const review = page.getByRole("region", {
+    name: "Reviewed accommodation price",
+  });
+  await expect(review).toContainText("€200.03");
+  await expect(review).toContainText("1 night × €50.01");
+  await expect(review).toContainText("2 nights × €75.01");
+  let confirmations = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/api/v1/reservations/quoted"
+    )
+      confirmations++;
+  });
+  expect(confirmations).toBe(0);
+  expect(
+    (
+      await page.request.put(ratesPath, {
+        headers,
+        data: {
+          expectedVersion: 1,
+          currency: "EUR",
+          baseNightlyCents: 6001,
+          seasons,
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page
+    .getByRole("button", { name: "Confirm reservation · €200.03", exact: true })
+    .click();
+  await expect(review).toContainText("€210.03");
+  await expect(
+    page.getByText("The quote was refreshed.", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Check-in", { exact: true })).toHaveValue(
+    "2028-02-28",
+  );
+  expect(confirmations).toBe(1);
+  await page.setViewportSize({ width: 320, height: 800 });
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  const screenshot = testInfo.outputPath("quote-phone.png");
+  await page.screenshot({ path: screenshot, fullPage: true });
+  await testInfo.attach("Review a saved quote at 320px", {
+    path: screenshot,
+    contentType: "image/png",
+  });
+  await page
+    .getByRole("button", { name: "Confirm reservation · €210.03", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Reservation #\d+$/,
+  );
+  expect(confirmations).toBe(2);
+  const id = Number(new URL(page.url()).pathname.split("/").pop());
+  const accepted = await (
+    await page.request.get(`/api/v1/reservations/${id}/price`)
+  ).json();
+  expect(accepted).toMatchObject({
+    recorded: true,
+    price: {
+      reservationVersion: 0,
+      quote: { price: { totalCents: 21003, rateVersion: 2 } },
+    },
+  });
+  expect(
+    (
+      await page.request.put(ratesPath, {
+        headers,
+        data: {
+          expectedVersion: 2,
+          currency: "EUR",
+          baseNightlyCents: 9901,
+          seasons: [],
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Agreed accommodation price" }),
+  ).toBeVisible();
+  await expect(page.getByText("€210.03", { exact: true })).toBeVisible();
+  expect(
+    await (await page.request.get(`/api/v1/reservations/${id}/price`)).json(),
+  ).toEqual(accepted);
+  await page
+    .getByRole("button", { name: "Price history", exact: true })
+    .click();
+  await expect(
+    page.getByText("Current agreement", { exact: true }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("an Owner accepts a refreshed edit price and recovers a lost confirmation after cancellation and reload without another quote or write", async ({
+  page,
+}, testInfo) => {
+  await signIn(page);
+  const headers = await headersFor(page);
+  const createdRoom = await page.request.post("/api/v1/apartments", {
+    headers,
+    data: { name: "Synthetic edit studio", reference: "EDIT-6", capacity: 4 },
+  });
+  expect(createdRoom.ok()).toBeTruthy();
+  const room = await createdRoom.json();
+  const ratesPath = `/api/v1/apartments/${room.id}/rates`;
+  expect(
+    (
+      await page.request.put(ratesPath, {
+        headers,
+        data: {
+          expectedVersion: 0,
+          currency: "EUR",
+          baseNightlyCents: 5001,
+          seasons: [],
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  const guest = await page.request.post("/api/v1/customers", {
+    headers,
+    data: { firstName: "Synthetic", lastName: "PriceEdit" },
+  });
+  expect(guest.ok()).toBeTruthy();
+  const customerId = await guest.json();
+  await page.goto(`/reservations/new?guest=${customerId}`);
+  await expect(
+    page.getByRole("combobox", { name: "Guest", exact: true }),
+  ).not.toHaveValue("");
+  await page.getByLabel("Check-in", { exact: true }).fill("2034-06-01");
+  await page.getByLabel("Check-out", { exact: true }).fill("2034-06-03");
+  await page.getByLabel("Room", { exact: true }).selectOption(String(room.id));
+  await reviewAndConfirm(page);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Reservation #\d+$/,
+  );
+  const id = Number(new URL(page.url()).pathname.split("/").pop());
+  const target = `/api/v1/reservations/${id}/dates/quoted`;
+  let editWrites = 0;
+  let quoteWrites = 0;
+  const keys: string[] = [];
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (request.method() === "PATCH" && path === target) {
+      editWrites++;
+      keys.push(request.headers()["idempotency-key"]);
+    }
+    if (request.method() === "POST" && path === "/api/v1/booking-quotes")
+      quoteWrites++;
+  });
+  await page.getByRole("button", { name: "Edit stay", exact: true }).click();
+  const edit = page.getByRole("dialog", { name: "Edit stay" });
+  await edit.getByLabel("Check-out", { exact: true }).fill("2034-06-04");
+  await edit.getByRole("button", { name: "Review price", exact: true }).click();
+  await expect(
+    edit.getByRole("button", {
+      name: "Confirm changes · €150.03",
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(
+    (
+      await page.request.put(ratesPath, {
+        headers,
+        data: {
+          expectedVersion: 1,
+          currency: "EUR",
+          baseNightlyCents: 6001,
+          seasons: [],
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  await edit
+    .getByRole("button", { name: "Confirm changes · €150.03", exact: true })
+    .click();
+  await expect(
+    edit.getByRole("button", {
+      name: "Confirm changes · €180.03",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(edit.getByLabel("Check-out", { exact: true })).toHaveValue(
+    "2034-06-04",
+  );
+  expect(editWrites).toBe(1);
+  expect(
+    (await (await page.request.get(`/api/v1/reservations/${id}`)).json())
+      .version,
+  ).toBe(0);
+  await page.route(`**${target}`, async (route) => {
+    if (route.request().method() !== "PATCH") return route.continue();
+    const response = await route.fetch();
+    expect(response.ok()).toBeTruthy();
+    await route.abort("failed");
+  });
+  await edit
+    .getByRole("button", { name: "Confirm changes · €180.03", exact: true })
+    .click();
+  await expect(
+    edit.getByText(/The result could not be confirmed/),
+  ).toBeVisible();
+  expect(editWrites).toBe(2);
+  expect(new Set(keys).size).toBe(2);
+  expect(
+    (
+      await page.request.put(ratesPath, {
+        headers,
+        data: {
+          expectedVersion: 2,
+          currency: "EUR",
+          baseNightlyCents: 7001,
+          seasons: [],
+        },
+      })
+    ).ok(),
+  ).toBeTruthy();
+  const cancelled = await page.request.delete(
+    `/api/v1/reservations?reservationId=${id}&expectedVersion=1`,
+    { headers: { ...headers, "Idempotency-Key": crypto.randomUUID() } },
+  );
+  expect(cancelled.ok()).toBeTruthy();
+  const quoteCount = quoteWrites;
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Check previous save", exact: true })
+    .click();
+  const recovered = page.getByRole("dialog", { name: "Check previous save" });
+  await expect(recovered.getByLabel("Check-out", { exact: true })).toHaveValue(
+    "2034-06-04",
+  );
+  await expect(
+    recovered.getByRole("button", {
+      name: /Review price|Confirm changes|Load latest stay/,
+    }),
+  ).toHaveCount(0);
+  await recovered
+    .getByRole("button", { name: "Check previous save", exact: true })
+    .click();
+  await expect(recovered).not.toBeVisible();
+  expect(editWrites).toBe(2);
+  expect(quoteWrites).toBe(quoteCount);
+  expect(
+    await (await page.request.get(`/api/v1/reservations/${id}`)).json(),
+  ).toMatchObject({ status: "CANCELLED", version: 2 });
+  const accepted = await (
+    await page.request.get(`/api/v1/reservations/${id}/price`)
+  ).json();
+  expect(accepted).toMatchObject({
+    recorded: true,
+    price: {
+      reservationVersion: 1,
+      quote: { price: { rateVersion: 2, totalCents: 18003 } },
+    },
+  });
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page
+    .getByRole("button", { name: "Price history", exact: true })
+    .click();
+  await expect(
+    page.getByText("Previous agreement", { exact: true }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  const screenshot = testInfo.outputPath("accepted-prices-phone.png");
+  await page.screenshot({ path: screenshot, fullPage: true });
+  await testInfo.attach("Accepted price history at 320px", {
+    path: screenshot,
+    contentType: "image/png",
+  });
 });

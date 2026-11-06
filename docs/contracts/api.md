@@ -34,6 +34,10 @@ edits require expected versions. The generated client and console send both.
 | `blockApartment` | `POST /api/v1/apartments/{id}/maintenance` | Existing query-based maintenance creation | Private JSON inventory block |
 | `roomRates` / `updateRoomRates` | `GET` / `PUT /api/v1/apartments/{id}/rates` | None | Reviewed exact EUR base and seasonal rates |
 | `previewRoomRates` | `POST /api/v1/apartments/{id}/rates/preview` | None | Private accommodation price breakdown, without accepting a quote |
+| `createBookingQuote` / `getBookingQuote` | `POST /api/v1/booking-quotes` / `GET /api/v1/booking-quotes/{id}` | None | Immutable Owner-scoped quote with expiry and rate version |
+| `confirmReservationQuote` | `POST /api/v1/reservations/quoted` | Creation adapters also accept `quoteId` | Private reviewed stay/quote confirmation with a stable operation key |
+| `reservationPrice` / `reservationPriceHistory` | `GET /api/v1/reservations/{id}/price` / `/prices` | None | Accepted price and bounded immutable history |
+| `moveReservationWithQuote` / `changeReservationWithQuote` | `PATCH /api/v1/reservations/{id}/room/quoted` / `/dates/quoted` | Older change routes accept `quoteId` | Whole-stay price acceptance and atomic versioned edit |
 | `createReservation` | `POST /api/v1/reservations` | `POST /reservation` | Bookings, milestones 2 and 7 |
 | `findAvailableApartments` | `GET /api/v1/reservations/available-apartments` | `GET /reservation/available-apartments` | Availability, milestones 2 and 7 |
 | `findReservationsByCustomer` | `GET /api/v1/reservations/customer` | `GET /reservation/customer` | Bookings, milestone 7 |
@@ -132,8 +136,9 @@ transactions/constraints. Check-in/out, housekeeping, and the manual payment/ref
 ledger belong to milestone 8. Dashboard/report aggregates belong to milestone 9.
 Update the generated contract and permission matrix with each domain.
 
-Guest fields are confirmed. Cancellation/refund and rate-override rules remain open in
-[decisions](../decisions.md). Do not silently turn proposals into policy.
+Guest fields are confirmed. Cancellation/refund rules remain open in
+[decisions](../decisions.md). Manual overrides are confirmed disabled; booking-change
+repricing is confirmed as a full current-rate quote requiring explicit acceptance. See the pricing contract for no-op, history and recovery rules.
 
 The staff workspace uses generated clients with same-origin sessions and cancellation
 signals on queries. Guest search criteria stay in JSON. Browser route links contain
@@ -151,4 +156,11 @@ Reference/capacity/archive errors and surrogate conflict links are defined in
 Room rate configuration uses its own version and private JSON amounts in exact EUR
 cents. The preview has no quote identity and reserves no inventory. Missing prices
 are configuration errors. See [pricing](pricing.md) for seasonal boundaries, checked
-arithmetic, supported amounts, concurrency and remaining quote work.
+arithmetic, supported amounts, concurrency, saved-quote confirmation and recovery.
+
+New booking creation requires a reviewed quote on every canonical/legacy route.
+An original committed pre-pricing request remains replayable with its old key/input.
+The quoted JSON endpoint rejects client totals and unsupported pricing fields.
+`QUOTE_CHANGED` is a 409 containing a persisted `replacementQuote` for explicit
+review. `QUOTE_REQUIRED`, `QUOTE_MISMATCH` and `QUOTE_ALREADY_ACCEPTED` are also 409.
+`INVALID_QUOTE` is 400. No quote reserves inventory. See [pricing](pricing.md).

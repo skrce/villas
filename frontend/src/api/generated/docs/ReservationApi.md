@@ -6,7 +6,7 @@ All URIs are relative to */api/v1*
 |------------- | ------------- | -------------|
 | [**cancelReservation**](ReservationApi.md#cancelreservation) | **DELETE** /reservations | Retain a cancellation and release inventory |
 | [**changeReservationDates**](ReservationApi.md#changereservationdates) | **PATCH** /reservations/{reservationId}/dates | Change stay dates and guest count |
-| [**createReservation**](ReservationApi.md#createreservation) | **POST** /reservations | Create a reservation with a stable operation key |
+| [**createReservation**](ReservationApi.md#createreservation) | **POST** /reservations | Create a reservation with an accepted quote and stable operation key |
 | [**findAvailableApartments**](ReservationApi.md#findavailableapartments) | **GET** /reservations/available-apartments | Read advisory availability using the write-side overlap rules |
 | [**findReservationsByCustomer**](ReservationApi.md#findreservationsbycustomer) | **GET** /reservations/customer | Read active reservations for a guest |
 | [**getOperation**](ReservationApi.md#getoperation) | **GET** /operations/{operationKey} | Reconcile a write using its stable operation key |
@@ -93,7 +93,7 @@ example().catch(console.error);
 
 ## changeReservationDates
 
-> ReservationInfo changeReservationDates(reservationId, startDate, endDate, guestCount, expectedVersion, idempotencyKey)
+> ReservationInfo changeReservationDates(reservationId, startDate, endDate, guestCount, expectedVersion, idempotencyKey, quoteId)
 
 Change stay dates and guest count
 
@@ -127,6 +127,8 @@ async function example() {
     expectedVersion: 789,
     // string
     idempotencyKey: idempotencyKey_example,
+    // string (optional)
+    quoteId: quoteId_example,
   } satisfies ChangeReservationDatesRequest;
 
   try {
@@ -152,6 +154,7 @@ example().catch(console.error);
 | **guestCount** | `number` |  | [Defaults to `undefined`] |
 | **expectedVersion** | `number` |  | [Defaults to `undefined`] |
 | **idempotencyKey** | `string` |  | [Defaults to `undefined`] |
+| **quoteId** | `string` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -178,9 +181,9 @@ example().catch(console.error);
 
 ## createReservation
 
-> number createReservation(customerId, roomId, startDate, endDate, idempotencyKey, guestCount)
+> number createReservation(customerId, roomId, startDate, endDate, idempotencyKey, guestCount, quoteId)
 
-Create a reservation with a stable operation key
+Create a reservation with an accepted quote and stable operation key
 
 ### Example
 
@@ -212,6 +215,8 @@ async function example() {
     idempotencyKey: idempotencyKey_example,
     // number (optional)
     guestCount: 56,
+    // string (optional)
+    quoteId: quoteId_example,
   } satisfies CreateReservationRequest;
 
   try {
@@ -237,6 +242,7 @@ example().catch(console.error);
 | **endDate** | `string` |  | [Defaults to `undefined`] |
 | **idempotencyKey** | `string` |  | [Defaults to `undefined`] |
 | **guestCount** | `number` |  | [Optional] [Defaults to `1`] |
+| **quoteId** | `string` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -552,7 +558,7 @@ example().catch(console.error);
 
 ## updateReservationRoom
 
-> updateReservationRoom(reservationId, newRoomId, expectedVersion, idempotencyKey)
+> updateReservationRoom(reservationId, newRoomId, expectedVersion, idempotencyKey, quoteId)
 
 Move a reservation using its expected version
 
@@ -582,6 +588,8 @@ async function example() {
     expectedVersion: 789,
     // string
     idempotencyKey: idempotencyKey_example,
+    // string (optional)
+    quoteId: quoteId_example,
   } satisfies UpdateReservationRoomRequest;
 
   try {
@@ -605,6 +613,7 @@ example().catch(console.error);
 | **newRoomId** | `number` |  | [Defaults to `undefined`] |
 | **expectedVersion** | `number` |  | [Defaults to `undefined`] |
 | **idempotencyKey** | `string` |  | [Defaults to `undefined`] |
+| **quoteId** | `string` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 

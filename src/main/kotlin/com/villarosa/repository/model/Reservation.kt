@@ -34,6 +34,7 @@ data class Reservation(
     @Column(name = "property_id", nullable = false)
     val propertyId: String = "villa-rosa",
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
+    @Column(name = "accepted_quote_id", length = 36) var acceptedQuoteId: String? = null,
 ) {
 
     fun toReservationInfo() =
@@ -47,6 +48,7 @@ data class Reservation(
             status,
             version,
             ChronoUnit.DAYS.between(startDate, endDate),
+            acceptedQuoteId,
         )
 
     companion object {
@@ -74,4 +76,5 @@ data class ReservationInfo(
     val status: ReservationStatus = ReservationStatus.ACTIVE,
     val version: Long = 0,
     val nights: Long = 0,
+    val acceptedQuoteId: String? = null,
 )

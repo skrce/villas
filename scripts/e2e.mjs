@@ -53,7 +53,7 @@ try {
   await run(['scripts/run-api.mjs', '--migrate']);
   await run(['scripts/dev-db.mjs', 'fixtures']);
   await run(['scripts/run-api.mjs', '--bootstrap-owner']);
-  await run(['node_modules/@playwright/test/cli.js', 'test'], `${root}/frontend`);
+  await run(['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(2)], `${root}/frontend`);
 } catch (error) {
   if (!interruptedBy) console.error(error.message);
   process.exitCode = interruptedBy === 'SIGINT' ? 130 : interruptedBy === 'SIGTERM' ? 143 : 1;

@@ -1,5 +1,6 @@
 package com.villarosa.exception
 
+import com.villarosa.service.BookingQuote
 import org.springframework.http.HttpStatus
 
 class DomainException(
@@ -8,6 +9,7 @@ class DomainException(
     override val message: String,
     val relatedReservationIds: List<Int>? = null,
     val moreReservations: Boolean? = null,
+    val replacementQuote: BookingQuote? = null,
 ) : RuntimeException(message)
 
 fun invalid(code: String, message: String): Nothing =

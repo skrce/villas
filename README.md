@@ -93,9 +93,13 @@ node scripts/dev-db.mjs fixtures
 ```
 
 This adds two synthetic rooms only when all three business tables are empty. It
-refuses to replace existing records. No guest or booking is seeded. The fixture prices
-are legacy test values, not configured production rates. Owners add/edit rooms and guests through the app. Rates and saved quotes
-remain milestone 6.
+refuses to replace existing records. No guest or booking is seeded. New synthetic
+rooms have explicit EUR-cent nightly rates, separate from the retained legacy test
+price fields. Existing rooms are never repriced by rerunning fixtures. Owners configure
+their rates on the room page, then review and accept a saved price when booking.
+Manual price overrides are disabled. Changes to room, dates or party size require
+explicit acceptance of a new whole-stay quote at current rates. Prior agreed prices
+remain in history. Interrupted saves can be checked without a fresh quote or write.
 
 ```sh
 node scripts/dev-db.mjs status

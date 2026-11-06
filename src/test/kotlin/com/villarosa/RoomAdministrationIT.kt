@@ -40,9 +40,13 @@ constructor(
     private val rooms: ApartmentRepository,
     private val bookings: ReservationRepository,
     private val inventory: ReservationService,
+    private val quotes: QuoteService,
     private val queries: InventoryQueries,
     private val jdbc: JdbcTemplate,
+    private val transactionManager: org.springframework.transaction.PlatformTransactionManager,
 ) {
+    private val reviewed = ReviewedChanges(inventory, quotes, transactionManager)
+
     @BeforeEach
     fun fixtures() {
         TestData.reset(jdbc, database.jdbcUrl)
@@ -65,8 +69,19 @@ constructor(
 
     private fun key() = UUID.randomUUID().toString()
 
-    private fun createBooking(room: Apartment, count: Int = 3) =
-        inventory.create(guest().id!!, room.id!!, "2099-01-01", "2099-01-04", count, key())
+    private fun createBooking(room: Apartment, count: Int = 3): OperationResult {
+        TestData.configureSyntheticRate(jdbc, room.id!!)
+        val quote = quotes.create(room.id!!, "2099-01-01", "2099-01-04", count)
+        return inventory.create(
+            guest().id!!,
+            room.id!!,
+            "2099-01-01",
+            "2099-01-04",
+            count,
+            key(),
+            quote.id,
+        )
+    }
 
     private fun failure(action: () -> Unit) = assertThrows<DomainException> { action() }
 
@@ -132,7 +147,7 @@ constructor(
         assertThat(archive.code).isEqualTo("ROOM_HAS_BOOKINGS")
         assertThat(service.findApartmentById(room.id!!)!!.capacity).isEqualTo(4)
         assertThat(service.findApartmentById(room.id!!)!!.version).isZero()
-        inventory.change(booking.resourceId, "2099-01-01", "2099-01-04", 2, 0, key())
+        reviewed.change(booking.resourceId, "2099-01-01", "2099-01-04", 2, 0, key())
         assertThat(service.update(room.id!!, 0, profile(capacity = 2)).capacity).isEqualTo(2)
         assertThat(bookings.count()).isEqualTo(1)
     }
@@ -163,8 +178,9 @@ constructor(
     fun movingAStayResolvesRoomArchiveAndRetainedMaintenanceAppliesAgainAfterRestore() {
         val room = service.create(profile())
         val destination = service.create(profile("OTHER"))
+        TestData.configureSyntheticRate(jdbc, destination.id!!)
         val booking = createBooking(room)
-        inventory.move(booking.resourceId, destination.id!!, 0, key())
+        reviewed.move(booking.resourceId, destination.id!!, 0, key())
         val block =
             inventory.block(room.id!!, "2099-02-01", "2099-02-03", "Synthetic repair", key())
         val archived = service.status(room.id!!, 0, false)
@@ -250,6 +266,7 @@ constructor(
     @ValueSource(strings = ["CAPACITY", "ARCHIVE"])
     fun competingBookingAndRoomChangesCannotCommitAnInvalidStay(action: String) {
         val room = service.create(profile())
+        TestData.configureSyntheticRate(jdbc, room.id!!)
         val guest = guest()
         val start = CountDownLatch(1)
         val executor = Executors.newFixedThreadPool(2)
@@ -269,6 +286,7 @@ constructor(
                             "2099-03-03",
                             4,
                             key(),
+                            quotes.create(room.id!!, "2099-03-01", "2099-03-03", 4).id,
                         )
                     },
                 )

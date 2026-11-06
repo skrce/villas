@@ -59,7 +59,7 @@ details is available. No malformed write response is shown as a confirmed change
 Web Locks coordinate short updates to the shared booking/maintenance claim. Each tab also retains
 its own unresolved operation in sessionStorage, so another tab's successful confirmation
 cannot erase its recovery key. Both stores contain only a SHA-256 identity, random
-operation key and optional expected version. They contain no raw guest IDs, dates,
+operation key, optional expected version and opaque quote UUID. They contain no raw guest IDs, dates, prices,
 contacts, session cookies or CSRF/provider tokens. The fingerprint includes the canonical
 Owner and operation. In-flight promises also include the current login generation.
 Reconciliation runs before current availability checks. A retained room selection
@@ -153,3 +153,11 @@ recovery across tabs and reload. These are local synthetic-provider checks; real
 Primary API guidance: [React Router](https://reactrouter.com/start/declarative/routing),
 [TanStack query cancellation](https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation),
 [React Hook Form](https://react-hook-form.com/docs/useform), [Zod](https://zod.dev/api).
+
+Booking room/date/party edits review a whole-stay quote before confirmation. The
+original booking version remains in the Owner's memory-only draft across sign-in.
+A stale draft requires a protected Load latest stay read before a new review. The
+separate Check previous save action reconciles retained keys and historical quotes
+without a new quote, write or availability gate. It validates the accepted-price
+pointer and complete saved stay/version before clearing recovery state. Accepted
+price history uses bounded exclusive version cursors and validates financial data.

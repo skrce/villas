@@ -40,15 +40,16 @@ Cancellation retains the reservation, changes its status to `CANCELLED`, and rel
 its inventory. A cancelled reservation cannot move or change dates. Cancelling a
 maintenance block also retains it. These are storage and inventory semantics. They
 do not establish cancellation deadlines, fees, refunds, or staff permissions; those
-remain decisions for milestones 3, 7, and 8. Quotes and financial validation arrive
-with the accepted pricing contract in milestone 6.
+remain decisions for milestones 7 and 8. Saved quote acceptance and retained prices
+follow the [pricing contract](pricing.md).
 
 ## Idempotency and an unknown write outcome
 
 Canonical mutations require an `Idempotency-Key` containing a UUID. The server
 normalizes it to lowercase and scopes it by property, actor, and operation kind.
 A SHA-256 fingerprint covers the operation's normalized inputs, including the
-expected version. Maintenance reasons are trimmed before fingerprinting.
+expected version and, for priced creation, the saved quote UUID and reviewed stay.
+Maintenance reasons are trimmed before fingerprinting.
 
 Replaying the same key and inputs returns the original committed result, even after
 the resource changes again. Reusing it with different inputs returns 409
@@ -78,7 +79,7 @@ after a successful mutation response as well as before a retry, so an HTML page 
 malformed 200 cannot erase recovery state. A browser without Web Locks cannot submit
 booking changes; use a supported browser over HTTPS or localhost.
 Its storage identity hashes the local API, canonical Owner ID, operation and normalized
-input. Storage contains only that hash, the random operation key and a prepared version;
+input. Storage contains only that hash, the random operation key, a prepared version and an opaque quote UUID;
 raw booking/guest details and tokens are not persisted. The server binds operations and
 events to the verified canonical Owner. A different Owner cannot recover the original
 Owner's operation. Session changes invalidate old API continuations and never trigger
@@ -86,6 +87,8 @@ an automatic write after reauthentication.
 
 Legacy aliases enforce the same inventory transaction and validation. Callers may
 send keys and expected versions, but both remain optional there for compatibility.
+New bookings on these routes require an accepted quote. Existing unpriced operations
+can still replay their original result; new unquoted writes are rejected.
 Without a caller-preserved key, a lost legacy response cannot be safely reconciled.
 Without a version, a legacy edit has no stale-client protection. Migrate callers to
 the canonical contract rather than treating these adapters as a release interface.

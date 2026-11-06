@@ -13,6 +13,14 @@
  */
 
 import { mapValues } from '../runtime';
+import type { BookingQuote } from './BookingQuote';
+import {
+    BookingQuoteFromJSON,
+    BookingQuoteFromJSONTyped,
+    BookingQuoteToJSON,
+    BookingQuoteToJSONTyped,
+} from './BookingQuote';
+
 /**
  * 
  * @export
@@ -43,6 +51,12 @@ export interface ErrorResponse {
      * @memberof ErrorResponse
      */
     relatedReservationIds?: Array<number> | null;
+    /**
+     * 
+     * @type {BookingQuote}
+     * @memberof ErrorResponse
+     */
+    replacementQuote?: BookingQuote | null;
 }
 
 /**
@@ -68,6 +82,7 @@ export function ErrorResponseFromJSONTyped(json: any, ignoreDiscriminator: boole
         'message': json['message'],
         'moreReservations': json['moreReservations'] == null ? undefined : json['moreReservations'],
         'relatedReservationIds': json['relatedReservationIds'] == null ? undefined : json['relatedReservationIds'],
+        'replacementQuote': json['replacementQuote'] == null ? undefined : BookingQuoteFromJSON(json['replacementQuote']),
     };
 }
 
@@ -86,6 +101,7 @@ export function ErrorResponseToJSONTyped(value?: ErrorResponse | null, ignoreDis
         'message': value['message'],
         'moreReservations': value['moreReservations'],
         'relatedReservationIds': value['relatedReservationIds'],
+        'replacementQuote': BookingQuoteToJSON(value['replacementQuote']),
     };
 }
 

@@ -1,20 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildBookingActions } from './bookingActions';
-import { Configuration, ReservationApi, MaintenanceApi, ApartmentApi } from './generated';
+import { testQuote } from '../test/quotes';
+import { Configuration, ReservationApi, MaintenanceApi, ApartmentApi, QuotesApi } from './generated';
 
 const fetchMock = vi.fn<typeof fetch>();
-const input = { customerId: 1, roomId: 7, startDate: '2026-11-06', endDate: '2026-11-09' };
+const quoteId = '11111111-1111-4111-8111-111111111111';
+const input = { quoteId, customerId: 1, roomId: 7, startDate: '2026-11-06', endDate: '2026-11-09' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { 'Content-Type': 'application/json' },
 });
 const actions = (scope = 'local:staff', generation = scope) => buildBookingActions(
-  new ReservationApi(new Configuration({ basePath: '/api/v1' })), scope, generation,
+  new ReservationApi(new Configuration({ basePath: '/api/v1' })), scope, generation, undefined, undefined, new QuotesApi(new Configuration({ basePath: '/api/v1' })),
 );
 const key = (call: number) => new Headers(fetchMock.mock.calls[call][1]?.headers).get('Idempotency-Key');
 const notCommitted = () => json({ code: 'OPERATION_NOT_COMMITTED', message: 'Reconcile or retry with the same key.' }, 404);
-const confirm = (call: number, kind = 'CREATE') => fetchMock.mockImplementationOnce(async () => json({
-  key: key(call), kind, resourceId: 42,
-}));
+const operation = (key: string | null, kind = 'CREATE') => ({key, kind, resourceId: 42, ...(kind === 'CREATE' ? {reservation: {id: 42, customerId: 1, roomId: 7, startDate: input.startDate, endDate: input.endDate, guestCount: 1, version: 0, status: 'ACTIVE', acceptedQuoteId: quoteId}} : {})});
+const confirm = (call: number, kind = 'CREATE') => fetchMock.mockImplementationOnce(async () => json(operation(key(call), kind)));
 
 beforeEach(() => {
   localStorage.clear();
@@ -26,11 +27,77 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('booking write reconciliation', () => {
+  it('keeps the original accepted offer when a retry supplies a newer quote', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Connection lost'));
+    await expect(actions().create(input)).rejects.toThrow();
+    const original = key(0);
+    const retained = JSON.stringify(localStorage);
+    expect(retained).toContain(quoteId);
+    expect(retained).not.toContain(input.startDate);
+    expect(retained).not.toContain('5001');
+    fetchMock.mockResolvedValueOnce(notCommitted()).mockResolvedValueOnce(json(42));
+    confirm(2);
+    await expect(actions().create({...input, quoteId: '22222222-2222-4222-8222-222222222222'})).resolves.toBe(42);
+    expect(key(2)).toBe(original);
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body)).quoteId).toBe(quoteId);
+  });
+
+  it.each([
+    ['another quote', {acceptedQuoteId: '22222222-2222-4222-8222-222222222222'}],
+    ['no accepted price', {acceptedQuoteId: null}],
+    ['another guest', {customerId: 2}],
+    ['another room', {roomId: 8}],
+    ['another date', {endDate: '2026-11-10'}],
+    ['another party size', {guestCount: 2}],
+    ['a later version', {version: 1}],
+    ['a cancellation', {status: 'CANCELLED'}],
+  ])('retains the original create intent when confirmation contains %s', async (_label, change) => {
+    fetchMock.mockResolvedValueOnce(json(42)).mockImplementationOnce(async () => {
+      const saved = operation(key(0));
+      return json({...saved, reservation: {...saved.reservation, ...change}});
+    });
+    await expect(actions().create(input)).rejects.toThrow('could not be confirmed');
+    const original = key(0);
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toContain(original);
+    fetchMock.mockResolvedValueOnce(json(operation(original)));
+    await expect(actions().recoverCreate({...input, quoteId: undefined})).resolves.toBe(42);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1);
+  });
+
+  it('checks a pending create without a quote and retains an uncommitted key without posting', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Connection lost'));
+    await expect(actions().create(input)).rejects.toThrow();
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(notCommitted());
+    await expect(actions().recoverCreate({...input, quoteId: undefined})).rejects.toThrow('No confirmed booking result');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toContain(original);
+  });
+
+  it('does not create an intent or issue a request when there is nothing to recover', async () => {
+    await expect(actions().recoverCreate({...input, quoteId: undefined})).rejects.toThrow('No previous booking save');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toBeNull();
+  });
+
+  it('can read a pre-pricing pending create without resubmitting it', async () => {
+    const original = crypto.randomUUID();
+    const priorInput = {customerId: input.customerId, roomId: input.roomId, startDate: input.startDate, endDate: input.endDate, guestCount: 1};
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(['local:staff', 'CREATE', priorInput])));
+    const identity = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem('villarosa.pendingOperations.v2', JSON.stringify({[identity]: {key: original}}));
+    fetchMock.mockResolvedValueOnce(json({key: original, kind: 'CREATE', resourceId: 42}));
+    await expect(actions().recoverCreate({...input, quoteId: undefined})).resolves.toBe(42);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls[0][1]?.method).toBe('GET');
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toBe('{}');
+  });
+
   it('recovers the saved create after a lost response and a page reload', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('Connection lost'));
     await expect(actions().create(input)).rejects.toThrow();
     const originalKey = key(0);
-    fetchMock.mockResolvedValueOnce(json({ key: originalKey, kind: 'CREATE', resourceId: 42 }));
+    fetchMock.mockResolvedValueOnce(json(operation(originalKey)));
 
     await expect(actions().create({ ...input, guestCount: 1 })).resolves.toBe(42);
 
@@ -61,7 +128,7 @@ describe('booking write reconciliation', () => {
     await expect(actions().create(input)).rejects.toThrow();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const originalKey = key(0);
-    fetchMock.mockResolvedValueOnce(json({ key: originalKey, kind: 'CREATE', resourceId: 42 }));
+    fetchMock.mockResolvedValueOnce(json(operation(originalKey)));
     await expect(actions().create(input)).resolves.toBe(42);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
@@ -119,7 +186,7 @@ describe('booking write reconciliation', () => {
     fetchMock.mockResolvedValueOnce(response()).mockResolvedValueOnce(notCommitted());
     await expect(actions().create(input)).rejects.toThrow();
     const original = key(0);
-    fetchMock.mockResolvedValueOnce(json({ key: original, kind: 'CREATE', resourceId: 42 }));
+    fetchMock.mockResolvedValueOnce(json(operation(original)));
     await expect(actions().create(input)).resolves.toBe(42);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
@@ -151,7 +218,7 @@ describe('booking write reconciliation', () => {
     const old = actions('owner-one', 'login-one').create(input);
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
     const original = key(0);
-    fetchMock.mockResolvedValueOnce(json({ key: original, kind: 'CREATE', resourceId: 42 }));
+    fetchMock.mockResolvedValueOnce(json(operation(original)));
     await expect(actions('owner-one', 'login-two').create(input)).resolves.toBe(42);
     confirm(0); finish(json(42)); await old;
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -187,7 +254,7 @@ describe('booking write reconciliation', () => {
     await expect(other.create(input)).resolves.toBe(42);
     expect(localStorage.getItem('villarosa.pendingOperations.v2')).toBe('{}');
     fail(new Error('Lost response')); await lost;
-    fetchMock.mockResolvedValueOnce(json({ key: original, kind: 'CREATE', resourceId: 42 }));
+    fetchMock.mockResolvedValueOnce(json(operation(original)));
     await expect(first.create(input)).resolves.toBe(42);
     expect(fetchMock.mock.calls[4][0]).toContain(original!);
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(2);
@@ -222,6 +289,74 @@ describe('booking write reconciliation', () => {
   });
 });
 
+
+describe('quoted booking edit reconciliation', () => {
+  const offer = () => testQuote({...input,roomId: 8,guestCount: 1});
+  const result = (operationKey: string | null, kind = 'MOVE') => ({key: operationKey,kind,resourceId: 42,reservation: {
+    id: 42,customerId: 1,roomId: 8,startDate: input.startDate,endDate: input.endDate,guestCount: 1,version: 4,status: 'ACTIVE',acceptedQuoteId: quoteId,
+  }});
+  it('confirms the original saved quote before clearing an edited booking intent', async () => {
+    fetchMock.mockResolvedValueOnce(json(result(null).reservation))
+      .mockImplementationOnce(async () => json(result(key(0))))
+      .mockImplementationOnce(async () => {
+        expect(localStorage.getItem('villarosa.pendingOperations.v2')).toContain(key(0));
+        return json(offer());
+      });
+    await expect(actions().move(42,8,3,quoteId)).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/reservations/42/room/quoted');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({newRoomId: 8,expectedVersion: 3,quoteId});
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toBe('{}');
+  });
+  it('retains the original quote, version and key when retrying with a newer offer', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Lost response'));
+    await expect(actions().move(42,8,3,quoteId)).rejects.toThrow();
+    const original = key(0);
+    fetchMock.mockResolvedValueOnce(notCommitted()).mockResolvedValueOnce(json(result(original).reservation))
+      .mockResolvedValueOnce(json(result(original))).mockResolvedValueOnce(json(offer()));
+    await expect(actions().move(42,8,9,'22222222-2222-4222-8222-222222222222')).resolves.toBeUndefined();
+    expect(key(2)).toBe(original);
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toMatchObject({quoteId,expectedVersion: 3});
+  });
+  it('recovers a changed stay using its historical offer without requiring a fresh quote or another write', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Lost response'));
+    await expect(actions().change(42,input.startDate,input.endDate,1,3,quoteId)).rejects.toThrow();
+    const original = key(0);
+    const historical = {...offer(),createdAt: '2000-01-01T00:00:00Z',expiresAt: '2000-01-01T00:15:00Z'};
+    fetchMock.mockResolvedValueOnce(json(result(original,'CHANGE'))).mockResolvedValueOnce(json(historical));
+    await expect(actions().recoverChange(42,input.startDate,input.endDate,1)).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls.filter(([,init]) => init?.method === 'PATCH')).toHaveLength(1);
+    expect(fetchMock.mock.calls.at(-1)![0]).toBe(`/api/v1/booking-quotes/${quoteId}`);
+  });
+  it.each(['another quote','another room','malformed money'])('retains the edited booking key when the historical quote contains %s', async problem => {
+    const wrong = offer();
+    if (problem === 'another quote') wrong.id = '22222222-2222-4222-8222-222222222222';
+    if (problem === 'another room') wrong.roomId = 7;
+    if (problem === 'malformed money') wrong.price.totalCents += 1;
+    fetchMock.mockResolvedValueOnce(json(result(null).reservation))
+      .mockImplementationOnce(async () => json(result(key(0)))).mockResolvedValueOnce(json(wrong));
+    await expect(actions().move(42,8,3,quoteId)).rejects.toThrow();
+    const original = key(0);
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toContain(original);
+    fetchMock.mockResolvedValueOnce(json(result(original))).mockResolvedValueOnce(json(offer()));
+    await expect(actions().recoverMove(42,8)).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls.filter(([,init]) => init?.method === 'PATCH')).toHaveLength(1);
+  });
+  it.each(['wrong price','later version','different dates'])('retains a priced edit whose operation snapshot has %s', async problem => {
+    const wrong = result(null);
+    if (problem === 'wrong price') wrong.reservation.acceptedQuoteId = '22222222-2222-4222-8222-222222222222';
+    if (problem === 'later version') wrong.reservation.version = 5;
+    if (problem === 'different dates') wrong.reservation.endDate = '2026-11-10';
+    fetchMock.mockResolvedValueOnce(json(wrong.reservation)).mockImplementationOnce(async () => json({...wrong,key: key(0)}))
+      .mockResolvedValueOnce(json(offer()));
+    await expect(actions().move(42,8,3,quoteId)).rejects.toThrow('could not be confirmed');
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toContain(key(0));
+  });
+  it.each([[3,'invalid'],[-1,quoteId],[3.5,quoteId]])('rejects malformed reviewed input before persisting an unusable intent (%s)', async (version, savedQuote) => {
+    await expect(actions().move(42,8,version as number,savedQuote as string)).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toBeNull();
+  });
+});
 
 describe('maintenance operation reconciliation', () => {
   const block = {id: 30, roomId: 7, startDate: '2030-01-01', endDate: '2030-01-03', reason: 'Synthetic private repair', status: 'ACTIVE', version: 0};

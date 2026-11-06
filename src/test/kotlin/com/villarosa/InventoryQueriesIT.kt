@@ -5,6 +5,7 @@ import com.villarosa.exception.ExceptionHandler.ClientException
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
 import com.villarosa.service.InventoryQueries
+import com.villarosa.service.QuoteService
 import com.villarosa.service.ReservationService
 import jakarta.persistence.EntityManagerFactory
 import java.time.LocalDate
@@ -32,12 +33,15 @@ class InventoryQueriesIT
 constructor(
     private val queries: InventoryQueries,
     private val service: ReservationService,
+    private val quotes: QuoteService,
     private val rooms: ApartmentRepository,
     private val guests: CustomerRepository,
     private val reservations: ReservationRepository,
     private val jdbc: JdbcTemplate,
+    private val transactionManager: org.springframework.transaction.PlatformTransactionManager,
     private val factory: EntityManagerFactory,
 ) {
+    private val reviewed = ReviewedChanges(service, quotes, transactionManager)
     private lateinit var guest: Customer
     private lateinit var room: Apartment
 
@@ -47,11 +51,31 @@ constructor(
     fun fixtures() {
         TestData.reset(jdbc, database.jdbcUrl)
         guest = guests.saveAndFlush(Customer.buildCustomer("Query", "Гостин", "000", "Synthetic"))
-        room = rooms.saveAndFlush(Apartment(null, 2, "South", "Езеро", 100, 150))
+        room =
+            rooms.saveAndFlush(
+                Apartment(
+                    null,
+                    2,
+                    "South",
+                    "Езеро",
+                    100,
+                    150,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                )
+            )
     }
 
     private fun create(start: String, end: String) =
-        service.create(guest.id!!, room.id!!, start, end, 1, key())
+        service.create(
+            guest.id!!,
+            room.id!!,
+            start,
+            end,
+            1,
+            key(),
+            quotes.create(room.id!!, start, end, 1).id,
+        )
 
     @Test
     fun calendarPagesUseExclusiveCursorsAndKeepCancelledHistory() {
@@ -106,7 +130,7 @@ constructor(
     @Test
     fun eventPagesKeepVersionsAndUtcInstantsWithoutGuestContacts() {
         val booking = create("2026-11-01", "2026-11-03")
-        service.change(booking.resourceId, "2026-11-01", "2026-11-04", 2, 0, key())
+        reviewed.change(booking.resourceId, "2026-11-01", "2026-11-04", 2, 0, key())
         service.cancel(booking.resourceId, 1, key())
         val first = queries.reservationEvents(booking.resourceId, "0", 2)
         assertThat(first.items.map { it.kind }).containsExactly("CREATED", "CHANGED")

@@ -20,6 +20,7 @@ class InventoryWriter(
     private val events: InventoryEventRepository,
     private val availability: InventoryAvailability,
     private val currentStaff: CurrentStaff,
+    private val quotes: QuoteService,
 ) {
     fun create(
         customerId: Int,
@@ -27,15 +28,36 @@ class InventoryWriter(
         dates: StayDates,
         guestCount: Int,
         key: String,
+        quoteId: String? = null,
     ): OperationResult {
         checkGuest(customerId)
         val room = lockRooms(listOf(roomId)).getValue(roomId)
         checkRoom(room, guestCount)
         checkAvailable(roomId, dates)
+        val price =
+            quotes.acceptable(
+                quoteId
+                    ?: conflict(
+                        "QUOTE_REQUIRED",
+                        "Review and accept a quote before saving a new booking.",
+                    ),
+                room,
+                dates,
+                guestCount,
+            )
         val booking =
             reservations.saveAndFlush(
-                Reservation(null, customerId, roomId, dates.start, dates.end, guestCount)
+                Reservation(
+                    null,
+                    customerId,
+                    roomId,
+                    dates.start,
+                    dates.end,
+                    guestCount,
+                    acceptedQuoteId = price.id,
+                )
             )
+        quotes.accept(price, booking)
         reservationEvent(booking, key, "CREATED")
         return OperationResult(
             key,
@@ -45,7 +67,13 @@ class InventoryWriter(
         )
     }
 
-    fun move(id: Int, destination: Int, expected: Long?, key: String): OperationResult {
+    fun move(
+        id: Int,
+        destination: Int,
+        expected: Long?,
+        key: String,
+        quoteId: String? = null,
+    ): OperationResult {
         checkGuest(
             reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
         )
@@ -55,10 +83,25 @@ class InventoryWriter(
         val booking = current(id, expected, locked.keys)
         active(booking)
         if (booking.roomId != destination) {
-            checkRoom(locked.getValue(destination), booking.guestCount)
-            checkAvailable(destination, StayDates(booking.startDate!!, booking.endDate!!), id)
+            val room = locked.getValue(destination)
+            val dates = StayDates(booking.startDate!!, booking.endDate!!)
+            checkRoom(room, booking.guestCount)
+            checkAvailable(destination, dates, id)
+            val price =
+                quotes.acceptable(
+                    quoteId
+                        ?: conflict(
+                            "PRICE_REVIEW_REQUIRED",
+                            "Review and accept a new quote before changing rooms.",
+                        ),
+                    room,
+                    dates,
+                    booking.guestCount,
+                )
             booking.roomId = destination
+            booking.acceptedQuoteId = price.id
             reservations.saveAndFlush(booking)
+            quotes.accept(price, booking)
             reservationEvent(booking, key, "MOVED", original)
         }
         return OperationResult(
@@ -75,6 +118,7 @@ class InventoryWriter(
         guestCount: Int,
         expected: Long,
         key: String,
+        quoteId: String? = null,
     ): OperationResult {
         checkGuest(
             reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
@@ -91,10 +135,23 @@ class InventoryWriter(
                 booking.endDate != dates.end ||
                 booking.guestCount != guestCount
         ) {
+            val price =
+                quotes.acceptable(
+                    quoteId
+                        ?: conflict(
+                            "PRICE_REVIEW_REQUIRED",
+                            "Review and accept a new quote before changing the stay.",
+                        ),
+                    room,
+                    dates,
+                    guestCount,
+                )
             booking.startDate = dates.start
             booking.endDate = dates.end
             booking.guestCount = guestCount
+            booking.acceptedQuoteId = price.id
             reservations.saveAndFlush(booking)
+            quotes.accept(price, booking)
             reservationEvent(booking, key, "CHANGED")
         }
         return OperationResult(

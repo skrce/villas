@@ -6,6 +6,7 @@
 
 Name | Type
 ------------ | -------------
+`acceptedQuoteId` | string
 `customerId` | number
 `endDate` | string
 `guestCount` | number
@@ -23,6 +24,7 @@ import type { ReservationInfo } from ''
 
 // TODO: Update the object below with actual values
 const example = {
+  "acceptedQuoteId": null,
   "customerId": null,
   "endDate": null,
   "guestCount": null,

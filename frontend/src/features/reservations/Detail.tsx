@@ -1,13 +1,12 @@
 import { useContext, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import type { z } from "zod";
 import { DraftContext, useWorkspace } from "../../app/context";
-import { staySchema } from "../../shared/schemas";
 import { dateLabel, eventLabel, roomChoiceLabel } from "../../shared/format";
 import { useSave } from "../../shared/useSave";
 import { useRooms } from "../rooms/queries";
 import { EditReservation } from "./Edit";
+import { ReservationPricePanel } from "./PricePanel";
 import {
   Dialog,
   Empty,
@@ -15,6 +14,7 @@ import {
   PageHead,
   Pending,
   QueryError,
+  SelectField,
   Status,
 } from "../../shared/ui";
 export function ReservationDetail() {
@@ -29,6 +29,7 @@ function ReservationDetailPage() {
   const [editing, setEditing] = useState<{
     kind: "move" | "stay" | "cancel";
     version: number;
+    recoveryOnly: boolean;
     snapshot: {
       startDate: string;
       endDate: string;
@@ -68,13 +69,14 @@ function ReservationDetailPage() {
   });
   const rooms = useRooms();
   const record = query.data;
-  const open = (kind: "move" | "stay" | "cancel") => {
+  const open = (kind: "move" | "stay" | "cancel", recoveryOnly = false) => {
     if (!record || !Number.isSafeInteger(record.version) || record.version! < 0)
       return;
     mutation.resetStatus();
     setSaved(false);
     setEditing({
       kind,
+      recoveryOnly,
       version: record.version!,
       snapshot: {
         startDate: record.startDate!,
@@ -84,23 +86,8 @@ function ReservationDetailPage() {
       },
     });
   };
-  const mutation = useSave<{
-    room?: number;
-    stay?: z.infer<typeof staySchema>;
-  }>(
-    async (value) => {
-      if (editing?.kind === "cancel")
-        return booking.cancel(id, editing!.version);
-      if (editing?.kind === "move")
-        return booking.move(id, value.room!, editing!.version);
-      return booking.change(
-        id,
-        value.stay!.startDate,
-        value.stay!.endDate,
-        value.stay!.guestCount,
-        editing!.version,
-      );
-    },
+  const mutation = useSave<void>(
+    () => booking.cancel(id, editing!.version),
     () => {
       drafts?.delete(`reservation-edit:${id}:${editing?.kind}`);
       setEditing(undefined);
@@ -142,6 +129,13 @@ function ReservationDetailPage() {
                 Cancel reservation
               </button>
             </>
+          ) : record?.status === "CANCELLED" ? (
+            <button
+              className="button secondary"
+              onClick={() => open("stay", true)}
+            >
+              Check previous save
+            </button>
           ) : null
         }
       />
@@ -212,6 +206,7 @@ function ReservationDetailPage() {
           {query.isFetching && <Pending label="Refreshing reservation…" />}
         </section>
       )}
+      {valid && record && <ReservationPricePanel reservation={record} />}
       {valid && (
         <section className="panel">
           <h2>Reservation history</h2>
@@ -260,28 +255,59 @@ function ReservationDetailPage() {
       {editing && record && (
         <Dialog
           title={
-            editing?.kind === "cancel"
-              ? "Cancel reservation?"
-              : editing?.kind === "move"
-                ? "Move room"
-                : "Edit stay"
+            editing.kind !== "cancel" &&
+            (editing.recoveryOnly || record.status === "CANCELLED")
+              ? "Check previous save"
+              : editing?.kind === "cancel"
+                ? "Cancel reservation?"
+                : editing?.kind === "move"
+                  ? "Move room"
+                  : "Edit stay"
           }
           busy={busy || mutation.isPending}
           onClose={() => setEditing(undefined)}
         >
+          {editing.kind !== "cancel" &&
+            (editing.recoveryOnly || record.status === "CANCELLED") && (
+              <SelectField
+                label="Previous change"
+                value={editing.kind}
+                onChange={(event) =>
+                  setEditing({
+                    ...editing,
+                    kind: event.target.value === "move" ? "move" : "stay",
+                  })
+                }
+              >
+                <option value="stay">Stay dates or party size</option>
+                <option value="move">Room move</option>
+              </SelectField>
+            )}
           <EditReservation
             key={editing.kind}
             kind={editing.kind}
             draftKey={`reservation-edit:${id}:${editing.kind}`}
+            reservationId={id}
+            expectedVersion={editing.version}
+            currentVersion={record.version}
+            recoveryOnly={
+              editing.kind !== "cancel" &&
+              (editing.recoveryOnly || record.status === "CANCELLED")
+            }
+            onBusy={setBusy}
+            onSaved={() => {
+              setEditing(undefined);
+              setSaved(true);
+            }}
             record={editing.snapshot}
             rooms={rooms.data ?? []}
             busy={mutation.isPending}
             blocked={mutation.stale}
             message={mutation.message}
-            onSubmit={async (value) => {
+            onSubmit={async () => {
               setBusy(true);
               try {
-                await mutation.submit(value);
+                await mutation.submit();
               } finally {
                 setBusy(false);
               }

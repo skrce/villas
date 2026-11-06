@@ -12,8 +12,8 @@ start are recorded in [decisions](decisions.md).
 | 2 | [Migrate the database and make bookings concurrency-safe](https://github.com/skrce/villas/issues/3) | 1 | Implemented and locally verified; final review/merge evidence is in the linked issue |
 | 3 | [Implement secure staff accounts and permissions](https://github.com/skrce/villas/issues/4) | 1, 2 | Local implementation reviewed, verified and merged in PRs #18 and #19; live Google setup explicitly deferred |
 | 4 | [Build the routed staff interface and reusable UI](https://github.com/skrce/villas/issues/5) | 1, 3 | [Implemented and independently reviewed in PR #20](https://github.com/skrce/villas/pull/20); final merge/CI evidence is in the linked issue |
-| 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Backend PRs #21/#22 merged after review and CI; integrated UI verified locally, final review/merge evidence is in the linked issue |
-| 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Active: confirmed room-night pricing, exact-cent rates and administration; quote acceptance/booking repricing still in progress |
+| 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Implemented and independently reviewed in PRs #21, #22 and #23; merge/CI evidence is in the linked issue |
+| 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Implemented and independently reviewed in PRs #24 and #25; final merge/CI evidence is in the linked issue |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Planned |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Planned |
 | 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Planned |
@@ -296,7 +296,71 @@ rate validation has 97.14% line/95.45% branch and the editor has 94.33% line/90%
 branch. Current full frontend coverage is 84.05% line/78.08% branch. Complete-gate,
 browser, independent-review and merge evidence belong in the milestone issue/PR.
 
-Manual override and booking-change repricing decisions remain pending. Stable quotes,
-expiry and rate-change refresh, accepted immutable reservation prices and the stay
-summary are remaining milestone 6 work. This rates checkpoint does not close #7,
-enable unapproved overrides or claim a complete priced booking workflow.
+PR #24 is merged after independent backend/frontend review and exact-head CI.
+Its complete gate passed 181 unit/HTTP cases, 133 native MariaDB cases, 106 frontend
+cases, 13 launcher checks and ten Chromium workflows. No checks were skipped.
+
+The owner confirmed D07: manual overrides stay disabled. D12 is now confirmed:
+room/date/party changes require a new whole-stay quote at current rates. This rates checkpoint does not close #7 or claim a complete priced
+booking workflow.
+
+## Milestone 6 quote integration
+
+V11 adds immutable Owner-scoped quotes and accepted reservation-price snapshots.
+The new booking screen reviews the exact seasonal breakdown, then requires explicit
+acceptance. Expiry or a changed rate version returns a separately persisted replacement
+for another review. Price, inventory, audit and the operation result commit together.
+All creation adapters require a quote for new writes while retaining pre-pricing
+committed-operation recovery. Later rates/cancellation never rewrite accepted prices.
+
+The interrupted-save action performs read-only reconciliation without a new quote,
+including after availability changes. Durable intents retain an opaque quote UUID;
+raw guest, stay and price details remain out of browser storage. The detail page
+shows an explicit unrecorded historical price or the accepted breakdown/history.
+
+The owner-approved change policy is implemented in private quoted room/stay APIs
+and review-first dialogs. Real changes append a price agreement and update inventory,
+version, audit and operation result atomically. No-ops retain their agreed price.
+Unpriced historical records acquire their first agreement only after an explicit
+priced change. Cancellation retains financial history without a fee or refund.
+
+Versioned booking drafts survive same-Owner reauthentication; stale drafts require
+an explicit protected reload. Edit recovery checks the original saved quote and
+operation before clearing its retained key, including after reload or expiry, without
+a fresh quote or write. Financial response validation is shared by both workflows.
+
+Scoped checks pass 176 frontend cases, including explicit edit acceptance, unchanged
+party-price totals, refreshed offers, stale drafts, protected reload failures and lost
+edit recovery. The existing native inventory races/rollback/version cases pass with
+explicit reviewed quote fixtures. Direct native pricing tests cover whole-stay changes,
+immutable prior agreements, edit-price rollback, changed-rate replacements and no-ops.
+Full-gate, browser, independent-review and final merge evidence are recorded in #7
+and the implementing PR before milestone closure. Real Google and deployed acceptance
+remain separately tracked gates.
+
+Independent review found a late Load latest read overwriting a newer reopened draft
+and cancelled bookings hiding interrupted-edit recovery. The reload now applies only
+through the session/route guarded completion callback and refuses to downgrade a newer
+cache version. Cancelled records expose read-only previous stay/room recovery. Permanent
+regressions cover Back/Forward with held reads, cancellation after a lost party or room
+edit, retained original quotes/keys, and the absence of new quotes or writes in recovery.
+
+The complete `node scripts/check.mjs` passed at `d36c509`: 371 backend cases
+(201 unit/HTTP/configuration and 170 native MariaDB), 176 frontend cases, 13 launcher
+checks and twelve Chromium workflows, with no skips. This includes generated-client
+consistency, dependency audit, production build, native DDL-prefix recovery, financial
+races/rollback, and desktop/320px axe/overflow checks. The priced-edit browser case
+accepts a refreshed offer, loses its committed response, cancels the booking and then
+reconciles read-only after reload without another quote or edit write. Two independent
+reviewers cleared the backend and corrected frontend. Exact-head CI and merge evidence
+are retained in PR #25 and issue #7.
+
+Raw frontend coverage is 86.8% lines/83.25% branches. Quote response validation is
+100%/95.34%, new booking 90.12%/90.42%, the priced edit form 95.18%/92.41%, and accepted
+prices 94.59%/93.75%. The retry adapter has 93.3% branch coverage. Backend PriceCalculator
+has 100% branch coverage and QuoteService 95.45%. Older critical modules remain below
+the 90% branch target: EuroCents 89.29%, InventoryWriter 72.73% and RateService 60%.
+Required overflow, malformed money, expiry, stale version, admission, concurrency and
+rollback scenarios pass; those cases do not erase the unsuppressed measured gaps.
+Broader boundary coverage and live/deployed qualification remain explicit work before
+the production pilot.
