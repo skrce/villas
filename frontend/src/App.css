@@ -3,6 +3,120 @@
   grid-template-columns: 224px minmax(0, 1fr);
   min-height: 100vh;
 }
+.today-metrics,
+.report-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+.today-metric,
+.report-totals > div {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--blue-border);
+  border-radius: var(--radius);
+  padding: 22px;
+  background: var(--blue-soft);
+  text-decoration: none;
+  color: var(--blue-ink);
+  overflow-wrap: anywhere;
+}
+.today-metric:nth-child(even),
+.report-totals > div:nth-child(even) {
+  background: var(--green-soft);
+  border-color: var(--green-border);
+  color: var(--green-ink);
+}
+.today-metric strong {
+  font-size: 34px;
+  font-weight: 600;
+}
+.today-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.today-section {
+  min-width: 0;
+  padding: 24px;
+}
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.section-head a {
+  font-size: 13px;
+}
+.today-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+.today-list li {
+  display: grid;
+  gap: 6px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.today-list a {
+  font-weight: 600;
+}
+.today-readiness {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.today-readiness dd,
+.today-money dd,
+.report-totals dd {
+  margin: 8px 0 0;
+  font-size: 24px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.today-money > div {
+  margin-bottom: 20px;
+}
+.today-readiness dt,
+.today-money dt,
+.report-totals dt {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.report-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  align-items: flex-end;
+}
+.report-filters .field {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.report-explanation {
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.report-sources {
+  min-width: 0;
+  padding: 20px;
+}
+.report-sources td {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .today-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .sidebar {
   background: var(--nav-surface);
   border-right: 1px solid var(--border);
@@ -1045,7 +1159,7 @@ footer {
     color: var(--muted);
     margin-bottom: 6px;
   }
-  .table-wrap td:last-child {
+  .table-wrap td[data-label="Actions"] {
     grid-column: 1 / -1;
     flex-direction: row;
     align-items: center;
@@ -1054,7 +1168,7 @@ footer {
     border-top: 1px solid var(--border);
     padding-top: 8px;
   }
-  .table-wrap td:last-child .mobile-column {
+  .table-wrap td[data-label="Actions"] .mobile-column {
     display: none;
   }
 }
@@ -1446,4 +1560,11 @@ footer {
   font-size: 12px;
   line-height: 1.7;
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .report-sources td[data-label="Ledger source"],
+  .report-sources td[data-label="Booking"] {
+    grid-column: 1 / -1;
+  }
 }

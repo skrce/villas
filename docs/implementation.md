@@ -16,7 +16,7 @@ start are recorded in [decisions](decisions.md).
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Implemented and independently reviewed in PRs #24 and #25; final merge/CI evidence is in the linked issue |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Implemented and independently reviewed in PRs #26 and #27; verification and merge evidence is in #8 |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Implemented locally in PRs #28 through #34; verification and merge evidence in #9 |
-| 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | In progress: defined reporting APIs and Today snapshots; staff screens and integrated verification underway |
+| 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Implemented in [PR #36](https://github.com/skrce/villas/pull/36) and [PR #37](https://github.com/skrce/villas/pull/37); final review, verification and merge evidence is in #10 |
 | 10 | [Verify production deployment, recovery, and the staff pilot](https://github.com/skrce/villas/issues/11) | 1-9 | Planned |
 
 The first complete booking checkpoint is milestone 7. Milestone 8 completes daily
@@ -479,9 +479,13 @@ limitation under D14. [The reporting contract](contracts/reporting.md) defines
 room nights, maintenance, saved nightly charges, corrected receipt/refund periods,
 current whole-booking balances, incomplete source handling and download limits.
 [PR #36](https://github.com/skrce/villas/pull/36) adds the Owner-only read and CSV
-contracts. The dependent UI work makes Today the initial page and adds report
-filters, source drill-downs and session-bound downloads. This milestone remains
-in progress until independent review and the complete integrated check pass.
+contracts. [PR #37](https://github.com/skrce/villas/pull/37) makes Today the initial
+page and adds report filters, source drill-downs and session-bound downloads.
+Independent reviews retain regressions for accepted-source integrity, room filters
+hiding broken assignment history, phase/quote/ledger/date/capacity validation, and
+asynchronous room selection. The linked issue records the final reviewed heads,
+complete check, browser workflows, CI and merge evidence. Local implementation is
+separate from real-service and production acceptance.
 
 Real Google verification remains explicitly deferred in issue #4. Production
 hosting, recovery and pilot acceptance remain milestone 10 gates.

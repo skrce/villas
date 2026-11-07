@@ -2,6 +2,16 @@ import { ResponseError } from "../api/generated";
 import { SessionChangedError } from "../api/session";
 import { OperationRecoveryError } from "../api/bookingActions";
 const messages: Record<string, string> = {
+  REPORT_TOO_LARGE:
+    "This complete report exceeds its source limit. Use a shorter period, or a room filter if the room roster is too large. Coverage and entry limits apply before room filtering. No partial report was returned.",
+  REPORT_AMOUNT_LIMIT:
+    "The report exceeds the supported exact EUR amount. Narrow its filters.",
+  REPORT_SOURCE_INCOMPLETE:
+    "Saved report source data is incomplete. Review the booking records before relying on a total.",
+  REPORT_CHANGED:
+    "Saved records changed since this report was loaded. Refresh the report before downloading.",
+  EXPORT_TOO_LARGE:
+    "The complete CSV exceeds 5 MiB. Narrow the report filters before downloading.",
   ROOM_NOT_READY:
     "This room must be clean. Finish cleaning and inspection before check-in or an in-house move.",
   READINESS_REVIEW_REQUIRED:

@@ -30,8 +30,11 @@ processing and additional staff roles are outside the initial plan.
 Milestones 1 through 7 have local implementation, independent review and merge
 evidence. Milestone 8 implements daily front desk, stay operations, manual settlement and
 housekeeping. Its integrated review, verification and merge evidence are recorded in
-[issue #9](https://github.com/skrce/villas/issues/9) and [PR #34](https://github.com/skrce/villas/pull/34). Milestone 9 covers the Today dashboard and
-reconciled reports. Milestone 10 covers hosting, backups/recovery, deployed checks
+[issue #9](https://github.com/skrce/villas/issues/9) and [PR #34](https://github.com/skrce/villas/pull/34). Milestone 9 implements the Today dashboard and
+reconciled reports, with implementation and verification evidence in
+[issue #10](https://github.com/skrce/villas/issues/10), [PR #36](https://github.com/skrce/villas/pull/36)
+and [PR #37](https://github.com/skrce/villas/pull/37).
+Milestone 10 covers hosting, backups/recovery, deployed checks
 and the staff pilot. Do not start another milestone without Owner authorization.
 
 Milestone 3's real Google setup and live-provider acceptance were explicitly deferred
@@ -91,6 +94,7 @@ production/pilot acceptance is implied by the local demo.
 | Cleaning, daily lists and calendar snapshots | `service/ReadinessService.kt`, `service/DailyOperations.kt`, `service/BookingCalendar.kt` |
 | Today, current corrected reports and bounded CSV | `service/TodayDashboard.kt`, `service/PeriodReports.kt`, `service/ReportingStore.kt`, `controller/ReportingController.kt` |
 | Routed React workspace and sessions | `frontend/src/app/`, `frontend/src/api/session.ts`, `frontend/src/api/client.ts` |
+| Initial Today view, period filters, source reconciliation and CSV downloads | `frontend/src/features/reports/`, `docs/contracts/reporting.md` |
 | Record screens and responsive controls | `frontend/src/features/`, `frontend/src/shared/ui.tsx`, `App.css`, `index.css` |
 | Safe browser mutations and drafts | `api/bookingActions.ts`, `ledgerActions.ts`, `readinessActions.ts`, `stayActions.ts`; `shared/useSave.ts`, `useDraft.ts`, `useVersionedDraft.ts` |
 | Generated API contract/client | `frontend/openapi.json`, `frontend/src/api/generated/`, `ApiContractTest.kt`, `scripts/sync-openapi.mjs`, `generate-api.mjs` |
@@ -109,6 +113,16 @@ Reviewed versions are required; optimistic version checks do not replace invento
 locks. Writes, immutable events, audit, quote acceptance and the saved operation
 result commit together. Test rollback, stale updates and competing writes in MariaDB.
 Reads that combine a booking, balances or room allocations use consistent snapshots.
+
+Reports are current corrected views, not historical as-of accounting. Occupancy is
+booked room nights against the current active room roster, with that capacity
+limitation disclosed. Charges use saved accepted nightly lines; collections use
+effective ledger dates and omit reversed entries from money totals; balance reports
+select overlapping stays and show their whole current position. Keep unknown prices
+explicit. Derive money from the accepted reservation price snapshot, never a separate
+quote-table total. Bounded exports recheck the reviewed content hash, preserve empty
+report metadata, omit contacts and protect formula/precision-sensitive text. Import
+columns as text. Do not persist reports in browser storage or publish real CSV files.
 
 A lost response may hide a committed write. Preserve the original UUID key, reviewed
 versions and quote before retrying. Reconcile the operation's historical result,
