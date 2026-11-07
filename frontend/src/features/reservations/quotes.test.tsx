@@ -1379,3 +1379,100 @@ describe("reviewed quote booking workflow", () => {
     expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(0);
   });
 });
+
+it("production Detail retains a newer explicit operating-state reload over a held background GET", async () => {
+  const { onlineManager, QueryCache } = await import("@tanstack/react-query");
+  const built = vi.spyOn(QueryCache.prototype, "build");
+  let hold = false;
+  let release!: (response: Response) => void;
+  api.mockImplementation((url, init) => {
+    const route = path(url);
+    if (route === "/api/v1/reservations/42" && hold) {
+      hold = false;
+      return new Promise<Response>((resolve) => {
+        release = resolve;
+      });
+    }
+    if (route === "/api/v1/reservations/42/ledger")
+      return Promise.resolve(
+        json({
+          reservation: saved,
+          propertyDate: "2026-11-07",
+          currency: "EUR",
+          agreedCents: 10002,
+          accommodationCents: 10002,
+          outstandingCents: 10002,
+          creditCents: 0,
+          totals: { paymentsCents: 0, refundsCents: 0, receivedCents: 0 },
+        }),
+      );
+    if (route === "/api/v1/apartments/7/readiness")
+      return Promise.resolve(
+        json({
+          roomId: 7,
+          state: "CLEAN",
+          version: 3,
+          changedAt: "2026-11-07T09:00:00Z",
+        }),
+      );
+    return responses(url, init);
+  });
+  await enter();
+  await userEvent.click(await review());
+  await screen.findByRole("heading", { name: "Reservation #42" });
+  const launch = await screen.findByRole("button", {
+    name: "Cancel reservation",
+  });
+  await waitFor(() => expect(launch).toBeEnabled());
+  await userEvent.click(launch);
+  const dialog = within(
+    screen.getByRole("dialog", { name: "Cancel reservation" }),
+  );
+  const older = structuredClone(saved!);
+  hold = true;
+  const now = Date.now();
+  const clock = vi.spyOn(Date, "now").mockReturnValue(now + 60_000);
+  try {
+    await act(async () => {
+      onlineManager.setOnline(false);
+    });
+    await act(async () => {
+      onlineManager.setOnline(true);
+    });
+    await waitFor(() => expect(release).toBeTypeOf("function"));
+    const target = built.mock.results
+      .map((result) => result.value)
+      .find(
+        (query) =>
+          JSON.stringify(query?.queryKey) ===
+          JSON.stringify(["reservations", 42]),
+      )!;
+    const background = target.promise;
+    saved = { ...saved, version: 1 };
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Load current stay" }),
+    );
+    await waitFor(() =>
+      expect(
+        dialog.getByRole("button", { name: "Load current stay" }),
+      ).toBeEnabled(),
+    );
+    await waitFor(() =>
+      expect(target.state.data).toMatchObject({ version: 1 }),
+    );
+    await act(async () => {
+      release(json(older));
+      await background;
+    });
+    expect(target.state.data).toMatchObject({ version: 1 });
+    await waitFor(() =>
+      expect(
+        dialog.getByRole("button", { name: "Review action" }),
+      ).toBeEnabled(),
+    );
+  } finally {
+    clock.mockRestore();
+    onlineManager.setOnline(true);
+    built.mockRestore();
+  }
+});

@@ -158,3 +158,70 @@ it("retains reasons only in the hashed identity and clears a definitely rejected
     "Synthetic absent guest",
   );
 });
+
+it("retains an unknown correction when a claimed no-op result names another resource", async () => {
+  const correctedAt = "2026-11-07T10:00:00.123456Z";
+  api.mockResolvedValueOnce(json({})).mockImplementationOnce(async () => {
+    const original = saved(key());
+    return json({
+      ...original,
+      kind: "CORRECT_STAY",
+      resourceId: 43,
+      reservation: {
+        ...original.reservation,
+        version: 0,
+        checkedInAt: correctedAt,
+      },
+      inventoryEvent: undefined,
+    });
+  });
+  await expect(
+    client().operateStay(
+      42,
+      {
+        kind: "CORRECT_STAY",
+        checkedInAt: correctedAt,
+        reason: "Synthetic time correction",
+      },
+      0,
+    ),
+  ).rejects.toThrow();
+  expect(localStorage.getItem("villarosa.pendingOperations.v2")).toContain(
+    key(),
+  );
+});
+
+it("recovers an exact earlier arrival correction at the original version without replaying it after checkout", async () => {
+  const correctedAt = "2026-11-07T10:00:00.123456Z";
+  const action = {
+    kind: "CORRECT_STAY" as const,
+    checkedInAt: correctedAt,
+    reason: "Synthetic arrival correction",
+  };
+  api.mockRejectedValueOnce(
+    new TypeError("Synthetic lost correction response"),
+  );
+  await expect(client().operateStay(42, action, 0)).rejects.toThrow();
+  const stable = key();
+  const original = saved(stable);
+  api.mockResolvedValueOnce(
+    json({
+      ...original,
+      kind: "CORRECT_STAY",
+      inventoryEvent: {
+        ...original.inventoryEvent,
+        kind: "CORRECTED",
+        reason: action.reason,
+      },
+    }),
+  );
+  await expect(
+    client().operateStay(42, action, 8, undefined, true),
+  ).resolves.toMatchObject({ version: 1, checkedInAt: correctedAt });
+  expect(
+    api.mock.calls.filter(([, init]) => init?.method === "POST"),
+  ).toHaveLength(1);
+  expect(JSON.stringify([localStorage, sessionStorage])).not.toContain(
+    action.reason,
+  );
+});

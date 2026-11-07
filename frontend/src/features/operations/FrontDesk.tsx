@@ -99,7 +99,7 @@ export function FrontDesk() {
       ) : query.isError && !query.data ? (
         <QueryError retry={() => void query.refetch()} />
       ) : rows.length === 0 ? (
-        <Empty title="No matching stays">
+        <Empty headingLevel={2} title="No matching stays">
           This list has no stays for the current property day.
         </Empty>
       ) : (

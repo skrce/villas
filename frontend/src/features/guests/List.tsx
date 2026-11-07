@@ -121,7 +121,7 @@ export function Guests() {
         ) : query.isError ? (
           <QueryError retry={() => void query.refetch()} />
         ) : !items.length ? (
-          <Empty title="No matching guests">
+          <Empty headingLevel={2} title="No matching guests">
             Clear the filters or add a guest. Only names are required.
           </Empty>
         ) : (

@@ -152,6 +152,7 @@ export const buildStayActions = (
               reason,
             );
         if (
+          result.resourceId !== id ||
           saved.id !== id ||
           (corrected
             ? saved.checkedInAt !== action.checkedInAt ||

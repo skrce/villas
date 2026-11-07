@@ -461,6 +461,7 @@ td .subline {
   color: #849475;
   margin-bottom: 14px;
 }
+.empty h2,
 .empty h3 {
   color: var(--ink);
   font-weight: 550;

@@ -274,7 +274,12 @@ function PriceEdit({
           const fresh = refreshedQuote(body, inputFor());
           setQuote(
             fresh
-              ? { value: fresh, identity: identity(), refreshed: true }
+              ? {
+                  value: fresh,
+                  identity: identity(),
+                  refreshed: true,
+                  readinessVersion: visible?.readinessVersion,
+                }
               : undefined,
           );
         }
