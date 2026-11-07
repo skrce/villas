@@ -120,6 +120,42 @@ constructor(
     }
 
     @Test
+    fun numericLinkedReceiptCannotRoundToAnotherReceipt() {
+        jdbc.execute("ALTER TABLE ledger_entries ALTER COLUMN id RESTART WITH 9007199254741000")
+        postBody("/api/v1/reservations/$id/ledger/payments", body(amount = "100", version = "0"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.ledgerEntry.id").value("9007199254741000"))
+        postBody("/api/v1/reservations/$id/ledger/payments", body(amount = "200", version = "1"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.ledgerEntry.id").value("9007199254741001"))
+        for (numeric in listOf("9007199254741000", "9007199254741000.0", "true")) {
+            postBody(
+                    "/api/v1/reservations/$id/ledger/refunds",
+                    """{"paymentId":$numeric,"amountCents":25,"expectedVersion":2,"method":"CASH","effectiveDate":"${time.today()}","reason":"Synthetic precision probe"}""",
+                )
+                .andExpect(status().isBadRequest)
+        }
+        mvc.perform(get("/api/v1/reservations/$id/ledger").cookie(browser.cookie))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.totals.refundsCents").value(0))
+            .andExpect(jsonPath("$.reservation.version").value(2))
+        postBody(
+                "/api/v1/reservations/$id/ledger/refunds",
+                """{"paymentId":"9007199254741001","amountCents":25,"expectedVersion":2,"method":"CASH","effectiveDate":"${time.today()}","reason":"Synthetic exact receipt"}""",
+            )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.ledgerEntry.paymentId").value("9007199254741001"))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["100", "1.5", "true"])
+    fun receiptReferencesMustBeJsonStrings(reference: String) {
+        val request = body().dropLast(1) + ",\"reference\":" + reference + "}"
+        postBody("/api/v1/reservations/$id/ledger/payments", request)
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
     fun financialReadsAndWritesNeverAllowAnonymousOrUnapprovedRoles() {
         for (path in listOf("/ledger", "/ledger/entries", "/ledger/payments")) {
             mvc.perform(get("/api/v1/reservations/$id$path")).andExpect(status().isUnauthorized)

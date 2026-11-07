@@ -8,7 +8,8 @@ All amounts are positive integer EUR cents at most 9007199254740991. Dates are s
 property calendar dates, from year 1000 through today in Europe/Skopje. A refund
 cannot precede its receipt's date. Recorded timestamps are UTC with microseconds.
 Ledger IDs and linked IDs are decimal strings, including beyond JavaScript integer
-precision. Reservation versions remain supported exact integers.
+precision. JSON receipt IDs must be strings; numeric and boolean values are rejected
+before any allocation. Reservation versions remain supported exact integers.
 
 ## Immutable records
 

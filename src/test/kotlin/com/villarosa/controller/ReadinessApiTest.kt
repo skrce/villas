@@ -79,6 +79,10 @@ constructor(
                 "{\"state\":\"IN_PROGRESS\",\"expectedVersion\":0.5}",
                 "{\"state\":\"IN_PROGRESS\",\"expectedVersion\":\"0\"}",
                 "{\"state\":\"IN_PROGRESS\",\"expectedVersion\":-1}",
+                "{\"state\":1,\"expectedVersion\":0}",
+                "{\"state\":1.0,\"expectedVersion\":0}",
+                "{\"state\":\"1\",\"expectedVersion\":0}",
+                "{\"state\":true,\"expectedVersion\":0}",
             ]
     )
     fun requiresExplicitIntegerVersionsAndAReadinessState(body: String) {
