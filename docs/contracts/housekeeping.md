@@ -30,8 +30,8 @@ contact or financial fields. Missing/foreign-property rooms return 404.
 
 The storage foundation also adds confirmed, checked-in, checked-out, cancelled and
 no-show stay phases with UTC arrival/departure fields. D13 requires a clean room for
-check-in and permits no override. Lifecycle actions and checkout integration remain
-separate Milestone 8 work.
+check-in and permits no override. Checkout and in-house room moves mark the vacated room DIRTY atomically with the
+stay action. Manual changes remain blocked while a guest is physically checked in.
 
 ## Daily room list
 

@@ -1,13 +1,20 @@
-import { useContext, useState } from "react";
+import { useState } from "react";
 import { ReservationPayments } from "./Payments";
 import { Link, useParams } from "react-router-dom";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { DraftContext, useWorkspace } from "../../app/context";
-import { dateLabel, eventLabel, roomChoiceLabel } from "../../shared/format";
-import { useSave } from "../../shared/useSave";
+import { useWorkspace } from "../../app/context";
+import {
+  dateLabel,
+  eventLabel,
+  roomChoiceLabel,
+  validVersion,
+} from "../../shared/format";
+import { phaseLabel } from "../../shared/operations";
+import { useOnline } from "../../shared/useOnline";
 import { useRooms } from "../rooms/queries";
 import { EditReservation } from "./Edit";
 import { ReservationPricePanel } from "./PricePanel";
+import { StayOperationsPanel, RoomAllocationsPanel } from "./StayOperations";
 import {
   Dialog,
   Empty,
@@ -16,7 +23,6 @@ import {
   Pending,
   QueryError,
   SelectField,
-  Status,
 } from "../../shared/ui";
 export function ReservationDetail() {
   const { reservationId } = useParams();
@@ -26,9 +32,10 @@ function ReservationDetailPage() {
   const { reservationId } = useParams();
   const id = Number(reservationId);
   const valid = Number.isSafeInteger(id) && id > 0 && id <= 2147483647;
-  const { apis, booking } = useWorkspace();
+  const { apis } = useWorkspace();
+  const online = useOnline();
   const [editing, setEditing] = useState<{
-    kind: "move" | "stay" | "cancel";
+    kind: "move" | "stay";
     version: number;
     recoveryOnly: boolean;
     snapshot: {
@@ -36,11 +43,11 @@ function ReservationDetailPage() {
       endDate: string;
       guestCount: number;
       roomId: number;
+      phase?: string;
     };
   }>();
-  const drafts = useContext(DraftContext);
-  const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false),
+    [saved, setSaved] = useState(false);
   const query = useQuery({
     queryKey: ["reservations", id],
     queryFn: ({ signal }) =>
@@ -70,31 +77,26 @@ function ReservationDetailPage() {
   });
   const rooms = useRooms();
   const record = query.data;
-  const open = (kind: "move" | "stay" | "cancel", recoveryOnly = false) => {
-    if (!record || !Number.isSafeInteger(record.version) || record.version! < 0)
-      return;
-    mutation.resetStatus();
+  const phase =
+    record?.phase ??
+    (record?.status === "CANCELLED" ? "CANCELLED" : "CONFIRMED");
+  const editable = ["CONFIRMED", "CHECKED_IN"].includes(phase);
+  const open = (kind: "move" | "stay", recoveryOnly = false) => {
+    if (!record || !validVersion(record.version)) return;
     setSaved(false);
     setEditing({
       kind,
       recoveryOnly,
-      version: record.version!,
+      version: record.version,
       snapshot: {
         startDate: record.startDate!,
         endDate: record.endDate!,
         guestCount: record.guestCount!,
         roomId: record.roomId!,
+        phase,
       },
     });
   };
-  const mutation = useSave<void>(
-    () => booking.cancel(id, editing!.version),
-    () => {
-      drafts?.delete(`reservation-edit:${id}:${editing?.kind}`);
-      setEditing(undefined);
-      setSaved(true);
-    },
-  );
   return (
     <>
       <Link className="back-link" to="/reservations">
@@ -103,40 +105,34 @@ function ReservationDetailPage() {
       <PageHead
         title={valid ? `Reservation #${id}` : "Reservation"}
         actions={
-          record?.status === "ACTIVE" ? (
+          record ? (
             <>
+              {editable && (
+                <>
+                  <button
+                    className="button secondary"
+                    disabled={!online}
+                    onClick={() => open("stay")}
+                  >
+                    Edit stay
+                  </button>
+                  <button
+                    className="button secondary"
+                    disabled={!online}
+                    onClick={() => open("move")}
+                  >
+                    Move room
+                  </button>
+                </>
+              )}
               <button
-                className="button secondary"
-                onClick={() => {
-                  open("stay");
-                }}
+                className="text-button"
+                disabled={!online}
+                onClick={() => open("stay", true)}
               >
-                Edit stay
-              </button>
-              <button
-                className="button secondary"
-                onClick={() => {
-                  open("move");
-                }}
-              >
-                Move room
-              </button>
-              <button
-                className="button danger-outline"
-                onClick={() => {
-                  open("cancel");
-                }}
-              >
-                Cancel reservation
+                Check previous booking edit
               </button>
             </>
-          ) : record?.status === "CANCELLED" ? (
-            <button
-              className="button secondary"
-              onClick={() => open("stay", true)}
-            >
-              Check previous save
-            </button>
           ) : null
         }
       />
@@ -155,7 +151,9 @@ function ReservationDetailPage() {
         <section className="panel">
           <div className="section-heading">
             <h2>Your stay</h2>
-            <Status value={record!.status} />
+            <span className={`status status-${phase.toLowerCase()}`}>
+              {phaseLabel(phase)}
+            </span>
           </div>
           <dl className="details">
             <div>
@@ -175,13 +173,17 @@ function ReservationDetailPage() {
               <dd>{record!.nights}</dd>
             </div>
             <div>
-              <dt>Room</dt>
+              <dt>Current room</dt>
               <dd>
-                {rooms.data?.find((room) => room.id === record!.roomId)
-                  ? roomChoiceLabel(
+                {rooms.data?.find((room) => room.id === record!.roomId) ? (
+                  <Link to={`/rooms/${record!.roomId}`}>
+                    {roomChoiceLabel(
                       rooms.data.find((room) => room.id === record!.roomId)!,
-                    )
-                  : `Room ${record!.roomId}`}
+                    )}
+                  </Link>
+                ) : (
+                  `Room ${record!.roomId}`
+                )}
               </dd>
             </div>
             <div>
@@ -207,8 +209,14 @@ function ReservationDetailPage() {
           {query.isFetching && <Pending label="Refreshing reservation…" />}
         </section>
       )}
-      {valid && record && <ReservationPricePanel reservation={record} />}
-      {valid && record && <ReservationPayments id={id} />}
+      {valid && record && (
+        <>
+          <StayOperationsPanel reservation={record} />
+          <RoomAllocationsPanel reservation={record} />
+          <ReservationPricePanel reservation={record} />
+          <ReservationPayments id={id} />
+        </>
+      )}
       {valid && (
         <section className="panel">
           <h2>Reservation history</h2>
@@ -231,6 +239,20 @@ function ReservationDetailPage() {
                       {eventLabel(event.occurredAt)} ·{" "}
                       {dateLabel(event.startDate)} to {dateLabel(event.endDate)}
                     </p>
+                    {event.reason && <p>Reason: {event.reason}</p>}
+                    {event.phase && <p>{phaseLabel(event.phase)}</p>}
+                    {event.previousRoomId && (
+                      <p>
+                        Moved from{" "}
+                        <Link to={`/rooms/${event.previousRoomId}`}>
+                          room #{event.previousRoomId}
+                        </Link>{" "}
+                        to{" "}
+                        <Link to={`/rooms/${event.roomId}`}>
+                          room #{event.roomId}
+                        </Link>
+                      </p>
+                    )}
                   </div>
                 </li>
               ))}
@@ -257,34 +279,30 @@ function ReservationDetailPage() {
       {editing && record && (
         <Dialog
           title={
-            editing.kind !== "cancel" &&
-            (editing.recoveryOnly || record.status === "CANCELLED")
+            editing.recoveryOnly || !editable
               ? "Check previous save"
-              : editing?.kind === "cancel"
-                ? "Cancel reservation?"
-                : editing?.kind === "move"
-                  ? "Move room"
-                  : "Edit stay"
+              : editing.kind === "move"
+                ? "Move room"
+                : "Edit stay"
           }
-          busy={busy || mutation.isPending}
+          busy={busy}
           onClose={() => setEditing(undefined)}
         >
-          {editing.kind !== "cancel" &&
-            (editing.recoveryOnly || record.status === "CANCELLED") && (
-              <SelectField
-                label="Previous change"
-                value={editing.kind}
-                onChange={(event) =>
-                  setEditing({
-                    ...editing,
-                    kind: event.target.value === "move" ? "move" : "stay",
-                  })
-                }
-              >
-                <option value="stay">Stay dates or party size</option>
-                <option value="move">Room move</option>
-              </SelectField>
-            )}
+          {(editing.recoveryOnly || !editable) && (
+            <SelectField
+              label="Previous change"
+              value={editing.kind}
+              onChange={(event) =>
+                setEditing({
+                  ...editing,
+                  kind: event.target.value === "move" ? "move" : "stay",
+                })
+              }
+            >
+              <option value="stay">Stay dates or party size</option>
+              <option value="move">Room move</option>
+            </SelectField>
+          )}
           <EditReservation
             key={editing.kind}
             kind={editing.kind}
@@ -292,28 +310,18 @@ function ReservationDetailPage() {
             reservationId={id}
             expectedVersion={editing.version}
             currentVersion={record.version}
-            recoveryOnly={
-              editing.kind !== "cancel" &&
-              (editing.recoveryOnly || record.status === "CANCELLED")
-            }
+            recoveryOnly={editing.recoveryOnly || !editable}
+            operational
+            record={editing.snapshot}
+            rooms={rooms.data ?? []}
             onBusy={setBusy}
             onSaved={() => {
               setEditing(undefined);
               setSaved(true);
             }}
-            record={editing.snapshot}
-            rooms={rooms.data ?? []}
-            busy={mutation.isPending}
-            blocked={mutation.stale}
-            message={mutation.message}
-            onSubmit={async () => {
-              setBusy(true);
-              try {
-                await mutation.submit();
-              } finally {
-                setBusy(false);
-              }
-            }}
+            busy={false}
+            message=""
+            onSubmit={async () => {}}
           />
         </Dialog>
       )}

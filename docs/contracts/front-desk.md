@@ -27,7 +27,9 @@ propertyDate. Supply it as expectedDate when loading another page; a midnight ch
 returns PROPERTY_DATE_CHANGED so the UI must refresh its first page. Events remain
 UTC instants, independent of the JVM and database session timezone.
 
-This slice supplies read lists. Check-in, checkout, no-show, room/date changes during
-a stay and terminal corrections remain separate lifecycle work. Arrival/departure
-timing and the clean-room requirement without an override are confirmed in D13. This read
-API enables no new transition or override and does not complete Milestone 8.
+The responsive front-desk screen links each stay to its reservation details. Those
+controls implement [D13 stay operations](reservations.md#stay-operations): explicit
+review/confirmation, current room readiness and balance, date/room changes with
+accepted whole-stay pricing, and retained historical operation recovery. Completed
+stays expose audited time correction rather than ordinary editing. All state changes
+invalidate the daily lists, calendar, room readiness, balances and histories.

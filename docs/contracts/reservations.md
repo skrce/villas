@@ -235,3 +235,22 @@ Creation still requires a valid reviewed quote and the existing atomic admission
 operation reconciliation and locking rules. This milestone preserves Owner
 cancellation with retained history and no financial side effect under D12. Future
 cancellation deadlines, fees and refunds remain separate policy work.
+
+## Staff controls and recovery
+
+Reservation details show the phase, actual arrival/departure, dated room assignments,
+accepted prices, funds and immutable history. Each operating action has a separate
+review and final confirmation. Checkout displays the balance before acknowledgement.
+Ordinary stay/room edits require a reason and explicit new whole-stay quote; an
+in-house move also retains the original reviewed destination-readiness version.
+
+Actual-time correction uses a date picker and a separate 24-hour text time so native
+browser controls cannot silently discard saved microseconds. Owners resolve property
+times and explicitly choose an offset for repeated DST times before reviewing.
+
+Previous-save controls remain available after terminal outcomes. They validate the
+original immutable event, actor, operation, version, reason, timestamps and accepted
+quote as applicable. Reconciliation reads only and never overwrites current state
+with a historical result. Pre-operational booking intents remain recoverable through
+the compatibility paths. Same-Owner drafts retain fields/versions across sign-in;
+reconnect and reauthentication never submit a write automatically.

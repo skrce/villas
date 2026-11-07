@@ -29,7 +29,14 @@ const packaged = migrate || bootstrap || process.argv.includes('--packaged');
 const jars = packaged ? readdirSync(`${root}/target`).filter((name) => name.endsWith('.jar')) : [];
 if (packaged && jars.length !== 1) throw new Error('Run ./mvnw verify before starting the packaged API.');
 const executable = packaged ? (process.env.JAVA_HOME ? `${process.env.JAVA_HOME}/bin/java` : 'java') : './mvnw';
-const args = packaged ? ['-jar', `${root}/target/${jars[0]}`, ...(migrate ? ['migrate'] : bootstrap ? [recovery ? 'recover-owner' : 'bootstrap-owner', ...(process.argv.includes('--replace-pending') ? ['--replace-pending'] : [])] : ['--spring.profiles.active=local'])] : ['--batch-mode', 'spring-boot:run', '-Dspring-boot.run.profiles=local'];
+const browserClock = process.argv.includes('--browser-clock');
+if (browserClock && (!packaged || migrate || bootstrap || !/^e2e-[a-f0-9]{12}$/.test(process.env.VILLAS_LOCAL_INSTANCE ?? '') || process.env.VILLAS_AUTH_PROVIDER !== 'synthetic')) {
+  throw new Error('The test clock is available only to the disposable synthetic browser runner.');
+}
+const launch = browserClock
+  ? [`-Dloader.path=${root}/.local-state/${process.env.VILLAS_LOCAL_INSTANCE}/browser-clock/browser-clock.jar`, '-cp', `${root}/target/${jars[0]}`, 'org.springframework.boot.loader.launch.PropertiesLauncher']
+  : ['-jar', `${root}/target/${jars[0]}`];
+const args = packaged ? [...launch, ...(migrate ? ['migrate'] : bootstrap ? [recovery ? 'recover-owner' : 'bootstrap-owner', ...(process.argv.includes('--replace-pending') ? ['--replace-pending'] : [])] : ['--spring.profiles.active=local'])] : ['--batch-mode', 'spring-boot:run', '-Dspring-boot.run.profiles=local'];
 const child = spawn(executable, args, {
   cwd: root,
   env: environment,

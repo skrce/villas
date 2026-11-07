@@ -5,7 +5,7 @@ credentials, databases, or deployment assumptions from another project.
 
 ## Scope and decisions
 
-Read `docs/implementation.md`, the active milestone issue, `docs/decisions.md`, and
+Read `docs/maintainer-context.md`, `docs/implementation.md`, the active milestone issue, `docs/decisions.md`, and
 the relevant files under `docs/contracts/` before changing a workflow. Keep one
 milestone active unless the owner requests otherwise.
 

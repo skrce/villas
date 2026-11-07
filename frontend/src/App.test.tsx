@@ -63,6 +63,86 @@ const responses = async (input: RequestInfo | URL, init?: RequestInit) => {
   if (url.endsWith("/staff")) return json([session().staff]);
   return json({ code: "NOT_FOUND" }, 404);
 };
+function cancellableResponses(staleFirst = false) {
+  let version = 0,
+    cancelled = false,
+    operation: unknown;
+  const record = () => ({
+    id: 42,
+    customerId: 5,
+    roomId: 7,
+    startDate: "2026-11-06",
+    endDate: version ? "2026-11-12" : "2026-11-09",
+    guestCount: 1,
+    nights: 3,
+    status: cancelled ? "CANCELLED" : "ACTIVE",
+    phase: cancelled ? "CANCELLED" : "CONFIRMED",
+    version,
+  });
+  api.mockImplementation(async (input, init) => {
+    const url = new URL(String(input), "http://test");
+    if (url.pathname === "/api/v1/reservations/42/events")
+      return json({ items: [], nextCursor: null });
+    if (url.pathname === "/api/v1/reservations/42") return json(record());
+    if (url.pathname === "/api/v1/reservations/42/ledger")
+      return json({
+        reservation: record(),
+        propertyDate: "2026-11-07",
+        currency: "EUR",
+        agreedCents: null,
+        accommodationCents: null,
+        outstandingCents: null,
+        creditCents: null,
+        totals: { paymentsCents: 0, refundsCents: 0, receivedCents: 0 },
+      });
+    if (url.pathname === "/api/v1/apartments/7/readiness")
+      return json({
+        roomId: 7,
+        state: "CLEAN",
+        version: 3,
+        changedAt: "2026-11-06T00:00:00Z",
+      });
+    if (
+      url.pathname === "/api/v1/reservations/42/cancel" &&
+      init?.method === "POST"
+    ) {
+      const body = JSON.parse(String(init.body));
+      if (staleFirst && body.expectedVersion === 0) {
+        version = 1;
+        return json({ code: "STALE_VERSION" }, 409);
+      }
+      cancelled = true;
+      version++;
+      const key = new Headers(init.headers).get("Idempotency-Key");
+      operation = {
+        key,
+        kind: "CANCEL",
+        resourceId: 42,
+        reservation: record(),
+        inventoryEvent: {
+          id: "1",
+          actorId: ownerId,
+          operationKey: key,
+          kind: "CANCELLED",
+          resourceVersion: version,
+          roomId: 7,
+          startDate: record().startDate,
+          endDate: record().endDate,
+          guestCount: 1,
+          phase: "CANCELLED",
+          reason: body.reason,
+          occurredAt: "2026-11-07T01:00:00Z",
+        },
+      };
+      return json(operation);
+    }
+    if (url.pathname.startsWith("/api/v1/operations/"))
+      return operation
+        ? json(operation)
+        : json({ code: "OPERATION_NOT_COMMITTED" }, 404);
+    return responses(input, init);
+  });
+}
 beforeEach(async () => {
   authenticated = true;
   ownerId = "owner-test";
@@ -300,75 +380,54 @@ describe("routed staff workspace", () => {
   });
   it("requires review after a stale edit and uses the version shown when confirmation opened", async () => {
     window.history.replaceState({}, "", "/reservations/42");
-    let version = 0;
-    let cancelled = false;
-    api.mockImplementation(async (input, init) => {
-      const url = new URL(String(input), "http://test");
-      if (url.pathname === "/api/v1/reservations/42/events")
-        return json({ items: [], nextCursor: null });
-      if (url.pathname === "/api/v1/reservations/42")
-        return json({
-          id: 42,
-          customerId: 5,
-          roomId: 7,
-          startDate: "2026-11-06",
-          endDate: version ? "2026-11-12" : "2026-11-09",
-          guestCount: 1,
-          nights: 3,
-          status: cancelled ? "CANCELLED" : "ACTIVE",
-          version,
-        });
-      if (init?.method === "DELETE") {
-        if (url.searchParams.get("expectedVersion") === "0") {
-          version = 1;
-          return json({ code: "STALE_VERSION" }, 409);
-        }
-        cancelled = true;
-        version = 2;
-        return new Response(null, { status: 200 });
-      }
-      if (url.pathname.startsWith("/api/v1/operations/"))
-        return json({
-          key: url.pathname.split("/").pop(),
-          kind: "CANCEL",
-          resourceId: 42,
-        });
-      return responses(input);
-    });
+    cancellableResponses(true);
     await mount();
     await userEvent.click(
-      await screen.findByRole("button", { name: "Cancel reservation" }),
+      await screen.findByRole("button", {
+        name: "Cancel reservation",
+      }),
+    );
+    const dialog = within(screen.getByRole("dialog"));
+    await userEvent.type(
+      dialog.getByLabelText("Reason"),
+      "Synthetic cancelled stay",
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Confirm cancellation" }),
+      dialog.getByRole("button", { name: "Review action" }),
     );
+    await userEvent.click(
+      await dialog.findByRole("button", { name: "Confirm cancellation" }),
+    );
+    await dialog.findByText(/The stay changed/);
     expect(
-      await screen.findByText(
-        /Close this dialog and review the latest details/,
-      ),
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByRole("button", { name: "Confirm cancellation" }),
+      dialog.getByRole("button", { name: "Confirm cancellation" }),
     ).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Close dialog" }));
     await userEvent.click(
-      screen.getByRole("button", { name: "Cancel reservation" }),
+      dialog.getByRole("button", { name: "Load current stay" }),
+    );
+    await waitFor(() =>
+      expect(
+        dialog.getByRole("button", { name: "Review action" }),
+      ).toBeEnabled(),
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Confirm cancellation" }),
+      dialog.getByRole("button", { name: "Review action" }),
     );
+    await userEvent.click(
+      await dialog.findByRole("button", { name: "Confirm cancellation" }),
+    );
+    await screen.findByText(/Stay action confirmed/);
     expect(
-      await screen.findByText("Cancelled", { exact: true }),
-    ).toBeInTheDocument();
+      await screen.findAllByText("Cancelled", { exact: true }),
+    ).not.toHaveLength(0);
     expect(
       api.mock.calls
-        .filter(([, init]) => init?.method === "DELETE")
-        .map(([url]) =>
-          new URL(String(url), "http://test").searchParams.get(
-            "expectedVersion",
-          ),
-        ),
-    ).toEqual(["0", "1"]);
+        .filter(
+          ([url, init]) =>
+            String(url).endsWith("/42/cancel") && init?.method === "POST",
+        )
+        .map(([, init]) => JSON.parse(String(init?.body)).expectedVersion),
+    ).toEqual([0, 1]);
   });
   it("prevents duplicate guest creation while the first submission is pending", async () => {
     window.history.replaceState({}, "", "/guests");
@@ -498,37 +557,11 @@ describe("routed staff workspace", () => {
   });
   it("refreshes current reservation after a confirmed write in a new same-Owner login generation", async () => {
     window.history.replaceState({}, "", "/reservations/42");
-    let cancelled = false;
-    api.mockImplementation(async (input, init) => {
-      const url = new URL(String(input), "http://test");
-      if (url.pathname === "/api/v1/reservations/42/events")
-        return json({ items: [], nextCursor: null });
-      if (url.pathname === "/api/v1/reservations/42")
-        return json({
-          id: 42,
-          customerId: 5,
-          roomId: 7,
-          startDate: "2026-11-06",
-          endDate: "2026-11-09",
-          guestCount: 1,
-          nights: 3,
-          status: cancelled ? "CANCELLED" : "ACTIVE",
-          version: cancelled ? 1 : 0,
-        });
-      if (init?.method === "DELETE") {
-        cancelled = true;
-        return new Response(null, { status: 200 });
-      }
-      if (url.pathname.startsWith("/api/v1/operations/"))
-        return json({
-          key: url.pathname.split("/").pop(),
-          kind: "CANCEL",
-          resourceId: 42,
-        });
-      return responses(input);
-    });
+    cancellableResponses();
     await mount();
-    await screen.findByRole("button", { name: "Cancel reservation" });
+    await screen.findByRole("button", {
+      name: "Cancel reservation",
+    });
     vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
       String(input).endsWith("/auth/session")
         ? Promise.resolve(
@@ -549,15 +582,21 @@ describe("routed staff workspace", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Cancel reservation" }),
     );
+    const dialog = within(screen.getByRole("dialog"));
+    await userEvent.type(
+      dialog.getByLabelText("Reason"),
+      "Synthetic cancellation after sign-in",
+    );
     await userEvent.click(
-      screen.getByRole("button", { name: "Confirm cancellation" }),
+      dialog.getByRole("button", { name: "Review action" }),
     );
-    await screen.findByText(
-      "Request confirmed. Review the current reservation below.",
+    await userEvent.click(
+      await dialog.findByRole("button", { name: "Confirm cancellation" }),
     );
+    await screen.findByText(/Stay action confirmed/);
     expect(
-      await screen.findByText("Cancelled", { exact: true }),
-    ).toBeInTheDocument();
+      await screen.findAllByText("Cancelled", { exact: true }),
+    ).not.toHaveLength(0);
   });
 });
 function guestSchemaFields() {

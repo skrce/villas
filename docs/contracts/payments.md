@@ -74,8 +74,8 @@ receipt allocation. Property and booking checks apply to reads and every linked 
 Reconciliation uses the shared operation endpoint with RECORD_PAYMENT, RECORD_REFUND
 or REVERSE_ENTRY. A repeated key/input returns its historical committed result even
 after repricing or cancellation. A changed input with the same key conflicts. Missing
-or indeterminate responses are not evidence that money was unrecorded. The frontend
-workflow and browser recovery checks follow in the next implementation slice.
+or indeterminate responses are not evidence that money was unrecorded. The staff
+interface and browser checks exercise the reconciliation contract below.
 
 ## Staff interface and recovery
 

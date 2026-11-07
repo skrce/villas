@@ -105,15 +105,20 @@ async function responses(
     return offers.has(route.split("/").pop()!)
       ? json(offers.get(route.split("/").pop()!))
       : json({ code: "NOT_FOUND" }, 404);
-  if (route.endsWith("/quoted") && init?.method === "PATCH") {
+  if (
+    ["/api/v1/reservations/42/change", "/api/v1/reservations/42/move"].includes(
+      route,
+    ) &&
+    init?.method === "POST"
+  ) {
     const requested = body(init);
     if (requested.expectedVersion !== saved?.version)
       return json({ code: "STALE_VERSION" }, 409);
-    const moving = route.includes("/room/quoted");
+    const moving = route.endsWith("/move");
     saved = {
       ...saved,
       ...(moving
-        ? { roomId: requested.newRoomId }
+        ? { roomId: requested.roomId }
         : {
             startDate: requested.startDate,
             endDate: requested.endDate,
@@ -128,6 +133,20 @@ async function responses(
       kind: moving ? "MOVE" : "CHANGE",
       resourceId: 42,
       reservation: saved,
+      inventoryEvent: {
+        id: "9007199254741001",
+        actorId: "quote-owner",
+        operationKey: new Headers(init.headers).get("Idempotency-Key"),
+        kind: moving ? "MOVED" : "CHANGED",
+        resourceVersion: saved.version,
+        roomId: saved.roomId,
+        startDate: saved.startDate,
+        endDate: saved.endDate,
+        guestCount: saved.guestCount,
+        phase: saved.phase,
+        reason: requested.reason,
+        occurredAt: new Date().toISOString(),
+      },
     };
     return json(saved);
   }
@@ -142,6 +161,7 @@ async function responses(
       guestCount: requested.guestCount,
       version: 0,
       status: "ACTIVE",
+      phase: "CONFIRMED",
       nights: 2,
       acceptedQuoteId: requested.quoteId,
     };
@@ -514,12 +534,12 @@ describe("reviewed quote booking workflow", () => {
       await booked();
       const target =
         kind === "stay"
-          ? "/api/v1/reservations/42/dates/quoted"
-          : "/api/v1/reservations/42/room/quoted";
+          ? "/api/v1/reservations/42/change"
+          : "/api/v1/reservations/42/move";
       let lose = true;
       api.mockImplementation(async (url, init) => {
         const response = await responses(url, init);
-        if (path(url) === target && init?.method === "PATCH" && lose) {
+        if (path(url) === target && init?.method === "POST" && lose) {
           lose = false;
           throw new TypeError("Lost accepted edit response");
         }
@@ -539,15 +559,15 @@ describe("reviewed quote booking workflow", () => {
       expect(
         sessionStorage.getItem("villarosa.ownPendingOperations.v2"),
       ).not.toBe("{}");
-      saved = { ...saved, status: "CANCELLED", version: 2 };
+      saved = { ...saved, status: "CANCELLED", phase: "CANCELLED", version: 2 };
       cleanup();
       window.history.replaceState({}, "", "/reservations/42");
       await act(async () => {
         render(<App />);
       });
-      await screen.findByText("Cancelled", { exact: true });
+      await screen.findAllByText("Cancelled", { exact: true });
       await userEvent.click(
-        screen.getByRole("button", { name: "Check previous save" }),
+        screen.getByRole("button", { name: "Check previous booking edit" }),
       );
       const recovery = screen.getByRole("dialog", {
         name: "Check previous save",
@@ -562,6 +582,11 @@ describe("reviewed quote booking workflow", () => {
           "8",
         );
       }
+      const originalReason = within(recovery).getByLabelText(
+        "Reason",
+      ) as HTMLTextAreaElement;
+      if (!originalReason.value)
+        await userEvent.type(originalReason, "Synthetic booking correction");
       expect(
         within(recovery).queryByRole("button", {
           name: /Review price|Confirm changes|Load latest stay/,
@@ -572,7 +597,7 @@ describe("reviewed quote booking workflow", () => {
         within(recovery).getByRole("button", { name: "Check previous save" }),
       );
       await waitFor(() => expect(recovery).not.toBeInTheDocument());
-      expect(calls(target, "PATCH")).toHaveLength(1);
+      expect(calls(target, "POST")).toHaveLength(1);
       expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(quoted);
       expect(saved).toMatchObject({ status: "CANCELLED", version: 2 });
       expect(sessionStorage.getItem("villarosa.ownPendingOperations.v2")).toBe(
@@ -592,9 +617,13 @@ describe("reviewed quote booking workflow", () => {
         name: kind === "stay" ? "Edit stay" : "Move room",
       }),
     );
-    return screen.getByRole("dialog", {
+    const dialog = screen.getByRole("dialog", {
       name: kind === "stay" ? "Edit stay" : "Move room",
     });
+    const reason = within(dialog).getByLabelText("Reason");
+    if (!(reason as HTMLTextAreaElement).value)
+      await userEvent.type(reason, "Synthetic booking correction");
+    return dialog;
   }
   async function checkout(dialog: HTMLElement, value: string) {
     await userEvent.clear(within(dialog).getByLabelText("Check-out"));
@@ -676,9 +705,7 @@ describe("reviewed quote booking workflow", () => {
     await checkout(stay, "2030-01-04");
     const accept = await editQuote(stay);
     expect(accept).toHaveTextContent("€150.03");
-    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
-      0,
-    );
+    expect(calls("/api/v1/reservations/42/change", "POST")).toHaveLength(0);
     await userEvent.click(accept);
     await waitFor(() => expect(stay).not.toBeInTheDocument());
     expect(saved).toMatchObject({ endDate: "2030-01-04", version: 1 });
@@ -702,8 +729,8 @@ describe("reviewed quote booking workflow", () => {
     expect(await screen.findByText("Current agreement")).toBeInTheDocument();
     expect(screen.getAllByText("Previous agreement")).toHaveLength(2);
     expect(
-      body(calls("/api/v1/reservations/42/room/quoted", "PATCH")[0][1]),
-    ).toMatchObject({ newRoomId: 8, expectedVersion: 1 });
+      body(calls("/api/v1/reservations/42/move", "POST")[0][1]),
+    ).toMatchObject({ roomId: 8, expectedVersion: 1 });
   });
   it("requires a new party-size agreement even when the room total is unchanged", async () => {
     await booked();
@@ -722,7 +749,7 @@ describe("reviewed quote booking workflow", () => {
     await booked();
     let first = true;
     api.mockImplementation((url, init) => {
-      if (path(url) === "/api/v1/reservations/42/dates/quoted" && first) {
+      if (path(url) === "/api/v1/reservations/42/change" && first) {
         first = false;
         const fresh = testQuote(
           { ...input, endDate: "2030-01-04" },
@@ -744,15 +771,11 @@ describe("reviewed quote booking workflow", () => {
       name: "Confirm changes · €180.03",
     });
     expect(within(stay).getByLabelText("Check-out")).toHaveValue("2030-01-04");
-    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
-      1,
-    );
+    expect(calls("/api/v1/reservations/42/change", "POST")).toHaveLength(1);
     expect(saved!.version).toBe(0);
     await userEvent.click(accept);
     await waitFor(() => expect(stay).not.toBeInTheDocument());
-    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
-      2,
-    );
+    expect(calls("/api/v1/reservations/42/change", "POST")).toHaveLength(2);
     expect(agreements.at(-1)!.quote.price.totalCents).toBe(18003);
   });
   it("hides an edit quote when the requested dates change", async () => {
@@ -764,15 +787,13 @@ describe("reviewed quote booking workflow", () => {
     expect(
       within(stay).queryByRole("button", { name: /Confirm changes/ }),
     ).not.toBeInTheDocument();
-    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
-      0,
-    );
+    expect(calls("/api/v1/reservations/42/change", "POST")).toHaveLength(0);
   });
   it("recovers a lost date-change response after full reload without another quote or write", async () => {
     await booked();
     let lost = true;
     api.mockImplementation(async (url, init) => {
-      if (path(url) === "/api/v1/reservations/42/dates/quoted" && lost) {
+      if (path(url) === "/api/v1/reservations/42/change" && lost) {
         lost = false;
         await responses(url, init);
         throw new TypeError("Lost edit response");
@@ -798,15 +819,13 @@ describe("reviewed quote booking workflow", () => {
     );
     await waitFor(() => expect(restored).not.toBeInTheDocument());
     expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(quoteCount);
-    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
-      1,
-    );
+    expect(calls("/api/v1/reservations/42/change", "POST")).toHaveLength(1);
   });
   it("can reconcile a lost move after reload when the destination has become the current room", async () => {
     await booked();
     let lost = true;
     api.mockImplementation(async (url, init) => {
-      if (path(url) === "/api/v1/reservations/42/room/quoted" && lost) {
+      if (path(url) === "/api/v1/reservations/42/move" && lost) {
         lost = false;
         await responses(url, init);
         throw new TypeError("Lost move response");
@@ -840,9 +859,7 @@ describe("reviewed quote booking workflow", () => {
       within(restored).getByRole("button", { name: "Check previous save" }),
     );
     await waitFor(() => expect(restored).not.toBeInTheDocument());
-    expect(calls("/api/v1/reservations/42/room/quoted", "PATCH")).toHaveLength(
-      1,
-    );
+    expect(calls("/api/v1/reservations/42/move", "POST")).toHaveLength(1);
     expect(calls("/api/v1/booking-quotes", "POST")).toHaveLength(quoted);
   });
 
@@ -876,7 +893,7 @@ describe("reviewed quote booking workflow", () => {
     await userEvent.click(await editQuote(restored));
     await waitFor(() => expect(restored).not.toBeInTheDocument());
     expect(
-      body(calls("/api/v1/reservations/42/dates/quoted", "PATCH")[0][1])
+      body(calls("/api/v1/reservations/42/change", "POST")[0][1])
         .expectedVersion,
     ).toBe(1);
   });
@@ -885,7 +902,7 @@ describe("reviewed quote booking workflow", () => {
     const stay = await dialogFor("stay");
     await checkout(stay, "2030-01-04");
     api.mockImplementation((url, init) =>
-      path(url) === "/api/v1/reservations/42/dates/quoted"
+      path(url) === "/api/v1/reservations/42/change"
         ? Promise.resolve(json({ code: "STALE_VERSION" }, 409))
         : responses(url, init),
     );
@@ -922,9 +939,7 @@ describe("reviewed quote booking workflow", () => {
         name: "Configure this room's rates",
       }),
     ).toHaveAttribute("href", "/rooms/7#rates");
-    expect(calls("/api/v1/reservations/42/dates/quoted", "PATCH")).toHaveLength(
-      0,
-    );
+    expect(calls("/api/v1/reservations/42/change", "POST")).toHaveLength(0);
   });
 
   it("loads bounded price history with an exclusive version cursor and retains earlier agreements", async () => {

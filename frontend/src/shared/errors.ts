@@ -2,6 +2,27 @@ import { ResponseError } from "../api/generated";
 import { SessionChangedError } from "../api/session";
 import { OperationRecoveryError } from "../api/bookingActions";
 const messages: Record<string, string> = {
+  ROOM_NOT_READY:
+    "This room must be clean. Finish cleaning and inspection before check-in or an in-house move.",
+  READINESS_REVIEW_REQUIRED:
+    "Review the destination room's current readiness before confirming.",
+  INVALID_STAY_TRANSITION:
+    "This action is unavailable for the current stay status. Refresh the stay.",
+  STAY_NOT_EDITABLE:
+    "This stay is in progress or closed. Use its permitted operating actions or an audited time correction.",
+  CHECK_IN_DATE:
+    "Check in within the booked dates, before departure day. Accept a date change first if needed.",
+  CHECK_OUT_DATE:
+    "Accept an early or late departure date change before checkout.",
+  NO_SHOW_DATE: "Record a no-show only after the arrival day has passed.",
+  SETTLEMENT_REVIEW_REQUIRED:
+    "Review and acknowledge the outstanding balance or credit. Checkout records no money automatically.",
+  INVALID_OPERATION_TIME:
+    "Check the actual times and chosen property offsets. Arrival must fall within the stay; departure must follow it on the agreed departure day, with neither time in the future.",
+  ARRIVAL_OUTSIDE_STAY:
+    "The new stay dates must contain the actual arrival day.",
+  DEPARTURE_DATE_PASSED:
+    "Accept a departure-date change that includes the current property day before continuing.",
   QUOTE_CHANGED:
     "The price expired or rates changed. Review the refreshed quote before confirming again.",
   QUOTE_MISMATCH:
