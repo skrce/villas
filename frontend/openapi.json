@@ -109,6 +109,51 @@
         },
         "type": "object"
       },
+      "BalanceRow": {
+        "properties": {
+          "accommodationCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "agreedCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "creditCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "guestName": {
+            "type": "string"
+          },
+          "outstandingCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "receivedCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reservationId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "startDate": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "BookingCalendarPage": {
         "properties": {
           "endDate": {
@@ -275,6 +320,50 @@
         },
         "type": "object"
       },
+      "ChargeRow": {
+        "properties": {
+          "chargeCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "guestName": {
+            "type": "string"
+          },
+          "nights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "quoteId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reservationId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "roomName": {
+            "type": "string"
+          },
+          "roomReference": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CheckInRequest": {
         "properties": {
           "expectedVersion": {
@@ -322,6 +411,62 @@
           "acknowledgeBalance",
           "expectedVersion"
         ],
+        "type": "object"
+      },
+      "CollectionRow": {
+        "properties": {
+          "amountCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "collectedCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "effectiveDate": {
+            "type": "string"
+          },
+          "entryId": {
+            "type": "string"
+          },
+          "guestName": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "method": {
+            "nullable": true,
+            "type": "string"
+          },
+          "paymentId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "recordedAt": {
+            "type": "string"
+          },
+          "reference": {
+            "nullable": true,
+            "type": "string"
+          },
+          "refundedCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reservationId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "reversedById": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reversesId": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "Customer": {
@@ -1001,6 +1146,40 @@
         ],
         "type": "object"
       },
+      "OccupancyRow": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "blockedNights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "bookedNights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "roomName": {
+            "type": "string"
+          },
+          "roomNights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "roomReference": {
+            "type": "string"
+          },
+          "sellableNights": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "OperationResult": {
         "properties": {
           "inventoryEvent": {
@@ -1210,6 +1389,77 @@
           "effectiveDate",
           "expectedVersion",
           "method"
+        ],
+        "type": "object"
+      },
+      "PeriodReport": {
+        "properties": {
+          "balances": {
+            "items": {
+              "$ref": "#/components/schemas/BalanceRow"
+            },
+            "type": "array"
+          },
+          "charges": {
+            "items": {
+              "$ref": "#/components/schemas/ChargeRow"
+            },
+            "type": "array"
+          },
+          "collections": {
+            "items": {
+              "$ref": "#/components/schemas/CollectionRow"
+            },
+            "type": "array"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "OCCUPANCY",
+              "CHARGES",
+              "COLLECTIONS",
+              "BALANCES"
+            ],
+            "type": "string"
+          },
+          "notices": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "occupancy": {
+            "items": {
+              "$ref": "#/components/schemas/OccupancyRow"
+            },
+            "type": "array"
+          },
+          "propertyDate": {
+            "type": "string"
+          },
+          "roomId": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "snapshotId": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ReportTotals"
+          }
+        },
+        "required": [
+          "balances",
+          "charges",
+          "collections",
+          "notices",
+          "occupancy"
         ],
         "type": "object"
       },
@@ -1714,6 +1964,70 @@
         },
         "type": "object"
       },
+      "ReportTotals": {
+        "properties": {
+          "blockedNights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "bookedNights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "chargeCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "collectedCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "creditCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "knownChargeCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "knownCreditCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "knownOutstandingCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "netCollectedCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outstandingCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "refundedCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "roomNights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sellableNights": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unknownPriceCount": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "ReservationInfo": {
         "properties": {
           "acceptedQuoteId": {
@@ -2202,6 +2516,116 @@
           "expectedVersion",
           "reason"
         ],
+        "type": "object"
+      },
+      "TodayBalances": {
+        "properties": {
+          "creditCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "creditCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BalanceRow"
+            },
+            "type": "array"
+          },
+          "outstandingCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outstandingCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unknownCount": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "TodayQueue": {
+        "properties": {
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FrontDeskStay"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "TodayView": {
+        "properties": {
+          "activeRooms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "arrivals": {
+            "$ref": "#/components/schemas/TodayQueue"
+          },
+          "attention": {
+            "$ref": "#/components/schemas/TodayQueue"
+          },
+          "balances": {
+            "$ref": "#/components/schemas/TodayBalances"
+          },
+          "blockedRooms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cleanRooms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cleaningRooms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "departures": {
+            "$ref": "#/components/schemas/TodayQueue"
+          },
+          "dirtyRooms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "guestsInHouse": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "inHouse": {
+            "$ref": "#/components/schemas/TodayQueue"
+          },
+          "inspectionRooms": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "propertyDate": {
+            "type": "string"
+          },
+          "readAt": {
+            "type": "string"
+          },
+          "roomsWithoutRates": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
         "type": "object"
       }
     },
@@ -4014,6 +4438,159 @@
         "summary": "Resolve a Skopje time to explicit UTC choices, including repeated or missing daylight-saving times",
         "tags": [
           "Operations"
+        ]
+      }
+    },
+    "/reports": {
+      "get": {
+        "operationId": "periodReport",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "OCCUPANCY",
+                "CHARGES",
+                "COLLECTIONS",
+                "BALANCES"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "roomId",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodReport"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read a complete bounded report with definitions and source drill-downs",
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/reports/export": {
+      "get": {
+        "operationId": "exportReport",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "OCCUPANCY",
+                "CHARGES",
+                "COLLECTIONS",
+                "BALANCES"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "roomId",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "snapshotId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "format": "byte",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Download a bounded UTF-8 CSV only when its source snapshot still matches the reviewed report",
+        "tags": [
+          "Reports"
         ]
       }
     },
@@ -5990,6 +6567,37 @@
         "summary": "Invalidate every current session for an Owner",
         "tags": [
           "Staff"
+        ]
+      }
+    },
+    "/today": {
+      "get": {
+        "operationId": "today",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read a consistent Owner-only snapshot of today's work and current balance attention",
+        "tags": [
+          "Reports"
         ]
       }
     }

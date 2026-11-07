@@ -9,5 +9,6 @@ export * from './OperationsApi';
 export * from './PaymentsApi';
 export * from './QuotesApi';
 export * from './RatesApi';
+export * from './ReportsApi';
 export * from './ReservationApi';
 export * from './StaffApi';

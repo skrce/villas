@@ -13,7 +13,7 @@ Update this guide whenever behavior, setup or release status changes.
 4. The relevant [API](contracts/api.md), [reservations](contracts/reservations.md),
    [pricing](contracts/pricing.md), [payments](contracts/payments.md),
    [front-desk](contracts/front-desk.md), [housekeeping](contracts/housekeeping.md)
-   or [permissions](contracts/permissions.md) contract.
+   [reporting](contracts/reporting.md) or [permissions](contracts/permissions.md) contract.
 5. [README](../README.md), [frontend guide](frontend.md) and
    [security setup](security.md) for the environment being changed.
 
@@ -89,6 +89,7 @@ production/pilot acceptance is implied by the local demo.
 | Rates, immutable quotes and agreements | `service/QuoteService.kt`, related rate/price services and the pricing contract |
 | External settlement | `service/LedgerService.kt`, `controller/LedgerController.kt`, the payment contract |
 | Cleaning, daily lists and calendar snapshots | `service/ReadinessService.kt`, `service/DailyOperations.kt`, `service/BookingCalendar.kt` |
+| Today, current corrected reports and bounded CSV | `service/TodayDashboard.kt`, `service/PeriodReports.kt`, `service/ReportingStore.kt`, `controller/ReportingController.kt` |
 | Routed React workspace and sessions | `frontend/src/app/`, `frontend/src/api/session.ts`, `frontend/src/api/client.ts` |
 | Record screens and responsive controls | `frontend/src/features/`, `frontend/src/shared/ui.tsx`, `App.css`, `index.css` |
 | Safe browser mutations and drafts | `api/bookingActions.ts`, `ledgerActions.ts`, `readinessActions.ts`, `stayActions.ts`; `shared/useSave.ts`, `useDraft.ts`, `useVersionedDraft.ts` |
