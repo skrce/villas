@@ -238,3 +238,78 @@ it("keeps an explicitly disclosed occupancy conflict visible without rejecting i
   r.notices = ["CURRENT_INVENTORY_BASIS", "INVENTORY_CONFLICT"];
   expect(reportSchema.safeParse(r).success).toBe(true);
 });
+
+it("rejects duplicate charge intervals that inflate otherwise reconciled totals", () => {
+  const r = chargedReport();
+  r.charges.push({ ...r.charges[0] });
+  r.totals.chargeCents = 30006;
+  r.totals.knownChargeCents = 30006;
+  expect(reportSchema.safeParse(r).success).toBe(false);
+});
+it("rejects overlapping room charge intervals for one booking", () => {
+  const r = chargedReport();
+  const row = r.charges[0];
+  r.charges = [
+    { ...row, endDate: "2026-11-09", nights: 2, chargeCents: 10002 },
+    {
+      ...row,
+      roomId: 8,
+      roomName: "Synthetic second room",
+      roomReference: "SYN-8",
+      startDate: "2026-11-08",
+      nights: 2,
+      chargeCents: 10002,
+    },
+  ];
+  r.totals.chargeCents = 20004;
+  r.totals.knownChargeCents = 20004;
+  expect(reportSchema.safeParse(r).success).toBe(false);
+});
+it("accepts adjacent whole-stay charge intervals after a room move", () => {
+  const r = chargedReport();
+  const row = r.charges[0];
+  r.charges = [
+    { ...row, endDate: "2026-11-08", nights: 1, chargeCents: 5001 },
+    {
+      ...row,
+      roomId: 8,
+      roomName: "Synthetic second room",
+      roomReference: "SYN-8",
+      startDate: "2026-11-08",
+      nights: 2,
+      chargeCents: 10002,
+    },
+  ];
+  expect(reportSchema.safeParse(r).success).toBe(true);
+});
+
+it("accepts separated intervals in a room-filtered report after a guest moved away and back", () => {
+  const r = chargedReport();
+  const row = r.charges[0];
+  r.roomId = 7;
+  r.charges = [
+    { ...row, endDate: "2026-11-08", nights: 1, chargeCents: 5001 },
+    { ...row, startDate: "2026-11-09", nights: 1, chargeCents: 5001 },
+  ];
+  r.totals.chargeCents = 10002;
+  r.totals.knownChargeCents = 10002;
+  expect(reportSchema.safeParse(r).success).toBe(true);
+});
+it.each(["quoteId", "phase", "guestName"] as const)(
+  "rejects inconsistent %s across one booking's charge intervals",
+  (field) => {
+    const r = chargedReport();
+    const row = r.charges[0];
+    r.charges = [
+      { ...row, endDate: "2026-11-08", nights: 1, chargeCents: 5001 },
+      { ...row, startDate: "2026-11-08", nights: 2, chargeCents: 10002 },
+    ];
+    r.charges[1][field] =
+      field === "quoteId"
+        ? "00000000-0000-0000-0000-000000000012"
+        : field === "phase"
+          ? "CHECKED_IN"
+          : "Different synthetic guest";
+    expect(reportSchema.safeParse(r).success).toBe(false);
+  },
+);

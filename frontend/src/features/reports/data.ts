@@ -305,6 +305,37 @@ export const reportSchema = z
       );
     }
     if (r.kind === "CHARGES") {
+      const grouped = new Map<number, typeof r.charges>();
+      for (const row of r.charges) {
+        const group = grouped.get(row.reservationId) ?? [];
+        group.push(row);
+        grouped.set(row.reservationId, group);
+      }
+      for (const group of grouped.values()) {
+        const first = group[0];
+        if (
+          group.some(
+            (row) =>
+              row.quoteId !== first.quoteId ||
+              row.phase !== first.phase ||
+              row.guestName !== first.guestName,
+          )
+        )
+          return false;
+        const ordered = [...group].sort((a, b) =>
+          a.startDate.localeCompare(b.startDate),
+        );
+        if (
+          ordered.some(
+            (row, index) =>
+              index > 0 &&
+              (ordered[index - 1].endDate > row.startDate ||
+                (r.roomId === null &&
+                  ordered[index - 1].endDate !== row.startDate)),
+          )
+        )
+          return false;
+      }
       const unknown = new Set(
         r.charges
           .filter((row) => row.chargeCents === null)
