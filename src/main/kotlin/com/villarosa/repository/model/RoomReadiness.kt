@@ -60,7 +60,20 @@ data class ReadinessEvent(
     @Column(length = 500) val reason: String? = null,
     @Column(name = "reservation_id") val reservationId: Int? = null,
     @Column(name = "occurred_at", nullable = false) val occurredAt: Instant = Instant.EPOCH,
-)
+) {
+    fun info() =
+        ReadinessEventInfo(
+            id.toString(),
+            actorId,
+            operationKey,
+            resourceVersion,
+            previousState,
+            state,
+            reason,
+            reservationId,
+            occurredAt,
+        )
+}
 
 data class ReadinessEventInfo(
     val id: String,

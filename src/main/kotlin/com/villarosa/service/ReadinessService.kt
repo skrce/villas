@@ -77,6 +77,7 @@ class ReadinessService(
         if (!room.active) conflict("ROOM_INACTIVE", "Restore the room before changing readiness.")
         val saved = locked(room)
         checkVersion(saved.version, expected)
+        var event: ReadinessEventInfo? = null
         if (saved.state != state) {
             assertEmpty(roomId)
             val allowed =
@@ -94,9 +95,15 @@ class ReadinessService(
                 )
             val explanation =
                 if (state == ReadinessState.DIRTY) OperationReason.required(reason) else reason
-            update(saved, state, key, explanation, null)
+            event = update(saved, state, key, explanation, null)
         }
-        return OperationResult(key, OperationKind.SET_READINESS, roomId, readiness = saved.view())
+        return OperationResult(
+            key,
+            OperationKind.SET_READINESS,
+            roomId,
+            readiness = saved.view(),
+            readinessEvent = event,
+        )
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -154,20 +161,7 @@ class ReadinessService(
         if (limit !in 1..100)
             invalid("INVALID_PAGE_SIZE", "Readiness history pages contain 1 to 100 entries.")
         val rows = events.history(PropertyScope.ID, roomId, cursor, PageRequest.of(0, limit + 1))
-        val items =
-            rows.take(limit).map {
-                ReadinessEventInfo(
-                    it.id.toString(),
-                    it.actorId,
-                    it.operationKey,
-                    it.resourceVersion,
-                    it.previousState,
-                    it.state,
-                    it.reason,
-                    it.reservationId,
-                    it.occurredAt,
-                )
-            }
+        val items = rows.take(limit).map { it.info() }
         return ReadinessHistory(items, if (rows.size > limit) items.last().id else null)
     }
 
@@ -177,25 +171,27 @@ class ReadinessService(
         key: String,
         reason: String?,
         reservationId: Int?,
-    ) {
+    ): ReadinessEventInfo {
         val previous = saved.state
         saved.state = state
         saved.changedAt = time.now()
         readiness.saveAndFlush(saved)
-        events.saveAndFlush(
-            ReadinessEvent(
-                roomId = saved.roomId,
-                actorId = current.identity().id,
-                operationKey = key,
-                resourceVersion = saved.version,
-                previousState = previous,
-                state = state,
-                reason = reason,
-                reservationId = reservationId,
-                occurredAt = saved.changedAt,
+        val event =
+            events.saveAndFlush(
+                ReadinessEvent(
+                    roomId = saved.roomId,
+                    actorId = current.identity().id,
+                    operationKey = key,
+                    resourceVersion = saved.version,
+                    previousState = previous,
+                    state = state,
+                    reason = reason,
+                    reservationId = reservationId,
+                    occurredAt = saved.changedAt,
+                )
             )
-        )
         audit.record(current.identity().id, "READINESS_CHANGED", "ROOM", saved.roomId.toString())
+        return event.info()
     }
 
     private fun RoomReadiness.view() = ReadinessView(roomId, state, version, changedAt)

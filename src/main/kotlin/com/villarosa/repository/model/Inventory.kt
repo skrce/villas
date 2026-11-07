@@ -109,5 +109,7 @@ data class OperationResult(
     val reservation: ReservationInfo? = null,
     val maintenance: MaintenanceBlock? = null,
     val readiness: ReadinessView? = null,
+    val readinessEvent: ReadinessEventInfo? = null,
+    val inventoryEvent: InventoryEventInfo? = null,
     val ledgerEntry: LedgerEntryInfo? = null,
 )
