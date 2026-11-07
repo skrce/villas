@@ -1,0 +1,64 @@
+services:
+  restored-db:
+    image: ${VILLAS_MARIADB_IMAGE:?Use the pinned MariaDB image}
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root
+      MARIADB_ROOT_HOST: localhost
+      MARIADB_DATABASE: villarosa
+    secrets: [db_root, db_migration, db_runtime, db_backup]
+    volumes:
+      - restored_database:/var/lib/mysql
+      - ./init-db.sh:/docker-entrypoint-initdb.d/10-villas.sh:ro
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+  restore:
+    image: ${VILLAS_BACKUP_IMAGE:?Use the tested backup image digest}
+    profiles: [operations]
+    command: [restore, "${VILLAS_RESTORE_SNAPSHOT_ID:?Select one completed full snapshot ID}"]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    environment:
+      VILLAS_BACKUP_DB_HOST: restored-db
+      VILLAS_BACKUP_DB_PASSWORD_FILE: /run/secrets/db_migration
+      VILLAS_BACKUP_REPOSITORY_FILE: /run/secrets/backup_repository
+      VILLAS_BACKUP_PASSWORD_FILE: /run/secrets/backup_password
+      VILLAS_BACKUP_CREDENTIALS_FILE: /run/secrets/backup_credentials
+      VILLAS_BACKUP_HOST: ${VILLAS_BACKUP_HOST:?Select the original backup identity}
+    secrets: [db_migration, backup_repository, backup_password, backup_credentials]
+    depends_on:
+      restored-db: { condition: service_healthy }
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+  validate-schema:
+    image: ${VILLAS_APP_IMAGE:?Use the compatible tested application image}
+    profiles: [operations]
+    command: [migrate]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      VILLAS_DB_URL: jdbc:mariadb://restored-db:3306/villarosa
+      VILLAS_DB_USERNAME: villas_migration
+      VILLAS_DB_PASSWORD_FILE: /run/secrets/db_migration
+    secrets: [db_migration]
+secrets:
+  db_root: { file: "${VILLAS_RESTORE_SECRET_DIR:?Use new private restore DB credentials}/db_root" }
+  db_migration: { file: "${VILLAS_RESTORE_SECRET_DIR}/db_migration" }
+  db_runtime: { file: "${VILLAS_RESTORE_SECRET_DIR}/db_runtime" }
+  db_backup: { file: "${VILLAS_RESTORE_SECRET_DIR}/db_backup" }
+  backup_repository: { file: "${VILLAS_SECRET_DIR:?Use the source backup configuration}/backup_repository" }
+  backup_password: { file: "${VILLAS_SECRET_DIR}/backup_password" }
+  backup_credentials: { file: "${VILLAS_SECRET_DIR}/backup_credentials.json" }
+volumes:
+  restored_database:

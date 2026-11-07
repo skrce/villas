@@ -126,3 +126,10 @@ See [deployment.md](deployment.md) for mounted secret files, separate DB account
 same-origin TLS, ignored forwarding headers, explicit public shell routes, private
 health checks and restricted runtime grants. None of these local checks satisfies
 the deferred real Google or deployed acceptance gates.
+
+Production operational logs/metrics use fixed categories without paths, record data,
+credentials or exception text. Unexpected HTTP/CLI failures avoid dumping private
+values. [Recovery](recovery.md) revokes restored sessions and increments staff security
+generations atomically before reopening access. Reconcile restored staff/invitations
+and post-backup external payments with the Owner. [Operations](operations.md) keeps
+real alert delivery and external availability acceptance separate from local tests.

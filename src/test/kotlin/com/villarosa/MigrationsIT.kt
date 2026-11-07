@@ -26,7 +26,7 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(14)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(15)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
@@ -45,6 +45,7 @@ class MigrationsIT {
                     "readiness_events",
                     "ledger_entries",
                     "reservation_allocations",
+                    "recovery_events",
                 )) {
                 connection.createStatement().use { statement ->
                     statement.executeQuery("SELECT COUNT(*) FROM $table").use { result ->
@@ -78,7 +79,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(13)
+            .isEqualTo(14)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement

@@ -165,6 +165,7 @@ class SecurityConfiguration {
                             contexts.saveContext(context, request, response)
                             response.sendRedirect("${settings.publicOrigin}/auth/complete")
                         } catch (_: Exception) {
+                            com.villarosa.ops.RuntimeSignals.authFailure()
                             request.getSession(false)?.invalidate()
                             SecurityContextHolder.clearContext()
                             response.sendRedirect(
@@ -173,6 +174,7 @@ class SecurityConfiguration {
                         }
                     }
                     .failureHandler { request, response, _ ->
+                        com.villarosa.ops.RuntimeSignals.authFailure()
                         val session = request.getSession(false)
                         val saved =
                             session?.getAttribute(

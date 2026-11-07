@@ -11,7 +11,7 @@ const fixture = () => {
   const directory = mkdtempSync(join(tmpdir(), 'villas-artifact-test-'));
   for (const name of ['scripts', 'deploy', 'frontend/dist', 'target', 'bin']) mkdirSync(join(directory, name), { recursive: true });
   for (const name of ['build-release.mjs', 'release-check.mjs', 'release-artifacts.mjs']) cpSync(join(root, 'scripts', name), join(directory, 'scripts', name));
-  for (const name of ['Dockerfile', 'proxy.Dockerfile', 'Caddyfile', 'images.json']) cpSync(join(root, 'deploy', name), join(directory, 'deploy', name));
+  for (const name of ['Dockerfile', 'proxy.Dockerfile', 'backup.Dockerfile', 'backup.mjs', 'monitor.mjs', 'recovery-quarantine.sql', 'Caddyfile', 'images.json']) cpSync(join(root, 'deploy', name), join(directory, 'deploy', name));
   writeFileSync(join(directory, '.gitignore'), 'target/\nfrontend/dist/\nbin/\n');
   writeFileSync(join(directory, 'source.txt'), 'current source');
   writeFileSync(join(directory, 'mariadb-image.txt'), `mariadb:test@sha256:${'a'.repeat(64)}`);

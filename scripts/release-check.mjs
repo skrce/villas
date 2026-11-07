@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -62,10 +62,10 @@ const run = (command, args, { input, capture = false, allowFailure = false, env 
   current.stdin.end(input);
 });
 const configFile = join(state, 'compose.json');
-const compose = (args, options) => run('docker', ['compose', '--project-name', project, '--env-file', join(state, 'env'), '--file', configFile, ...args], options);
-const sql = async (input, user = 'root', allowFailure = false) => {
+const compose = (args, options) => run('docker', ['compose', '--project-name', project, '--env-file', join(state, 'env'), '--file', configFile, '--profile', 'operations', ...args], options);
+const sql = async (input, user = 'root', allowFailure = false, service = 'db') => {
   const secret = user === 'root' ? 'db_root' : user === 'villas_runtime' ? 'db_runtime' : 'db_migration';
-  return compose(['exec', '-T', 'db', 'sh', '-c', `MYSQL_PWD="$(cat /run/secrets/${secret})" exec mariadb --user=${user} --database=villarosa --batch --skip-column-names`], { input, capture: true, allowFailure });
+  return compose(['exec', '-T', service, 'sh', '-c', `MYSQL_PWD="$(cat /run/secrets/${secret})" exec mariadb --user=${user} --database=villarosa --batch --skip-column-names --default-character-set=utf8mb4`], { input, capture: true, allowFailure });
 };
 const checkPorts = async () => {
   for (const port of [15073, 19108, 19443]) await new Promise((resolve, reject) => {
@@ -83,7 +83,7 @@ try {
   if (process.env.DOCKER_HOST && !process.env.DOCKER_HOST.startsWith('unix://')) throw new Error('Release rehearsal requires a local Unix Docker socket.');
   const context = await run('docker', ['context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'], { capture: true });
   if (!process.env.DOCKER_HOST && !context.output.startsWith('unix://')) throw new Error('Release rehearsal requires a local Unix Docker context.');
-  for (const [id, tag] of [[build.appId, build.app], [build.proxyId, build.proxy]]) {
+  for (const [id, tag] of [[build.appId, build.app], [build.proxyId, build.proxy], [build.backupId, build.backup]]) {
     if (!/^sha256:[a-f0-9]{64}$/.test(id ?? '')) throw new Error('Release image identity is missing. Rebuild the current revision.');
     const inspected = await run('docker', ['image', 'inspect', tag, '--format', '{{json .}}'], { capture: true });
     const image = JSON.parse(inspected.output);
@@ -127,7 +127,7 @@ try {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.goto('/calendar');
     await page.getByRole('button', { name: /sign in with google/i }).waitFor();
-    for (const path of ['/internal/health/live', '/internal/health/ready', '/v3/api-docs', '/swagger-ui/index.html']) {
+    for (const path of ['/internal/health/live', '/internal/health/ready', '/internal/metrics', '/v3/api-docs', '/swagger-ui/index.html']) {
       assert.equal((await context.request.get(path)).status(), 404, 'The public proxy must hide internal endpoints.');
     }
     assert.equal((await context.request.get('/api/v1/apartments')).status(), 401);
@@ -174,7 +174,101 @@ try {
   await compose(['run', '--rm', 'api', 'bootstrap-owner']);
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy', 'identity']);
   await run(process.execPath, ['frontend/node_modules/@playwright/test/cli.js', 'test', '--config', 'frontend/playwright.release.config.ts', '--max-failures=1'], { env: { ...cleanEnvironment, ...synthetic, VILLAS_BROWSER_CLOCK_FILE: join(clock, 'instant.txt') }, timeout: 600_000 });
-  console.log('Release container checks passed: empty initialization, restricted runtime, same-origin TLS/Google authorization setup, outage readiness, and synthetic staff browser workflows. Live Google and deployed acceptance remain open.');
+  const signedIn = await chromium.launch({ headless: true });
+  let savedCookies;
+  try {
+    const page = await signedIn.newPage(); await page.goto(publicUrl);
+    const popupPromise = page.waitForEvent('popup');
+    await page.getByRole('button', { name: 'Sign in to local demo' }).click();
+    const popup = await popupPromise; await popup.getByRole('button', { name: 'Synthetic Owner', exact: true }).click();
+    await page.getByRole('button', { name: 'Sign out' }).waitFor();
+    savedCookies = await page.context().cookies();
+  } finally { await signedIn.close(); }
+  await compose(['stop', 'proxy', 'identity', 'api']);
+  const unsupported = await sql("SELECT (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='villarosa')+(SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='villarosa')+(SELECT COUNT(*) FROM information_schema.events WHERE event_schema='villarosa')+(SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='villarosa' AND (table_type<>'BASE TABLE' OR engine<>'InnoDB')); ");
+  assert.equal(unsupported.output, '0', 'The supported logical backup schema contains InnoDB tables without database programs.');
+  await sql(`INSERT INTO recovery_events(id,property_id,snapshot_id,invalidated_sessions,changed_staff,occurred_at) VALUES(UUID(),'villa-rosa','${'f'.repeat(64)}',0,0,UTC_TIMESTAMP(6));`);
+  const fingerprint = async (service, excludeSnapshot) => {
+    const tables = (await sql("SELECT table_name FROM information_schema.tables WHERE table_schema='villarosa' ORDER BY table_name;", 'root', false, service)).output.split('\n');
+    const result = {};
+    for (const table of tables) {
+      assert(/^[A-Za-z0-9_]+$/.test(table));
+      if (['SPRING_SESSION', 'SPRING_SESSION_ATTRIBUTES'].includes(table)) continue;
+      const selected = table === 'staff_accounts' ? 'id,property_id,issuer,subject,email,role,active,version,created_at' : '*';
+      const where = table === 'recovery_events' && excludeSnapshot ? ` WHERE snapshot_id<>'${excludeSnapshot}'` : '';
+      const rows = (await sql(`SET time_zone='+00:00'; SELECT ${selected} FROM ${table}${where};`, 'root', false, service)).output.split('\n').sort().join('\n');
+      result[table] = createHash('sha256').update(rows).digest('hex');
+    }
+    return result;
+  };
+  const original = await fingerprint('db');
+  const generations = (await sql('SELECT id,security_version FROM staff_accounts ORDER BY id;')).output;
+  const sessions = Number((await sql('SELECT COUNT(*) FROM SPRING_SESSION;')).output);
+  assert(sessions > 0, 'Backup must contain a formerly valid session for the revocation proof.');
+  file(join(secrets, 'backup_repository'), '/repo', 0o444);
+  file(join(secrets, 'backup_password'), randomBytes(32).toString('hex'), 0o444);
+  file(join(secrets, 'backup_credentials.json'), '{}', 0o444);
+  for (const name of ['backup_repository', 'backup_password']) config.secrets[name] = { file: join(secrets, name) };
+  config.volumes.repository = { name: `${project}_repository` };
+  config.volumes.backup_status = { name: `${project}_backup_status` };
+  config.volumes.restored_database = { name: `${project}_restored_database` };
+  config.services.backup = {
+    image: build.backupId, profiles: ['operations'], read_only: true,
+    tmpfs: ['/tmp:rw,noexec,nosuid,size=128m'], cap_drop: ['ALL'], security_opt: ['no-new-privileges:true'], mem_limit: '512m', pids_limit: 128,
+    environment: { VILLAS_BACKUP_DB_HOST: 'db', VILLAS_BACKUP_DB_PASSWORD_FILE: '/run/secrets/db_backup', VILLAS_BACKUP_REPOSITORY_FILE: '/run/secrets/backup_repository', VILLAS_BACKUP_PASSWORD_FILE: '/run/secrets/backup_password', VILLAS_BACKUP_LOCAL_REHEARSAL: '1', VILLAS_LOCAL_INSTANCE: instance, VILLAS_BACKUP_HOST: `villas-rehearsal-${instance}`, VILLAS_KEEP_HOURLY: '2', VILLAS_KEEP_DAILY: '2', VILLAS_BACKUP_STATUS_FILE: '/status/backup.json' },
+    secrets: [{ source: 'db_backup' }, { source: 'backup_repository' }, { source: 'backup_password' }],
+    volumes: [{ type: 'volume', source: 'repository', target: '/repo' }, { type: 'volume', source: 'backup_status', target: '/status' }], logging: config.services.api.logging,
+  };
+  config.services['monitor-check'] = {
+    image: build.backupId, profiles: ['operations'], network_mode: 'service:api', entrypoint: ['node', '/ops/monitor.mjs'], command: ['once'], read_only: true,
+    environment: { VILLAS_DEPLOY_ENVIRONMENT: 'rehearsal', VILLAS_BACKUP_MAX_AGE_SECONDS: '3600', VILLAS_BACKUP_STATUS_FILE: '/status/backup.json', VILLAS_MONITOR_STATUS_FILE: '/status/monitor.json' },
+    volumes: [{ type: 'volume', source: 'backup_status', target: '/status' }], logging: config.services.api.logging,
+  };
+  saveConfig();
+  await compose(['run', '--rm', 'backup', 'init']);
+  const failedBackup = await compose(['run', '--rm', '-e', 'VILLAS_BACKUP_DB_PASSWORD_FILE=/run/secrets/backup_password', 'backup', 'backup'], { capture: true, allowFailure: true });
+  assert.notEqual(failedBackup.code, 0, 'A failed dump cannot qualify as a backup even when the archiver accepts its stream.');
+  assert.equal(JSON.parse((await compose(['run', '--rm', 'backup', 'snapshots'], { capture: true })).output).length, 0, 'Incomplete streams are never eligible for restoration.');
+  await compose(['run', '--rm', 'backup', 'backup']);
+  await compose(['run', '--rm', 'backup', 'verify']);
+  const snapshots = JSON.parse((await compose(['run', '--rm', 'backup', 'snapshots'], { capture: true })).output);
+  assert.equal(snapshots.length, 1); const snapshot = snapshots[0].id; assert(/^[a-f0-9]{64}$/.test(snapshot));
+  const restoreReference = JSON.parse((await run('docker', ['compose', '--project-name', project, '--env-file', join(state, 'env'), '--file', join(root, 'deploy/restore.compose.yaml'), '--profile', 'operations', 'config', '--format', 'json'], { capture: true, env: { ...environment, VILLAS_BACKUP_IMAGE: build.backupId, VILLAS_BACKUP_HOST: `villas-rehearsal-${instance}`, VILLAS_RESTORE_SECRET_DIR: secrets, VILLAS_RESTORE_SNAPSHOT_ID: snapshot } })).output);
+  Object.assign(config.services, restoreReference.services);
+  Object.assign(config.secrets, restoreReference.secrets);
+  Object.assign(config.volumes, restoreReference.volumes);
+  Object.assign(config.services.restore.environment, { VILLAS_BACKUP_LOCAL_REHEARSAL: '1', VILLAS_LOCAL_INSTANCE: instance });
+  config.services.restore.volumes = [{ type: 'volume', source: 'repository', target: '/repo' }];
+  saveConfig();
+  await compose(['up', '--detach', '--wait', '--wait-timeout', '120', 'restored-db']);
+  const restoreArguments = ['run', '--rm', 'restore'];
+  const startedAt = Date.now();
+  await compose(restoreArguments);
+  assert.deepEqual(await fingerprint('restored-db', snapshot), original, 'Restore must preserve every business/configuration/operation/history row byte-for-byte.');
+  const restoredGenerations = (await sql('SELECT id,security_version FROM staff_accounts ORDER BY id;', 'root', false, 'restored-db')).output;
+  const expectedGenerations = generations.split('\n').map(row => { const [id, version] = row.split('\t'); return `${id}\t${BigInt(version) + 1n}`; }).join('\n');
+  assert.equal(restoredGenerations, expectedGenerations);
+  const quarantine = (await sql(`SELECT (SELECT COUNT(*) FROM SPRING_SESSION),(SELECT COUNT(*) FROM SPRING_SESSION_ATTRIBUTES),snapshot_id,invalidated_sessions FROM recovery_events WHERE snapshot_id='${snapshot}';`, 'root', false, 'restored-db')).output;
+  assert.equal(quarantine, `0\t0\t${snapshot}\t${sessions}`);
+  assert.notEqual((await compose(restoreArguments, { capture: true, allowFailure: true })).code, 0, 'Restore must refuse an already populated target.');
+  assert.deepEqual(await fingerprint('restored-db', snapshot), original);
+  await sql(readFileSync(join(root, 'deploy/runtime-grants.sql'), 'utf8'), 'root', false, 'restored-db');
+  await compose(['run', '--rm', 'validate-schema']);
+  config.services.api.environment.VILLAS_DB_URL = 'jdbc:mariadb://restored-db:3306/villarosa'; saveConfig();
+  await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy', 'identity']);
+  const restoredBrowser = await chromium.launch({ headless: true });
+  try {
+    const context = await restoredBrowser.newContext(); await context.addCookies(savedCookies);
+    assert.equal((await context.request.get(`${publicUrl}/api/v1/apartments`)).status(), 401, 'A formerly valid restored cookie must fail before new sign-in.');
+    const page = await context.newPage(); await page.goto(publicUrl);
+    const popupPromise = page.waitForEvent('popup'); await page.getByRole('button', { name: 'Sign in to local demo' }).click();
+    const popup = await popupPromise; await popup.getByRole('button', { name: 'Synthetic Owner', exact: true }).click();
+    await page.getByRole('button', { name: 'Sign out' }).waitFor();
+    assert.equal((await context.request.get(`${publicUrl}/api/v1/apartments`)).status(), 200);
+  } finally { await restoredBrowser.close(); }
+  await compose(['run', '--rm', '--no-deps', 'monitor-check']);
+  console.log(`Isolated encrypted restore and reconciliation passed in ${((Date.now() - startedAt) / 1000).toFixed(1)} seconds. This is local rehearsal evidence, not an off-server RPO/RTO guarantee.`);
+  console.log('Release container checks passed: empty initialization, restricted runtime, TLS/Google authorization setup, outage readiness, 24 synthetic staff browser workflows, encrypted restore/reconciliation and stale-session rejection. Live Google and deployed acceptance remain open.');
 } catch (error) {
   if (config) {
     try {
@@ -186,7 +280,12 @@ try {
 } finally {
   cleaning = true;
   if (config) {
-    try { await compose(['down', '--volumes', '--remove-orphans'], { timeout: 120_000 }); rmSync(state, { recursive: true, force: true }); }
+    try {
+      await compose(['down', '--volumes', '--remove-orphans'], { timeout: 120_000 });
+      const remaining = await run('docker', ['volume', 'ls', '--filter', `label=com.docker.compose.project=${project}`, '--format', '{{.Name}}'], { capture: true });
+      if (remaining.output) throw new Error('Owned release volumes remain after cleanup.');
+      rmSync(state, { recursive: true, force: true });
+    }
     catch { console.error(`Release cleanup failed. Private recovery configuration remains at ${state}.`); process.exitCode = 1; }
   } else rmSync(state, { recursive: true, force: true });
   process.off('SIGINT', onInt); process.off('SIGTERM', onTerm);

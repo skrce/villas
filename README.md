@@ -15,7 +15,8 @@ The [ten-step tracker](docs/implementation.md) and linked issues distinguish loc
 implementation from the open real-Google, deployment and pilot gates.
 
 Release work starts in the [deployment guide](docs/deployment.md),
-[recovery procedure](docs/recovery.md) and [release checklist](docs/release-checklist.md).
+[recovery procedure](docs/recovery.md), [operations](docs/operations.md) and
+[release checklist](docs/release-checklist.md).
 Milestone 10 is active; hosting and live acceptance remain open.
 
 ## Requirements

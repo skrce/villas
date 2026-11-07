@@ -51,6 +51,11 @@ springdoc:
     enabled: false
   writer-with-order-by-keys: true
 
+logging:
+  level:
+    root: 'OFF'
+    com.villarosa.ops: INFO
+
 villas:
   mode: ${VILLAS_MODE:production}
   currency: EUR

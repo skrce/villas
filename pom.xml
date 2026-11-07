@@ -105,7 +105,7 @@
             <testResource><directory>src/test/resources</directory></testResource>
             <testResource>
                 <directory>${project.basedir}</directory>
-                <includes><include>mariadb-image.txt</include></includes>
+                <includes><include>mariadb-image.txt</include><include>deploy/recovery-quarantine.sql</include></includes>
             </testResource>
         </testResources>
         <plugins>

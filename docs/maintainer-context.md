@@ -36,13 +36,24 @@ reconciled reports, with implementation and verification evidence in
 and [PR #37](https://github.com/skrce/villas/pull/37).
 Milestone 10 is active for portable deployment packaging, backups/recovery, deployed
 checks and the staff pilot. Read [deployment](deployment.md), [recovery](recovery.md)
-and the [release checklist](release-checklist.md) before release work.
+the [operations guide](operations.md) and [release checklist](release-checklist.md)
+before release work. Packaging is merged in [PR #38](https://github.com/skrce/villas/pull/38).
+Recovery/monitoring use isolated local qualification; selected-host/off-server/real
+Google/pilot acceptance remains open in #11 and #4.
 
 Milestone 3's real Google setup and live-provider acceptance were explicitly deferred
 by the Owner. [Issue #4](https://github.com/skrce/villas/issues/4) remains open for
 those checks. Local synthetic OIDC success does not satisfy them. Hosting, domain,
 secret storage and recovery targets remain open under D04. No cloud deployment or
 production/pilot acceptance is implied by the local demo.
+
+For the next release session, inspect #11 and the current PR/CI heads first. Resolve
+D04 before provisioning or choosing paid services; set up the Villas-specific Google
+client under #4 when the Owner is ready. Configure separate staging/production
+secrets and off-server protection, qualify external availability/alert delivery,
+then perform deployed Google/recovery checks and the Owner pilot. Production starts
+empty. Do not copy a local/demo volume into it. The release checklist is the launch
+gate even when all implementation PRs are merged.
 
 ## Rules that must survive a refactor
 
@@ -87,7 +98,7 @@ production/pilot acceptance is implied by the local demo.
 | Concern | Starting points |
 | --- | --- |
 | Application/configuration and HTTP security | `src/main/kotlin/com/villarosa/Application.kt`, `SecurityConfiguration.kt`, `security/` |
-| Scoped models, repositories and V1..V14 migrations | `src/main/kotlin/com/villarosa/repository/`, `src/main/resources/db/migration/` |
+| Scoped models, repositories and V1..V15 migrations | `src/main/kotlin/com/villarosa/repository/`, `src/main/resources/db/migration/` |
 | Atomic inventory changes and reconciliation | `service/OperationCoordinator.kt`, `service/InventoryWriter.kt`, `repository/InventoryRepository.kt` |
 | Stay phases, actual times and dated room assignments | `service/StayOperations.kt`, `service/RoomAllocations.kt`, `controller/StayOperationsController.kt` |
 | Rates, immutable quotes and agreements | `service/QuoteService.kt`, related rate/price services and the pricing contract |
@@ -101,6 +112,7 @@ production/pilot acceptance is implied by the local demo.
 | Generated API contract/client | `frontend/openapi.json`, `frontend/src/api/generated/`, `ApiContractTest.kt`, `scripts/sync-openapi.mjs`, `generate-api.mjs` |
 | Local process/database ownership | `scripts/local-db.mjs`, `dev-db.mjs`, `run-api.mjs`, `demo.mjs`, `e2e.mjs` |
 | Release image, secrets, SPA, health and isolated container rehearsal | `deploy/`, `scripts/build-release.mjs`, `release-check.mjs`, `PrivateSettings.kt`, `ReleaseHttp.kt` |
+| Encrypted streams, isolated restore, session quarantine and privacy-safe alerts | `deploy/backup.mjs`, `backup.compose.yaml`, `restore.compose.yaml`, `recovery-quarantine.sql`, `monitor.mjs`, `ops/OperationalSignals.kt` |
 
 Backend paths in the table are relative to `src/main/kotlin/com/villarosa/` unless
 fully prefixed. Use `rg --files` to locate a renamed class rather than assuming this

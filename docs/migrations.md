@@ -82,3 +82,9 @@ schema. Runtime grants are explicit in `deploy/runtime-grants.sql`. Review addit
 when introducing tables. Record the old schema/images, close writes and verify a
 backup before delivery. Partial MariaDB DDL may survive an error; investigate and use
 a tested forward fix or isolated restore. There is no automatic down migration.
+
+V15 adds append-only offline recovery audit, without seeding business data. Native
+checks preserve V14 rows, resume a pre-created table and verify reruns and quarantine
+rollback. Session deletion, staff-generation changes and the recovery event commit
+together. The standalone restore job requires an empty schema and leaves failed
+targets quarantined. See [recovery.md](recovery.md).

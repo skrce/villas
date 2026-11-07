@@ -17,7 +17,7 @@ start are recorded in [decisions](decisions.md).
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Implemented and independently reviewed in PRs #26 and #27; verification and merge evidence is in #8 |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Implemented locally in PRs #28 through #34; verification and merge evidence in #9 |
 | 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Implemented in [PR #36](https://github.com/skrce/villas/pull/36) and [PR #37](https://github.com/skrce/villas/pull/37); final review, verification and merge evidence is in #10 |
-| 10 | [Verify production deployment, recovery, and the staff pilot](https://github.com/skrce/villas/issues/11) | 1-9 | Active: portable packaging/local container rehearsal; D04, real Google and deployed acceptance remain open |
+| 10 | [Verify production deployment, recovery, and the staff pilot](https://github.com/skrce/villas/issues/11) | 1-9 | Active: packaging merged in #38; recovery/operations preparation and rehearsal; D04, real Google and deployed acceptance remain open |
 
 The first complete booking checkpoint is milestone 7. Milestone 8 completes daily
 operations and manual settlement, milestone 9 adds reconciled reporting, and
@@ -56,12 +56,13 @@ schema now fails the bootstrap test. Reviewers rechecked the fixes before merge.
 
 ## Repeatable verification
 
-Milestone 10 adds portable non-root application/proxy images, mounted private settings,
-explicit frontend routes, private health, separate migration/runtime DB accounts and
-a disposable container release check. See [deployment](deployment.md) and the
-[release checklist](release-checklist.md). Backup/restore tooling, operational signals,
-the selected-provider deployment and deployed Google/pilot acceptance remain separate
-deliverables. Packaging does not close the release milestone.
+Milestone 10 adds portable non-root images, mounted private settings, explicit
+frontend routes, private health, separate DB accounts, encrypted backup/restore tools,
+operational signals and a disposable container rehearsal. See [deployment](deployment.md),
+[recovery](recovery.md), [operations](operations.md) and the
+[release checklist](release-checklist.md). Selected-provider deployment, off-server
+setup, real Google and staff-pilot acceptance remain open. Local qualification does
+not close the release milestone.
 
 `node scripts/check.mjs` is the full command. It runs the clean backend build and
 MariaDB checks, verifies the runtime OpenAPI snapshot, installs frontend dependencies
