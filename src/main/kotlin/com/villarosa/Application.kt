@@ -7,6 +7,20 @@ import org.springframework.boot.runApplication
 @SpringBootApplication class Application
 
 fun main(args: Array<String>) {
+    (org.slf4j.LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)
+            as? ch.qos.logback.classic.Logger)
+        ?.level = ch.qos.logback.classic.Level.OFF
+    try {
+        execute(args)
+    } catch (_: Exception) {
+        System.err.println(
+            "Villas command failed. Check the private configuration, migration history and health status before retrying."
+        )
+        kotlin.system.exitProcess(1)
+    }
+}
+
+private fun execute(args: Array<String>) {
     PrivateSettings.install()
     if (args.contentEquals(arrayOf("healthcheck"))) {
         kotlin.system.exitProcess(HealthProbe.check())

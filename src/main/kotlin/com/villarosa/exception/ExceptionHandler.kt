@@ -14,6 +14,19 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 @ControllerAdvice
 class ExceptionHandler : ResponseEntityExceptionHandler() {
+    @ExceptionHandler(Exception::class)
+    fun unexpected(exception: Exception): ResponseEntity<ErrorResponse> {
+        if (exception is org.springframework.dao.DataAccessException)
+            com.villarosa.ops.RuntimeSignals.databaseFailure()
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(
+                ErrorResponse(
+                    "The request could not be completed. Reconcile any pending save before retrying.",
+                    "SERVICE_UNAVAILABLE",
+                )
+            )
+    }
+
     @ExceptionHandler(DomainException::class)
     fun domainFailure(exception: DomainException): ResponseEntity<ErrorResponse> =
         ResponseEntity.status(exception.status)

@@ -26,6 +26,9 @@ and the Playwright Chromium installation described in the README.
 Release changes also require `node scripts/build-release.mjs` and
 `node scripts/release-check.mjs` from a clean committed revision. Run the container
 rehearsal separately from the regular browser gate because their ports overlap.
+Read `docs/deployment.md`, `docs/recovery.md` and `docs/operations.md` for release
+changes. Keep source fixed during an exact-revision gate. Cleanup verifies owned
+volumes are gone before deleting private recovery settings.
 
 Keep meaningful regression tests for changed behavior. Authentication/permissions,
 booking conflicts, money calculations, and migrations require tests. Test database

@@ -1,0 +1,68 @@
+x-backup: &backup
+  image: ${VILLAS_BACKUP_IMAGE:?Use the tested backup image digest}
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  mem_limit: 512m
+  pids_limit: 128
+  environment:
+    VILLAS_BACKUP_DB_HOST: db
+    VILLAS_BACKUP_DB_PASSWORD_FILE: /run/secrets/db_backup
+    VILLAS_BACKUP_REPOSITORY_FILE: /run/secrets/backup_repository
+    VILLAS_BACKUP_PASSWORD_FILE: /run/secrets/backup_password
+    VILLAS_BACKUP_CREDENTIALS_FILE: /run/secrets/backup_credentials
+    VILLAS_BACKUP_HOST: ${VILLAS_BACKUP_HOST:?Set a separate environment backup identity}
+    VILLAS_KEEP_HOURLY: ${VILLAS_KEEP_HOURLY:?Approve retention first}
+    VILLAS_KEEP_DAILY: ${VILLAS_KEEP_DAILY:?Approve retention first}
+    VILLAS_BACKUP_INTERVAL_SECONDS: ${VILLAS_BACKUP_INTERVAL_SECONDS:?Approve the backup interval first}
+    VILLAS_BACKUP_STATUS_FILE: /status/backup.json
+  secrets: [db_backup, backup_repository, backup_password, backup_credentials]
+  volumes: [backup_status:/status]
+  logging:
+    driver: json-file
+    options: { max-size: "5m", max-file: "3" }
+  depends_on:
+    db: { condition: service_healthy }
+services:
+  backup:
+    <<: *backup
+    profiles: [operations]
+    command: [backup]
+  backup-scheduler:
+    <<: *backup
+    profiles: [backups]
+    command: [schedule]
+    restart: unless-stopped
+  monitor:
+    image: ${VILLAS_BACKUP_IMAGE:?Use the tested backup image digest}
+    profiles: [monitoring]
+    entrypoint: [node, /ops/monitor.mjs]
+    command: [watch]
+    network_mode: service:api
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    pids_limit: 64
+    environment:
+      VILLAS_DEPLOY_ENVIRONMENT: ${VILLAS_DEPLOY_ENVIRONMENT:?Choose staging or production}
+      VILLAS_BACKUP_MAX_AGE_SECONDS: ${VILLAS_BACKUP_MAX_AGE_SECONDS:?Approve the maximum backup age first}
+      VILLAS_BACKUP_STATUS_FILE: /status/backup.json
+      VILLAS_MONITOR_STATUS_FILE: /status/monitor.json
+      VILLAS_ALERT_URL_FILE: /run/secrets/alert_url
+    secrets: [alert_url]
+    volumes: [backup_status:/status]
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+    depends_on:
+      api: { condition: service_started }
+secrets:
+  backup_repository: { file: "${VILLAS_SECRET_DIR}/backup_repository" }
+  backup_password: { file: "${VILLAS_SECRET_DIR}/backup_password" }
+  backup_credentials: { file: "${VILLAS_SECRET_DIR}/backup_credentials.json" }
+  alert_url: { file: "${VILLAS_SECRET_DIR}/alert_url" }
+volumes:
+  backup_status:

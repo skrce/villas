@@ -10,8 +10,8 @@ staff pilot remain required. See [release-checklist.md](release-checklist.md).
 The application image contains the verified Spring Boot JAR and Vite `dist` from
 the same revision. Docker does not rebuild the JAR. `scripts/build-release.mjs`
 copies only these artifacts into a temporary context. Source, `.env`, local state,
-test classes and credentials are excluded. A second image contains the TLS proxy
-configuration. Base images are pinned in `deploy/images.json`; MariaDB is pinned
+test classes and credentials are excluded. Separate images contain the TLS proxy
+configuration and backup/monitoring tools. Base images are pinned in `deploy/images.json`; MariaDB is pinned
 in `mariadb-image.txt`. Review dependency/security updates before rebuilding.
 
 ```sh
@@ -36,14 +36,20 @@ clock and identity fixture are mounted only for that phase and are absent from t
 release image. The browser phase uses the non-root test runner's UID to read its
 private clock file. Production uses the image's UID 10001.
 
+The same rehearsal also streams an encrypted backup, checks repository data,
+restores through the standalone reference, compares business/configuration/audit
+contents, verifies session quarantine and starts the restored app. It rejects failed
+dumps and repeated imports into populated targets. Temporary volumes are explicitly
+owned, removed and checked after cleanup.
+
 CI's `release-package` job consumes backend/frontend artifacts after their checks
-succeed, builds both images and runs the rehearsal. These are not deployed images.
+succeed, builds all three images and runs the rehearsal. These are not deployed images.
 A registry, provider credentials and environment deployment jobs require D04.
 Record registry digests and artifact checksums before deployment. Never deploy
 mutable tags such as `latest`.
 
 Builds invalidate earlier manifests before attempting Docker work. The manifest binds
-the current Git revision/source tree, JAR/dist checksums and app/proxy image IDs.
+the current Git revision/source tree, JAR/dist checksums and all three image IDs.
 The rehearsal rejects changed inputs or retagged images before creating resources.
 Dirty development builds require `--local-rehearsal`, use a local-only image name
 and are identified in the manifest. Use a clean committed revision for a release.
@@ -93,6 +99,12 @@ ledger, accepted prices and audit history, but cannot rewrite/delete them, run D
 or edit Flyway history. Root/migration secrets are never mounted in the web app.
 Changing secret files does not rotate existing users automatically. Rehearse explicit
 rotation and revocation separately.
+
+Backup and alert secrets are mounted only in their respective operational services.
+Configure them through [recovery.md](recovery.md) and [operations.md](operations.md)
+after approving D04. Use `deploy/backup.compose.yaml` with the reference environment;
+use `deploy/restore.compose.yaml` standalone in a new isolated project. The latter
+has no public app or ports and uses new target database credentials.
 
 ## Controlled startup and upgrades
 
