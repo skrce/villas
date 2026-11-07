@@ -16,6 +16,8 @@
 import * as runtime from '../runtime';
 import type {
   ErrorResponse,
+  FrontDeskPage,
+  HousekeepingPage,
   OperationResult,
   ReadinessChangeRequest,
   ReadinessHistory,
@@ -24,6 +26,10 @@ import type {
 import {
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
+    FrontDeskPageFromJSON,
+    FrontDeskPageToJSON,
+    HousekeepingPageFromJSON,
+    HousekeepingPageToJSON,
     OperationResultFromJSON,
     OperationResultToJSON,
     ReadinessChangeRequestFromJSON,
@@ -38,6 +44,20 @@ export interface ChangeRoomReadinessRequest {
     roomId: number;
     idempotencyKey: string;
     readinessChangeRequest: ReadinessChangeRequest;
+}
+
+export interface FrontDeskRequest {
+    list?: FrontDeskListEnum;
+    afterId?: number;
+    limit?: number;
+    expectedDate?: string;
+}
+
+export interface HousekeepingRequest {
+    afterId?: number;
+    limit?: number;
+    state?: HousekeepingStateEnum;
+    expectedDate?: string;
 }
 
 export interface RoomReadinessRequest {
@@ -110,6 +130,96 @@ export class OperationsApi extends runtime.BaseAPI {
      */
     async changeRoomReadiness(requestParameters: ChangeRoomReadinessRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
         const response = await this.changeRoomReadinessRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read bounded arrival, departure, in-house and attention lists for the property day
+     */
+    async frontDeskRaw(requestParameters: FrontDeskRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<FrontDeskPage>> {
+        const queryParameters: any = {};
+
+        if (requestParameters['list'] != null) {
+            queryParameters['list'] = requestParameters['list'];
+        }
+
+        if (requestParameters['afterId'] != null) {
+            queryParameters['afterId'] = requestParameters['afterId'];
+        }
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        if (requestParameters['expectedDate'] != null) {
+            queryParameters['expectedDate'] = requestParameters['expectedDate'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/front-desk`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => FrontDeskPageFromJSON(jsonValue));
+    }
+
+    /**
+     * Read bounded arrival, departure, in-house and attention lists for the property day
+     */
+    async frontDesk(requestParameters: FrontDeskRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<FrontDeskPage> {
+        const response = await this.frontDeskRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read room readiness, physical occupancy and dated maintenance without guest or financial data
+     */
+    async housekeepingRaw(requestParameters: HousekeepingRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<HousekeepingPage>> {
+        const queryParameters: any = {};
+
+        if (requestParameters['afterId'] != null) {
+            queryParameters['afterId'] = requestParameters['afterId'];
+        }
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        if (requestParameters['state'] != null) {
+            queryParameters['state'] = requestParameters['state'];
+        }
+
+        if (requestParameters['expectedDate'] != null) {
+            queryParameters['expectedDate'] = requestParameters['expectedDate'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/housekeeping`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => HousekeepingPageFromJSON(jsonValue));
+    }
+
+    /**
+     * Read room readiness, physical occupancy and dated maintenance without guest or financial data
+     */
+    async housekeeping(requestParameters: HousekeepingRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<HousekeepingPage> {
+        const response = await this.housekeepingRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -196,3 +306,24 @@ export class OperationsApi extends runtime.BaseAPI {
     }
 
 }
+
+/**
+ * @export
+ */
+export const FrontDeskListEnum = {
+    Arrivals: 'ARRIVALS',
+    Departures: 'DEPARTURES',
+    InHouse: 'IN_HOUSE',
+    Attention: 'ATTENTION'
+} as const;
+export type FrontDeskListEnum = typeof FrontDeskListEnum[keyof typeof FrontDeskListEnum];
+/**
+ * @export
+ */
+export const HousekeepingStateEnum = {
+    Dirty: 'DIRTY',
+    InProgress: 'IN_PROGRESS',
+    Inspection: 'INSPECTION',
+    Clean: 'CLEAN'
+} as const;
+export type HousekeepingStateEnum = typeof HousekeepingStateEnum[keyof typeof HousekeepingStateEnum];

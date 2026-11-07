@@ -25,9 +25,13 @@ docs/CustomerApi.md
 docs/CustomerCreateRequest.md
 docs/CustomerSearchRequest.md
 docs/ErrorResponse.md
+docs/FrontDeskPage.md
+docs/FrontDeskStay.md
 docs/GuestPage.md
 docs/GuestQueryRequest.md
 docs/GuestUpdateRequest.md
+docs/HousekeepingPage.md
+docs/HousekeepingRoom.md
 docs/InventoryApi.md
 docs/InventoryEventInfo.md
 docs/InventoryEventPage.md
@@ -91,9 +95,13 @@ models/Customer.ts
 models/CustomerCreateRequest.ts
 models/CustomerSearchRequest.ts
 models/ErrorResponse.ts
+models/FrontDeskPage.ts
+models/FrontDeskStay.ts
 models/GuestPage.ts
 models/GuestQueryRequest.ts
 models/GuestUpdateRequest.ts
+models/HousekeepingPage.ts
+models/HousekeepingRoom.ts
 models/InventoryEventInfo.ts
 models/InventoryEventPage.ts
 models/InvitationView.ts

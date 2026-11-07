@@ -384,6 +384,54 @@
         ],
         "type": "object"
       },
+      "FrontDeskPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FrontDeskStay"
+            },
+            "type": "array"
+          },
+          "list": {
+            "enum": [
+              "ARRIVALS",
+              "DEPARTURES",
+              "IN_HOUSE",
+              "ATTENTION"
+            ],
+            "type": "string"
+          },
+          "nextCursor": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "propertyDate": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "FrontDeskStay": {
+        "properties": {
+          "guestName": {
+            "type": "string"
+          },
+          "reservation": {
+            "$ref": "#/components/schemas/ReservationInfo"
+          },
+          "roomName": {
+            "type": "string"
+          },
+          "roomReference": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "GuestPage": {
         "properties": {
           "items": {
@@ -481,6 +529,61 @@
           "expectedVersion",
           "firstName",
           "lastName"
+        ],
+        "type": "object"
+      },
+      "HousekeepingPage": {
+        "properties": {
+          "maintenanceUntil": {
+            "type": "string"
+          },
+          "nextCursor": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "propertyDate": {
+            "type": "string"
+          },
+          "rooms": {
+            "items": {
+              "$ref": "#/components/schemas/HousekeepingRoom"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "rooms"
+        ],
+        "type": "object"
+      },
+      "HousekeepingRoom": {
+        "properties": {
+          "maintenance": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarMaintenance"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "occupied": {
+            "type": "boolean"
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/ReadinessView"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "maintenance"
         ],
         "type": "object"
       },
@@ -3073,6 +3176,157 @@
         "summary": "Archive or restore a guest without deleting history",
         "tags": [
           "Customer"
+        ]
+      }
+    },
+    "/front-desk": {
+      "get": {
+        "operationId": "frontDesk",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "list",
+            "required": false,
+            "schema": {
+              "default": "ARRIVALS",
+              "enum": [
+                "ARRIVALS",
+                "DEPARTURES",
+                "IN_HOUSE",
+                "ATTENTION"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "afterId",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedDate",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrontDeskPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read bounded arrival, departure, in-house and attention lists for the property day",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/housekeeping": {
+      "get": {
+        "operationId": "housekeeping",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "afterId",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "enum": [
+                "DIRTY",
+                "IN_PROGRESS",
+                "INSPECTION",
+                "CLEAN"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedDate",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/HousekeepingPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read room readiness, physical occupancy and dated maintenance without guest or financial data",
+        "tags": [
+          "Operations"
         ]
       }
     },
