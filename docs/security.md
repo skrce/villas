@@ -119,3 +119,10 @@ ID, changes on every sign-in so same-Owner reauthentication also rejects old act
 Logout hides the current workspace immediately and pauses competing session refreshes
 until its server response/read-back completes. Pending booking promises are scoped to
 the login generation; durable recovery keys remain scoped to the canonical Owner.
+
+## Release runtime
+
+See [deployment.md](deployment.md) for mounted secret files, separate DB accounts,
+same-origin TLS, ignored forwarding headers, explicit public shell routes, private
+health checks and restricted runtime grants. None of these local checks satisfies
+the deferred real Google or deployed acceptance gates.

@@ -23,6 +23,9 @@ data, and do not convert legacy test price integers into real rates.
 Use the pinned Java/Node versions, npm 11.6.2, the Maven wrapper, and `npm ci`.
 Run `node scripts/check.mjs` from the root for the complete check. It requires Docker
 and the Playwright Chromium installation described in the README.
+Release changes also require `node scripts/build-release.mjs` and
+`node scripts/release-check.mjs` from a clean committed revision. Run the container
+rehearsal separately from the regular browser gate because their ports overlap.
 
 Keep meaningful regression tests for changed behavior. Authentication/permissions,
 booking conflicts, money calculations, and migrations require tests. Test database

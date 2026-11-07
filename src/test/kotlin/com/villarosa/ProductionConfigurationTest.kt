@@ -4,6 +4,7 @@ import com.villarosa.repository.ApartmentRepository
 import com.villarosa.repository.CustomerRepository
 import com.villarosa.repository.ReservationRepository
 import com.villarosa.security.AuthenticationSettings
+import java.nio.file.Path
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -12,8 +13,12 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.HttpHeaders
 import org.springframework.mock.env.MockEnvironment
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 @SpringBootTest(
@@ -23,6 +28,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
             "spring.datasource.username=sa",
             "spring.datasource.password=",
             "spring.jpa.hibernate.ddl-auto=create-drop",
+            "spring.session.jdbc.initialize-schema=always",
             "villas.mode=production",
             "villas.public-url=https://villas.example.test",
             "villas.google.client-id=123456-test.apps.googleusercontent.com",
@@ -38,6 +44,79 @@ constructor(
     private val customers: CustomerRepository,
     private val reservations: ReservationRepository,
 ) {
+    companion object {
+        @JvmStatic
+        @DynamicPropertySource
+        fun frontend(registry: DynamicPropertyRegistry) {
+            registry.add("villas.web-root") {
+                Path.of("src/test/resources/release-web").toAbsolutePath().toString()
+            }
+        }
+    }
+
+    @Test
+    fun publicFrontendRoutesServeOnlyTheShellAndKnownAssetsWithSecurityHeaders() {
+        (ReleasePaths.pages.toList() + listOf("/reservations/123", "/guests/123", "/rooms/123"))
+            .forEach { path ->
+                mvc.perform(get(path).accept("text/html"))
+                    .andExpect(status().isOk)
+                    .andExpect(
+                        content().string("<!doctype html><title>Villas release fixture</title>\n")
+                    )
+                    .andExpect(header().string("Cache-Control", "no-store"))
+                    .andExpect(header().string("Referrer-Policy", "no-referrer"))
+                    .andExpect(header().exists("Content-Security-Policy"))
+            }
+        mvc.perform(get("/assets/index-fixture.js"))
+            .andExpect(status().isOk)
+            .andExpect(content().string("export {};\n"))
+        mvc.perform(get("/assets/missing.js")).andExpect(status().isNotFound)
+        mvc.perform(get("/assets/library.esm-fixture.js"))
+            .andExpect(status().isOk)
+            .andExpect(content().string("export {};\n"))
+        listOf(
+                "/api/v1/missing",
+                "/internal/config",
+                "/.env",
+                "/assets/private.json",
+                "/reservation/customer",
+                "/v3/api-docs",
+            )
+            .forEach { path ->
+                mvc.perform(get(path).accept("text/html")).andExpect(status().isUnauthorized)
+            }
+    }
+
+    @Test
+    fun healthDisclosesOnlyStatusAndReadinessRequiresTheVersionedSchema() {
+        mvc.perform(get("/internal/health/live"))
+            .andExpect(status().isOk)
+            .andExpect(content().string("UP"))
+        mvc.perform(get("/internal/health/ready"))
+            .andExpect(status().isServiceUnavailable)
+            .andExpect(content().string("UNAVAILABLE"))
+    }
+
+    @Test
+    fun spoofedForwardingHeadersCannotChangeTheGoogleCallbackOrSecureCookie() {
+        mvc.perform(
+                get("/oauth2/authorization/google")
+                    .header("Forwarded", "proto=http;host=attacker.example")
+                    .header("X-Forwarded-Host", "attacker.example")
+                    .header("X-Forwarded-Proto", "http")
+            )
+            .andExpect(status().isFound)
+            .andExpect(
+                header()
+                    .string(
+                        "Location",
+                        org.hamcrest.Matchers.containsString(
+                            "redirect_uri=https://villas.example.test/login/oauth2/code/google"
+                        ),
+                    )
+            )
+    }
+
     @Test
     fun productionRejectsUnauthenticatedAndBasicRequests() {
         mvc.perform(get("/api/v1/apartments")).andExpect(status().isUnauthorized)

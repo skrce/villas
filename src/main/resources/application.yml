@@ -8,6 +8,7 @@ spring:
     hikari:
       minimum-idle: 1
       maximum-pool-size: 5
+      connection-timeout: 3000
   jpa:
     open-in-view: false
     hibernate:
@@ -29,12 +30,17 @@ spring:
       fail-on-unknown-properties: true
 
 server:
+  forward-headers-strategy: none
+  shutdown: graceful
   address: ${VILLAS_BIND_ADDRESS:127.0.0.1}
   port: ${VILLAS_PORT:9098}
   error:
     include-message: never
     include-stacktrace: never
     include-binding-errors: never
+  tomcat:
+    accesslog:
+      enabled: false
 
 springdoc:
   paths-to-match: /api/v1/**

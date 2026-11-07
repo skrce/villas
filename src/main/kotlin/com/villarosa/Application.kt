@@ -7,6 +7,10 @@ import org.springframework.boot.runApplication
 @SpringBootApplication class Application
 
 fun main(args: Array<String>) {
+    PrivateSettings.install()
+    if (args.contentEquals(arrayOf("healthcheck"))) {
+        kotlin.system.exitProcess(HealthProbe.check())
+    }
     if (args.contentEquals(arrayOf("recover-owner"))) {
         OwnerBootstrap.run(false, recovery = true)
         return
