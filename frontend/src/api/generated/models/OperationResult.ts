@@ -20,6 +20,13 @@ import {
     ReservationInfoToJSON,
     ReservationInfoToJSONTyped,
 } from './ReservationInfo';
+import type { ReadinessView } from './ReadinessView';
+import {
+    ReadinessViewFromJSON,
+    ReadinessViewFromJSONTyped,
+    ReadinessViewToJSON,
+    ReadinessViewToJSONTyped,
+} from './ReadinessView';
 import type { MaintenanceBlock } from './MaintenanceBlock';
 import {
     MaintenanceBlockFromJSON,
@@ -54,6 +61,12 @@ export interface OperationResult {
     maintenance?: MaintenanceBlock | null;
     /**
      * 
+     * @type {ReadinessView}
+     * @memberof OperationResult
+     */
+    readiness?: ReadinessView | null;
+    /**
+     * 
      * @type {ReservationInfo}
      * @memberof OperationResult
      */
@@ -76,7 +89,12 @@ export const OperationResultKindEnum = {
     Change: 'CHANGE',
     Cancel: 'CANCEL',
     Block: 'BLOCK',
-    Unblock: 'UNBLOCK'
+    Unblock: 'UNBLOCK',
+    CheckIn: 'CHECK_IN',
+    CheckOut: 'CHECK_OUT',
+    NoShow: 'NO_SHOW',
+    CorrectStay: 'CORRECT_STAY',
+    SetReadiness: 'SET_READINESS'
 } as const;
 export type OperationResultKindEnum = typeof OperationResultKindEnum[keyof typeof OperationResultKindEnum];
 
@@ -104,6 +122,7 @@ export function OperationResultFromJSONTyped(json: any, ignoreDiscriminator: boo
         'key': json['key'],
         'kind': json['kind'],
         'maintenance': json['maintenance'] == null ? undefined : MaintenanceBlockFromJSON(json['maintenance']),
+        'readiness': json['readiness'] == null ? undefined : ReadinessViewFromJSON(json['readiness']),
         'reservation': json['reservation'] == null ? undefined : ReservationInfoFromJSON(json['reservation']),
         'resourceId': json['resourceId'],
     };
@@ -123,6 +142,7 @@ export function OperationResultToJSONTyped(value?: OperationResult | null, ignor
         'key': value['key'],
         'kind': value['kind'],
         'maintenance': MaintenanceBlockToJSON(value['maintenance']),
+        'readiness': ReadinessViewToJSON(value['readiness']),
         'reservation': ReservationInfoToJSON(value['reservation']),
         'resourceId': value['resourceId'],
     };

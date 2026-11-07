@@ -43,6 +43,8 @@ object TestData {
             jdbc.update("DELETE FROM SPRING_SESSION WHERE PRIMARY_ID IS NOT NULL")
         }
         jdbc.update("DELETE FROM business_events WHERE id IS NOT NULL")
+        jdbc.update("DELETE FROM readiness_events WHERE id IS NOT NULL")
+        jdbc.update("DELETE FROM room_readiness WHERE room_id IS NOT NULL")
         for (table in
             listOf(
                 "staff_events",

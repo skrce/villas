@@ -7,13 +7,17 @@
 Name | Type
 ------------ | -------------
 `actorId` | string
+`checkedInAt` | string
+`checkedOutAt` | string
 `endDate` | Date
 `guestCount` | number
 `id` | string
 `kind` | string
 `occurredAt` | Date
 `operationKey` | string
+`phase` | string
 `previousRoomId` | number
+`reason` | string
 `resourceVersion` | number
 `roomId` | number
 `startDate` | Date
@@ -26,13 +30,17 @@ import type { InventoryEventInfo } from ''
 // TODO: Update the object below with actual values
 const example = {
   "actorId": null,
+  "checkedInAt": null,
+  "checkedOutAt": null,
   "endDate": null,
   "guestCount": null,
   "id": null,
   "kind": null,
   "occurredAt": null,
   "operationKey": null,
+  "phase": null,
   "previousRoomId": null,
+  "reason": null,
   "resourceVersion": null,
   "roomId": null,
   "startDate": null,

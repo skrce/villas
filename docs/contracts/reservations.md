@@ -1,5 +1,18 @@
 # Reservation inventory contract
 
+The stay-operation foundation adds a separate `phase`: CONFIRMED, CHECKED_IN,
+CHECKED_OUT, CANCELLED or NO_SHOW. The existing ACTIVE/CANCELLED inventory flag
+remains compatible. Checked-out stays retain their historical booked nights;
+cancelled/no-show stays release inventory. Arrival/departure UTC strings retain
+database microsecond precision. Existing scheduled/cancelled records migrate without
+inventing actual arrival or departure times. Completed/in-progress records reject
+the scheduled-stay editing adapters until the front-desk workflow is integrated.
+
+Room/guest archive and capacity protection includes physical checked-in occupancy,
+even when its scheduled departure has passed. The room-readiness API and migration
+contract are in [housekeeping](housekeeping.md). Milestone 8's remaining lifecycle
+and financial workflows are not claimed by this foundation.
+
 Stay dates are strict `YYYY-MM-DD` calendar dates in `Europe/Skopje`, represented by
 `LocalDate` and SQL DATE. Supported years are 1000-9999. Check-out must follow
 check-in. Nights are calendar-day differences, including leap days and DST changes.

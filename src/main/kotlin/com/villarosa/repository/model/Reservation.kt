@@ -13,6 +13,7 @@ import jakarta.persistence.Version
 import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import org.hibernate.annotations.ColumnDefault
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 
@@ -35,6 +36,14 @@ data class Reservation(
     val propertyId: String = "villa-rosa",
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "accepted_quote_id", length = 36) var acceptedQuoteId: String? = null,
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @ColumnDefault("'CONFIRMED'")
+    @Column(name = "stay_phase", nullable = false, length = 16)
+    var phase: StayPhase =
+        if (status == ReservationStatus.CANCELLED) StayPhase.CANCELLED else StayPhase.CONFIRMED,
+    @Column(name = "checked_in_at") var checkedInAt: Instant? = null,
+    @Column(name = "checked_out_at") var checkedOutAt: Instant? = null,
 ) {
 
     fun toReservationInfo() =
@@ -49,6 +58,9 @@ data class Reservation(
             version,
             ChronoUnit.DAYS.between(startDate, endDate),
             acceptedQuoteId,
+            phase,
+            checkedInAt?.toString(),
+            checkedOutAt?.toString(),
         )
 
     companion object {
@@ -59,6 +71,14 @@ data class Reservation(
             endDate: LocalDate,
         ) = Reservation(null, customerId, roomId, startDate, endDate)
     }
+}
+
+enum class StayPhase {
+    CONFIRMED,
+    CHECKED_IN,
+    CHECKED_OUT,
+    CANCELLED,
+    NO_SHOW,
 }
 
 enum class ReservationStatus {
@@ -77,4 +97,8 @@ data class ReservationInfo(
     val version: Long = 0,
     val nights: Long = 0,
     val acceptedQuoteId: String? = null,
+    val phase: StayPhase =
+        if (status == ReservationStatus.CANCELLED) StayPhase.CANCELLED else StayPhase.CONFIRMED,
+    val checkedInAt: String? = null,
+    val checkedOutAt: String? = null,
 )

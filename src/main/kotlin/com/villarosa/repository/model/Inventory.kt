@@ -76,6 +76,13 @@ data class InventoryEvent(
     @Column(name = "end_date", nullable = false) val endDate: LocalDate = LocalDate.MIN,
     @Column(name = "guest_count") val guestCount: Int? = null,
     @Column(name = "occurred_at", nullable = false) val occurredAt: Instant = Instant.now(),
+    @Column(length = 500) val reason: String? = null,
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "stay_phase", length = 16)
+    val phase: StayPhase? = null,
+    @Column(name = "checked_in_at") val checkedInAt: Instant? = null,
+    @Column(name = "checked_out_at") val checkedOutAt: Instant? = null,
 )
 
 enum class OperationKind {
@@ -85,6 +92,11 @@ enum class OperationKind {
     CANCEL,
     BLOCK,
     UNBLOCK,
+    CHECK_IN,
+    CHECK_OUT,
+    NO_SHOW,
+    CORRECT_STAY,
+    SET_READINESS,
 }
 
 data class OperationResult(
@@ -93,4 +105,5 @@ data class OperationResult(
     @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED) val resourceId: Int,
     val reservation: ReservationInfo? = null,
     val maintenance: MaintenanceBlock? = null,
+    val readiness: ReadinessView? = null,
 )

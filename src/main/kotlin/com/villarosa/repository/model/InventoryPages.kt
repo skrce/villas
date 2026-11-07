@@ -31,6 +31,10 @@ data class InventoryEventInfo(
     val endDate: LocalDate,
     val guestCount: Int?,
     val occurredAt: Instant,
+    val reason: String? = null,
+    val phase: StayPhase? = null,
+    val checkedInAt: String? = null,
+    val checkedOutAt: String? = null,
 ) {
     companion object {
         fun from(event: InventoryEvent) =
@@ -46,6 +50,10 @@ data class InventoryEventInfo(
                 event.endDate,
                 event.guestCount,
                 event.occurredAt,
+                event.reason,
+                event.phase,
+                event.checkedInAt?.toString(),
+                event.checkedOutAt?.toString(),
             )
     }
 }

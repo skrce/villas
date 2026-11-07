@@ -27,6 +27,18 @@ export interface ReservationInfo {
     acceptedQuoteId?: string | null;
     /**
      * 
+     * @type {string}
+     * @memberof ReservationInfo
+     */
+    checkedInAt?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof ReservationInfo
+     */
+    checkedOutAt?: string | null;
+    /**
+     * 
      * @type {number}
      * @memberof ReservationInfo
      */
@@ -57,6 +69,12 @@ export interface ReservationInfo {
     nights?: number;
     /**
      * 
+     * @type {string}
+     * @memberof ReservationInfo
+     */
+    phase?: ReservationInfoPhaseEnum;
+    /**
+     * 
      * @type {number}
      * @memberof ReservationInfo
      */
@@ -81,6 +99,18 @@ export interface ReservationInfo {
     version?: number;
 }
 
+
+/**
+ * @export
+ */
+export const ReservationInfoPhaseEnum = {
+    Confirmed: 'CONFIRMED',
+    CheckedIn: 'CHECKED_IN',
+    CheckedOut: 'CHECKED_OUT',
+    Cancelled: 'CANCELLED',
+    NoShow: 'NO_SHOW'
+} as const;
+export type ReservationInfoPhaseEnum = typeof ReservationInfoPhaseEnum[keyof typeof ReservationInfoPhaseEnum];
 
 /**
  * @export
@@ -110,11 +140,14 @@ export function ReservationInfoFromJSONTyped(json: any, ignoreDiscriminator: boo
     return {
         
         'acceptedQuoteId': json['acceptedQuoteId'] == null ? undefined : json['acceptedQuoteId'],
+        'checkedInAt': json['checkedInAt'] == null ? undefined : json['checkedInAt'],
+        'checkedOutAt': json['checkedOutAt'] == null ? undefined : json['checkedOutAt'],
         'customerId': json['customerId'] == null ? undefined : json['customerId'],
         'endDate': json['endDate'] == null ? undefined : json['endDate'],
         'guestCount': json['guestCount'] == null ? undefined : json['guestCount'],
         'id': json['id'] == null ? undefined : json['id'],
         'nights': json['nights'] == null ? undefined : json['nights'],
+        'phase': json['phase'] == null ? undefined : json['phase'],
         'roomId': json['roomId'] == null ? undefined : json['roomId'],
         'startDate': json['startDate'] == null ? undefined : json['startDate'],
         'status': json['status'] == null ? undefined : json['status'],
@@ -134,11 +167,14 @@ export function ReservationInfoToJSONTyped(value?: ReservationInfo | null, ignor
     return {
         
         'acceptedQuoteId': value['acceptedQuoteId'],
+        'checkedInAt': value['checkedInAt'],
+        'checkedOutAt': value['checkedOutAt'],
         'customerId': value['customerId'],
         'endDate': value['endDate'],
         'guestCount': value['guestCount'],
         'id': value['id'],
         'nights': value['nights'],
+        'phase': value['phase'],
         'roomId': value['roomId'],
         'startDate': value['startDate'],
         'status': value['status'],

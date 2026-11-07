@@ -9,6 +9,7 @@ Name | Type
 `key` | string
 `kind` | string
 `maintenance` | [MaintenanceBlock](MaintenanceBlock.md)
+`readiness` | [ReadinessView](ReadinessView.md)
 `reservation` | [ReservationInfo](ReservationInfo.md)
 `resourceId` | number
 
@@ -22,6 +23,7 @@ const example = {
   "key": null,
   "kind": null,
   "maintenance": null,
+  "readiness": null,
   "reservation": null,
   "resourceId": null,
 } satisfies OperationResult

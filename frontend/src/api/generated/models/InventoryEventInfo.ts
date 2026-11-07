@@ -27,6 +27,18 @@ export interface InventoryEventInfo {
     actorId?: string;
     /**
      * 
+     * @type {string}
+     * @memberof InventoryEventInfo
+     */
+    checkedInAt?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof InventoryEventInfo
+     */
+    checkedOutAt?: string | null;
+    /**
+     * 
      * @type {Date}
      * @memberof InventoryEventInfo
      */
@@ -63,10 +75,22 @@ export interface InventoryEventInfo {
     operationKey?: string;
     /**
      * 
+     * @type {string}
+     * @memberof InventoryEventInfo
+     */
+    phase?: InventoryEventInfoPhaseEnum | null;
+    /**
+     * 
      * @type {number}
      * @memberof InventoryEventInfo
      */
     previousRoomId?: number | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof InventoryEventInfo
+     */
+    reason?: string | null;
     /**
      * 
      * @type {number}
@@ -87,6 +111,20 @@ export interface InventoryEventInfo {
     startDate?: Date;
 }
 
+
+/**
+ * @export
+ */
+export const InventoryEventInfoPhaseEnum = {
+    Confirmed: 'CONFIRMED',
+    CheckedIn: 'CHECKED_IN',
+    CheckedOut: 'CHECKED_OUT',
+    Cancelled: 'CANCELLED',
+    NoShow: 'NO_SHOW'
+} as const;
+export type InventoryEventInfoPhaseEnum = typeof InventoryEventInfoPhaseEnum[keyof typeof InventoryEventInfoPhaseEnum];
+
+
 /**
  * Check if a given object implements the InventoryEventInfo interface.
  */
@@ -106,13 +144,17 @@ export function InventoryEventInfoFromJSONTyped(json: any, ignoreDiscriminator: 
     return {
         
         'actorId': json['actorId'] == null ? undefined : json['actorId'],
+        'checkedInAt': json['checkedInAt'] == null ? undefined : json['checkedInAt'],
+        'checkedOutAt': json['checkedOutAt'] == null ? undefined : json['checkedOutAt'],
         'endDate': json['endDate'] == null ? undefined : (new Date(json['endDate'])),
         'guestCount': json['guestCount'] == null ? undefined : json['guestCount'],
         'id': json['id'],
         'kind': json['kind'] == null ? undefined : json['kind'],
         'occurredAt': json['occurredAt'] == null ? undefined : (new Date(json['occurredAt'])),
         'operationKey': json['operationKey'] == null ? undefined : json['operationKey'],
+        'phase': json['phase'] == null ? undefined : json['phase'],
         'previousRoomId': json['previousRoomId'] == null ? undefined : json['previousRoomId'],
+        'reason': json['reason'] == null ? undefined : json['reason'],
         'resourceVersion': json['resourceVersion'] == null ? undefined : json['resourceVersion'],
         'roomId': json['roomId'] == null ? undefined : json['roomId'],
         'startDate': json['startDate'] == null ? undefined : (new Date(json['startDate'])),
@@ -131,13 +173,17 @@ export function InventoryEventInfoToJSONTyped(value?: InventoryEventInfo | null,
     return {
         
         'actorId': value['actorId'],
+        'checkedInAt': value['checkedInAt'],
+        'checkedOutAt': value['checkedOutAt'],
         'endDate': value['endDate'] == null ? value['endDate'] : value['endDate'].toISOString().substring(0,10),
         'guestCount': value['guestCount'],
         'id': value['id'],
         'kind': value['kind'],
         'occurredAt': value['occurredAt'] == null ? value['occurredAt'] : value['occurredAt'].toISOString(),
         'operationKey': value['operationKey'],
+        'phase': value['phase'],
         'previousRoomId': value['previousRoomId'],
+        'reason': value['reason'],
         'resourceVersion': value['resourceVersion'],
         'roomId': value['roomId'],
         'startDate': value['startDate'] == null ? value['startDate'] : value['startDate'].toISOString().substring(0,10),

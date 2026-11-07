@@ -439,7 +439,7 @@ async function example() {
   const body = {
     // string
     operationKey: operationKey_example,
-    // 'CREATE' | 'MOVE' | 'CHANGE' | 'CANCEL' | 'BLOCK' | 'UNBLOCK'
+    // 'CREATE' | 'MOVE' | 'CHANGE' | 'CANCEL' | 'BLOCK' | 'UNBLOCK' | 'CHECK_IN' | 'CHECK_OUT' | 'NO_SHOW' | 'CORRECT_STAY' | 'SET_READINESS'
     kind: kind_example,
   } satisfies GetOperationRequest;
 
@@ -461,7 +461,7 @@ example().catch(console.error);
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
 | **operationKey** | `string` |  | [Defaults to `undefined`] |
-| **kind** | `CREATE`, `MOVE`, `CHANGE`, `CANCEL`, `BLOCK`, `UNBLOCK` |  | [Defaults to `undefined`] [Enum: CREATE, MOVE, CHANGE, CANCEL, BLOCK, UNBLOCK] |
+| **kind** | `CREATE`, `MOVE`, `CHANGE`, `CANCEL`, `BLOCK`, `UNBLOCK`, `CHECK_IN`, `CHECK_OUT`, `NO_SHOW`, `CORRECT_STAY`, `SET_READINESS` |  | [Defaults to `undefined`] [Enum: CREATE, MOVE, CHANGE, CANCEL, BLOCK, UNBLOCK, CHECK_IN, CHECK_OUT, NO_SHOW, CORRECT_STAY, SET_READINESS] |
 
 ### Return type
 
