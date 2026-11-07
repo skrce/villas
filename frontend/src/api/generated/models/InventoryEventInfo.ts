@@ -99,6 +99,12 @@ export interface InventoryEventInfo {
     resourceVersion?: number;
     /**
      * 
+     * @type {string}
+     * @memberof InventoryEventInfo
+     */
+    roomFromDate?: string | null;
+    /**
+     * 
      * @type {number}
      * @memberof InventoryEventInfo
      */
@@ -156,6 +162,7 @@ export function InventoryEventInfoFromJSONTyped(json: any, ignoreDiscriminator: 
         'previousRoomId': json['previousRoomId'] == null ? undefined : json['previousRoomId'],
         'reason': json['reason'] == null ? undefined : json['reason'],
         'resourceVersion': json['resourceVersion'] == null ? undefined : json['resourceVersion'],
+        'roomFromDate': json['roomFromDate'] == null ? undefined : json['roomFromDate'],
         'roomId': json['roomId'] == null ? undefined : json['roomId'],
         'startDate': json['startDate'] == null ? undefined : (new Date(json['startDate'])),
     };
@@ -185,6 +192,7 @@ export function InventoryEventInfoToJSONTyped(value?: InventoryEventInfo | null,
         'previousRoomId': value['previousRoomId'],
         'reason': value['reason'],
         'resourceVersion': value['resourceVersion'],
+        'roomFromDate': value['roomFromDate'],
         'roomId': value['roomId'],
         'startDate': value['startDate'] == null ? value['startDate'] : value['startDate'].toISOString().substring(0,10),
     };

@@ -62,7 +62,7 @@ interface InventoryEventRepository : JpaRepository<InventoryEvent, Long> {
 class InventoryAvailability(private val jdbc: JdbcTemplate) {
     fun available(roomId: Int, dates: StayDates, excludedReservation: Int = -1): Boolean =
         jdbc.queryForObject(
-            """SELECT (SELECT COUNT(*) FROM reservations WHERE property_id=? AND room_id=? AND status='ACTIVE' AND start_date<? AND end_date>? AND id<>?)
+            """SELECT (SELECT COUNT(*) FROM reservations r JOIN (${com.villarosa.service.RoomAllocations.SQL}) a ON a.property_id=r.property_id AND a.reservation_id=r.id WHERE r.property_id=? AND a.room_id=? AND r.status='ACTIVE' AND a.start_date<? AND a.end_date>? AND r.id<>?)
               + (SELECT COUNT(*) FROM maintenance_blocks WHERE property_id=? AND room_id=? AND status='ACTIVE' AND start_date<? AND end_date>?)""",
             Long::class.java,
             PropertyScope.ID,

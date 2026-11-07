@@ -65,6 +65,7 @@ class StayOperationsController(
     private val stays: StayOperations,
     private val current: CurrentStaff,
     private val access: StaffAccess,
+    private val allocations: RoomAllocations,
 ) {
     @PostMapping("/api/v1/reservations/{id}/check-in")
     @Operation(
@@ -169,6 +170,18 @@ class StayOperationsController(
             body.reason,
             key,
         )
+
+    @GetMapping("/api/v1/reservations/{id}/allocations")
+    @Operation(
+        operationId = "reservationAllocations",
+        summary = "Read versioned dated room allocations without changing the whole-stay price",
+    )
+    fun allocations(
+        @PathVariable id: Int,
+        @RequestParam(defaultValue = "0") afterId: String,
+        @RequestParam(defaultValue = "50") limit: Int,
+        @RequestParam(required = false) expectedVersion: Long?,
+    ) = allocations.page(id, afterId, limit, expectedVersion)
 
     @PostMapping("/api/v1/property-time/options")
     @Operation(

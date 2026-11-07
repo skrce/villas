@@ -287,7 +287,7 @@ export function BookingCalendar() {
                       </p>
                       {calendarEvents(data, room.id).map((event) => (
                         <CalendarCard
-                          key={`${event.kind}-${event.id}`}
+                          key={`${event.kind}-${event.kind === "stay" ? (event.allocationId ?? event.id) : event.id}`}
                           event={event}
                           from={data.startDate}
                           to={data.endDate}

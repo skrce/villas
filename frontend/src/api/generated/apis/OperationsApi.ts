@@ -15,15 +15,30 @@
 
 import * as runtime from '../runtime';
 import type {
+  ActualTimesRequest,
+  CheckInRequest,
+  CheckOutRequest,
   ErrorResponse,
   FrontDeskPage,
   HousekeepingPage,
   OperationResult,
+  OperationalChangeRequest,
+  OperationalMoveRequest,
+  PropertyTimeOptions,
+  PropertyTimeRequest,
   ReadinessChangeRequest,
   ReadinessHistory,
   ReadinessView,
+  RoomAllocationPage,
+  StayReasonRequest,
 } from '../models/index';
 import {
+    ActualTimesRequestFromJSON,
+    ActualTimesRequestToJSON,
+    CheckInRequestFromJSON,
+    CheckInRequestToJSON,
+    CheckOutRequestFromJSON,
+    CheckOutRequestToJSON,
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
     FrontDeskPageFromJSON,
@@ -32,18 +47,60 @@ import {
     HousekeepingPageToJSON,
     OperationResultFromJSON,
     OperationResultToJSON,
+    OperationalChangeRequestFromJSON,
+    OperationalChangeRequestToJSON,
+    OperationalMoveRequestFromJSON,
+    OperationalMoveRequestToJSON,
+    PropertyTimeOptionsFromJSON,
+    PropertyTimeOptionsToJSON,
+    PropertyTimeRequestFromJSON,
+    PropertyTimeRequestToJSON,
     ReadinessChangeRequestFromJSON,
     ReadinessChangeRequestToJSON,
     ReadinessHistoryFromJSON,
     ReadinessHistoryToJSON,
     ReadinessViewFromJSON,
     ReadinessViewToJSON,
+    RoomAllocationPageFromJSON,
+    RoomAllocationPageToJSON,
+    StayReasonRequestFromJSON,
+    StayReasonRequestToJSON,
 } from '../models/index';
+
+export interface CancelStayRequest {
+    id: number;
+    idempotencyKey: string;
+    stayReasonRequest: StayReasonRequest;
+}
 
 export interface ChangeRoomReadinessRequest {
     roomId: number;
     idempotencyKey: string;
     readinessChangeRequest: ReadinessChangeRequest;
+}
+
+export interface ChangeStayRequest {
+    id: number;
+    idempotencyKey: string;
+    operationalChangeRequest: OperationalChangeRequest;
+}
+
+export interface CheckInStayRequest {
+    id: number;
+    idempotencyKey: string;
+    checkInRequest: CheckInRequest;
+}
+
+export interface CheckOutStayRequest {
+    id: number;
+    idempotencyKey: string;
+    checkOutRequest: CheckOutRequest;
+}
+
+export interface CorrectStayTimesRequest {
+    id: number;
+    idempotencyKey: string;
+    actualTimesRequest: ActualTimesRequest;
 }
 
 export interface FrontDeskRequest {
@@ -60,6 +117,29 @@ export interface HousekeepingRequest {
     expectedDate?: string;
 }
 
+export interface MoveStayRequest {
+    id: number;
+    idempotencyKey: string;
+    operationalMoveRequest: OperationalMoveRequest;
+}
+
+export interface PropertyTimeOptionsRequest {
+    propertyTimeRequest: PropertyTimeRequest;
+}
+
+export interface RecordNoShowRequest {
+    id: number;
+    idempotencyKey: string;
+    stayReasonRequest: StayReasonRequest;
+}
+
+export interface ReservationAllocationsRequest {
+    id: number;
+    afterId?: string;
+    limit?: number;
+    expectedVersion?: number;
+}
+
 export interface RoomReadinessRequest {
     roomId: number;
 }
@@ -74,6 +154,64 @@ export interface RoomReadinessHistoryRequest {
  * 
  */
 export class OperationsApi extends runtime.BaseAPI {
+
+    /**
+     * Record a reasoned cancellation without an automatic refund
+     */
+    async cancelStayRaw(requestParameters: CancelStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OperationResult>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling cancelStay().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling cancelStay().'
+            );
+        }
+
+        if (requestParameters['stayReasonRequest'] == null) {
+            throw new runtime.RequiredError(
+                'stayReasonRequest',
+                'Required parameter "stayReasonRequest" was null or undefined when calling cancelStay().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/reservations/{id}/cancel`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: StayReasonRequestToJSON(requestParameters['stayReasonRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => OperationResultFromJSON(jsonValue));
+    }
+
+    /**
+     * Record a reasoned cancellation without an automatic refund
+     */
+    async cancelStay(requestParameters: CancelStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
+        const response = await this.cancelStayRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Record a reviewed room-readiness transition
@@ -130,6 +268,238 @@ export class OperationsApi extends runtime.BaseAPI {
      */
     async changeRoomReadiness(requestParameters: ChangeRoomReadinessRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
         const response = await this.changeRoomReadinessRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Accept a new whole-stay quote and change reviewed dates or party size
+     */
+    async changeStayRaw(requestParameters: ChangeStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OperationResult>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling changeStay().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling changeStay().'
+            );
+        }
+
+        if (requestParameters['operationalChangeRequest'] == null) {
+            throw new runtime.RequiredError(
+                'operationalChangeRequest',
+                'Required parameter "operationalChangeRequest" was null or undefined when calling changeStay().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/reservations/{id}/change`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: OperationalChangeRequestToJSON(requestParameters['operationalChangeRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => OperationResultFromJSON(jsonValue));
+    }
+
+    /**
+     * Accept a new whole-stay quote and change reviewed dates or party size
+     */
+    async changeStay(requestParameters: ChangeStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
+        const response = await this.changeStayRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Record arrival within the booked dates into a reviewed clean room
+     */
+    async checkInStayRaw(requestParameters: CheckInStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OperationResult>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling checkInStay().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling checkInStay().'
+            );
+        }
+
+        if (requestParameters['checkInRequest'] == null) {
+            throw new runtime.RequiredError(
+                'checkInRequest',
+                'Required parameter "checkInRequest" was null or undefined when calling checkInStay().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/reservations/{id}/check-in`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CheckInRequestToJSON(requestParameters['checkInRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => OperationResultFromJSON(jsonValue));
+    }
+
+    /**
+     * Record arrival within the booked dates into a reviewed clean room
+     */
+    async checkInStay(requestParameters: CheckInStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
+        const response = await this.checkInStayRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Record departure and mark its room dirty in one transaction
+     */
+    async checkOutStayRaw(requestParameters: CheckOutStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OperationResult>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling checkOutStay().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling checkOutStay().'
+            );
+        }
+
+        if (requestParameters['checkOutRequest'] == null) {
+            throw new runtime.RequiredError(
+                'checkOutRequest',
+                'Required parameter "checkOutRequest" was null or undefined when calling checkOutStay().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/reservations/{id}/check-out`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CheckOutRequestToJSON(requestParameters['checkOutRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => OperationResultFromJSON(jsonValue));
+    }
+
+    /**
+     * Record departure and mark its room dirty in one transaction
+     */
+    async checkOutStay(requestParameters: CheckOutStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
+        const response = await this.checkOutStayRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Correct actual arrival/departure times with a retained Owner reason
+     */
+    async correctStayTimesRaw(requestParameters: CorrectStayTimesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OperationResult>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling correctStayTimes().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling correctStayTimes().'
+            );
+        }
+
+        if (requestParameters['actualTimesRequest'] == null) {
+            throw new runtime.RequiredError(
+                'actualTimesRequest',
+                'Required parameter "actualTimesRequest" was null or undefined when calling correctStayTimes().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/reservations/{id}/actual-times`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: ActualTimesRequestToJSON(requestParameters['actualTimesRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => OperationResultFromJSON(jsonValue));
+    }
+
+    /**
+     * Correct actual arrival/departure times with a retained Owner reason
+     */
+    async correctStayTimes(requestParameters: CorrectStayTimesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
+        const response = await this.correctStayTimesRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -220,6 +590,210 @@ export class OperationsApi extends runtime.BaseAPI {
      */
     async housekeeping(requestParameters: HousekeepingRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<HousekeepingPage> {
         const response = await this.housekeepingRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Accept a new whole-stay quote and move a confirmed or in-house stay
+     */
+    async moveStayRaw(requestParameters: MoveStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OperationResult>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling moveStay().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling moveStay().'
+            );
+        }
+
+        if (requestParameters['operationalMoveRequest'] == null) {
+            throw new runtime.RequiredError(
+                'operationalMoveRequest',
+                'Required parameter "operationalMoveRequest" was null or undefined when calling moveStay().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/reservations/{id}/move`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: OperationalMoveRequestToJSON(requestParameters['operationalMoveRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => OperationResultFromJSON(jsonValue));
+    }
+
+    /**
+     * Accept a new whole-stay quote and move a confirmed or in-house stay
+     */
+    async moveStay(requestParameters: MoveStayRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
+        const response = await this.moveStayRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Resolve a Skopje time to explicit UTC choices, including repeated or missing daylight-saving times
+     */
+    async propertyTimeOptionsRaw(requestParameters: PropertyTimeOptionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<PropertyTimeOptions>> {
+        if (requestParameters['propertyTimeRequest'] == null) {
+            throw new runtime.RequiredError(
+                'propertyTimeRequest',
+                'Required parameter "propertyTimeRequest" was null or undefined when calling propertyTimeOptions().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+
+        let urlPath = `/property-time/options`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: PropertyTimeRequestToJSON(requestParameters['propertyTimeRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => PropertyTimeOptionsFromJSON(jsonValue));
+    }
+
+    /**
+     * Resolve a Skopje time to explicit UTC choices, including repeated or missing daylight-saving times
+     */
+    async propertyTimeOptions(requestParameters: PropertyTimeOptionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PropertyTimeOptions> {
+        const response = await this.propertyTimeOptionsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Record a reasoned no-show after the arrival day
+     */
+    async recordNoShowRaw(requestParameters: RecordNoShowRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<OperationResult>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling recordNoShow().'
+            );
+        }
+
+        if (requestParameters['idempotencyKey'] == null) {
+            throw new runtime.RequiredError(
+                'idempotencyKey',
+                'Required parameter "idempotencyKey" was null or undefined when calling recordNoShow().'
+            );
+        }
+
+        if (requestParameters['stayReasonRequest'] == null) {
+            throw new runtime.RequiredError(
+                'stayReasonRequest',
+                'Required parameter "stayReasonRequest" was null or undefined when calling recordNoShow().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['idempotencyKey'] != null) {
+            headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+
+        let urlPath = `/reservations/{id}/no-show`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: StayReasonRequestToJSON(requestParameters['stayReasonRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => OperationResultFromJSON(jsonValue));
+    }
+
+    /**
+     * Record a reasoned no-show after the arrival day
+     */
+    async recordNoShow(requestParameters: RecordNoShowRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<OperationResult> {
+        const response = await this.recordNoShowRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read versioned dated room allocations without changing the whole-stay price
+     */
+    async reservationAllocationsRaw(requestParameters: ReservationAllocationsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RoomAllocationPage>> {
+        if (requestParameters['id'] == null) {
+            throw new runtime.RequiredError(
+                'id',
+                'Required parameter "id" was null or undefined when calling reservationAllocations().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['afterId'] != null) {
+            queryParameters['afterId'] = requestParameters['afterId'];
+        }
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
+
+        if (requestParameters['expectedVersion'] != null) {
+            queryParameters['expectedVersion'] = requestParameters['expectedVersion'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/reservations/{id}/allocations`;
+        urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => RoomAllocationPageFromJSON(jsonValue));
+    }
+
+    /**
+     * Read versioned dated room allocations without changing the whole-stay price
+     */
+    async reservationAllocations(requestParameters: ReservationAllocationsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RoomAllocationPage> {
+        const response = await this.reservationAllocationsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

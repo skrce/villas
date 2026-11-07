@@ -32,6 +32,12 @@ const schema = z.object({
     .array(
       z.object({
         ...interval,
+        allocationId: z
+          .string()
+          .regex(/^(allocation|reservation):[1-9][0-9]*$/)
+          .max(32)
+          .optional(),
+        phase: z.enum(["CONFIRMED", "CHECKED_IN", "CHECKED_OUT"]).optional(),
         customerId: id,
         guestName: z.string().min(1).max(401),
         guestCount: z.number().int().min(1).max(1000),
@@ -84,7 +90,13 @@ export function confirmedCalendar(
   )
     throw new Error("The calendar does not match this room page.");
   for (const events of [data.stays, data.maintenance]) {
-    if (new Set(events.map((e) => e.id)).size !== events.length)
+    if (
+      new Set(
+        events.map((e) =>
+          "customerId" in e ? (e.allocationId ?? `reservation:${e.id}`) : e.id,
+        ),
+      ).size !== events.length
+    )
       throw new Error("The calendar contains duplicate records.");
     if (
       events.some(
@@ -96,6 +108,21 @@ export function confirmedCalendar(
       )
     )
       throw new Error("The calendar contains an invalid period.");
+  }
+  for (const bookingId of new Set(data.stays.map((stay) => stay.id))) {
+    const rows = data.stays
+      .filter((stay) => stay.id === bookingId)
+      .sort((left, right) => left.startDate.localeCompare(right.startDate));
+    if (
+      rows.some(
+        (row, index) =>
+          row.customerId !== rows[0].customerId ||
+          row.guestCount !== rows[0].guestCount ||
+          row.version !== rows[0].version ||
+          (index > 0 && rows[index - 1].endDate > row.startDate),
+      )
+    )
+      throw new Error("The calendar contains inconsistent room allocations.");
   }
   for (const roomId of roomIds) {
     const events = calendarEvents(data, roomId);

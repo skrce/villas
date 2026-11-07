@@ -5,18 +5,19 @@ CHECKED_OUT, CANCELLED or NO_SHOW. The existing ACTIVE/CANCELLED inventory flag
 remains compatible. Checked-out stays retain their historical booked nights;
 cancelled/no-show stays release inventory. Arrival/departure UTC strings retain
 database microsecond precision. Existing scheduled/cancelled records migrate without
-inventing actual arrival or departure times. Completed/in-progress records reject
-the scheduled-stay editing adapters until the front-desk workflow is integrated.
+inventing actual arrival or departure times. Scheduled-stay compatibility adapters
+accept only confirmed bookings. The reasoned operational endpoints below support
+in-house changes and protect completed stays from ordinary editing.
 
 Room/guest archive and capacity protection includes physical checked-in occupancy,
 even when its scheduled departure has passed. The room-readiness API and migration
-contract are in [housekeeping](housekeeping.md). Milestone 8's remaining lifecycle
-and financial workflows are not claimed by this foundation.
+contract are in [housekeeping](housekeeping.md). Financial behavior follows
+[manual settlement](payments.md).
 
 Stay dates are strict `YYYY-MM-DD` calendar dates in `Europe/Skopje`, represented by
 `LocalDate` and SQL DATE. Supported years are 1000-9999. Check-out must follow
 check-in. Nights are calendar-day differences, including leap days and DST changes.
-An active stay occupies `[startDate, endDate)`. Two intervals overlap exactly when
+An active allocation occupies `[startDate, endDate)`. Two intervals overlap exactly when
 `existing.startDate < requested.endDate AND existing.endDate > requested.startDate`.
 Adjacent stays are allowed. Active maintenance blocks consume the same inventory.
 
@@ -33,7 +34,7 @@ operation key, locks the guest for create/move/date changes, then locks apartmen
 resource and inventory, writes the resource and its event, then records the result.
 All of these writes commit or roll back together.
 
-Moves lock both original and destination apartments in ascending ID order. Other
+Moves lock all allocated rooms and the destination in ascending ID order. Other
 mutations lock the affected apartment before the reservation or block row. A move
 that discovers a changed original room fails rather than editing without its lock.
 The initial room lookup returns a scalar ID so it cannot cache a stale entity before
@@ -51,10 +52,66 @@ do not replace the apartment locks needed for competing new bookings.
 
 Cancellation retains the reservation, changes its status to `CANCELLED`, and releases
 its inventory. A cancelled reservation cannot move or change dates. Cancelling a
-maintenance block also retains it. These are storage and inventory semantics. They
-do not establish cancellation deadlines, fees, refunds, or staff permissions; those
-remain decisions for milestones 7 and 8. Saved quote acceptance and retained prices
-follow the [pricing contract](pricing.md).
+maintenance block also retains it. Under D06 cancellation/no-show removes
+accommodation owed, retaining received funds as credit until a separately recorded
+manual refund. Saved quote acceptance and retained prices follow the
+[pricing contract](pricing.md).
+
+## Stay operations
+
+Owners use reasoned JSON POST endpoints under `/api/v1/reservations/{id}` with
+CSRF/Origin, an Idempotency-Key and the reviewed expectedVersion:
+
+- `check-in`: CONFIRMED to CHECKED_IN on a property day within `[startDate,endDate)`.
+  The reviewed readinessVersion must still identify a CLEAN room with no physical
+  occupant. An accepted EUR agreement, active room, capacity and availability are
+  required. There is no readiness override.
+- `check-out`: CHECKED_IN to CHECKED_OUT on the booked departure day. An early or
+  late departure requires an accepted date change first. Recording departure and
+  marking the current room DIRTY commit together. A nonzero or unknown balance
+  requires explicit acknowledgeBalance; checkout never creates a financial entry.
+- `no-show`: CONFIRMED to NO_SHOW only after the arrival day, with a required reason.
+  Nothing automatically changes a booking's status.
+- `cancel`: a confirmed booking becomes CANCELLED with a required reason. In-house
+  and completed stays reject cancellation. Cancellation creates no refund.
+- `move` and `change`: confirmed or in-house bookings require a reason and explicit
+  acceptance of a new whole-stay quote for a real change. In-house moves also require
+  the destination's reviewed clean readiness version and physical vacancy, and mark
+  the old room DIRTY atomically. In-house dates must retain the actual arrival day
+  and may not move departure before the current property day.
+- `actual-times`: a reasoned Owner correction of actual timestamps for an in-house
+  or completed stay. Arrival must fall within booked dates; departure must be on
+  the booked departure day, after arrival and not in the future. In-house corrections
+  cannot invent a departure. Status, accepted price and room readiness stay intact.
+
+Actual timestamps use strict UTC strings with at most six fractional digits.
+`POST /api/v1/property-time/options` resolves a local Europe/Skopje datetime to zero
+choices for a daylight-saving gap, one normally, or two explicit offset/UTC choices
+for a repeated time. This is an Owner-only read and performs no correction.
+
+The Owner, affected room and reservation locks serialize operations with readiness,
+payments and edits. Historical operation results include the immutable inventory
+event, actor, original reviewed version, reason, phase and actual timestamps.
+Failures roll back prices, allocations, readiness, audit and operation records.
+
+## Dated room allocations
+
+A move during a stay retains nights before today's property date in their original
+room and assigns remaining nights to the destination. Repeated moves on one day
+consume no duplicate nights. A physical move on departure day adds no new booked
+night; a subsequent accepted extension assigns new nights to that current room.
+Overdue in-house stays require an accepted departure-date change before moving.
+
+Inventory availability and the calendar use these dated allocations. The calendar
+may return several rows with the same reservation ID, each with a unique allocationId
+and its allocated room/period. Pricing still quotes the entire requested stay at
+current destination rates under D12, with all previous agreements retained.
+
+`GET .../allocations` reads the room names and positive half-open intervals in a
+repeatable-read transaction. Pages use decimal-string afterId, limit 1..100 and an
+optional expectedVersion. A stale version fails instead of combining allocations
+from different edits. V14 backfills one full-stay allocation per existing booking,
+preserves existing allocation rows on retry and does not convert legacy prices.
 
 ## Idempotency and an unknown write outcome
 

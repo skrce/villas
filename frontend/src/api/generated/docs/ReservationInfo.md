@@ -15,6 +15,7 @@ Name | Type
 `id` | number
 `nights` | number
 `phase` | string
+`roomFromDate` | string
 `roomId` | number
 `startDate` | string
 `status` | string
@@ -36,6 +37,7 @@ const example = {
   "id": null,
   "nights": null,
   "phase": null,
+  "roomFromDate": null,
   "roomId": null,
   "startDate": null,
   "status": null,

@@ -20,6 +20,13 @@ import {
     LedgerEntryInfoToJSON,
     LedgerEntryInfoToJSONTyped,
 } from './LedgerEntryInfo';
+import type { ReadinessEventInfo } from './ReadinessEventInfo';
+import {
+    ReadinessEventInfoFromJSON,
+    ReadinessEventInfoFromJSONTyped,
+    ReadinessEventInfoToJSON,
+    ReadinessEventInfoToJSONTyped,
+} from './ReadinessEventInfo';
 import type { ReservationInfo } from './ReservationInfo';
 import {
     ReservationInfoFromJSON,
@@ -34,6 +41,13 @@ import {
     ReadinessViewToJSON,
     ReadinessViewToJSONTyped,
 } from './ReadinessView';
+import type { InventoryEventInfo } from './InventoryEventInfo';
+import {
+    InventoryEventInfoFromJSON,
+    InventoryEventInfoFromJSONTyped,
+    InventoryEventInfoToJSON,
+    InventoryEventInfoToJSONTyped,
+} from './InventoryEventInfo';
 import type { MaintenanceBlock } from './MaintenanceBlock';
 import {
     MaintenanceBlockFromJSON,
@@ -48,6 +62,12 @@ import {
  * @interface OperationResult
  */
 export interface OperationResult {
+    /**
+     * 
+     * @type {InventoryEventInfo}
+     * @memberof OperationResult
+     */
+    inventoryEvent?: InventoryEventInfo | null;
     /**
      * 
      * @type {string}
@@ -78,6 +98,12 @@ export interface OperationResult {
      * @memberof OperationResult
      */
     readiness?: ReadinessView | null;
+    /**
+     * 
+     * @type {ReadinessEventInfo}
+     * @memberof OperationResult
+     */
+    readinessEvent?: ReadinessEventInfo | null;
     /**
      * 
      * @type {ReservationInfo}
@@ -135,11 +161,13 @@ export function OperationResultFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
+        'inventoryEvent': json['inventoryEvent'] == null ? undefined : InventoryEventInfoFromJSON(json['inventoryEvent']),
         'key': json['key'],
         'kind': json['kind'],
         'ledgerEntry': json['ledgerEntry'] == null ? undefined : LedgerEntryInfoFromJSON(json['ledgerEntry']),
         'maintenance': json['maintenance'] == null ? undefined : MaintenanceBlockFromJSON(json['maintenance']),
         'readiness': json['readiness'] == null ? undefined : ReadinessViewFromJSON(json['readiness']),
+        'readinessEvent': json['readinessEvent'] == null ? undefined : ReadinessEventInfoFromJSON(json['readinessEvent']),
         'reservation': json['reservation'] == null ? undefined : ReservationInfoFromJSON(json['reservation']),
         'resourceId': json['resourceId'],
     };
@@ -156,11 +184,13 @@ export function OperationResultToJSONTyped(value?: OperationResult | null, ignor
 
     return {
         
+        'inventoryEvent': InventoryEventInfoToJSON(value['inventoryEvent']),
         'key': value['key'],
         'kind': value['kind'],
         'ledgerEntry': LedgerEntryInfoToJSON(value['ledgerEntry']),
         'maintenance': MaintenanceBlockToJSON(value['maintenance']),
         'readiness': ReadinessViewToJSON(value['readiness']),
+        'readinessEvent': ReadinessEventInfoToJSON(value['readinessEvent']),
         'reservation': ReservationInfoToJSON(value['reservation']),
         'resourceId': value['resourceId'],
     };

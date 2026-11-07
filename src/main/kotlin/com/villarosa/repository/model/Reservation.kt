@@ -44,6 +44,7 @@ data class Reservation(
         if (status == ReservationStatus.CANCELLED) StayPhase.CANCELLED else StayPhase.CONFIRMED,
     @Column(name = "checked_in_at") var checkedInAt: Instant? = null,
     @Column(name = "checked_out_at") var checkedOutAt: Instant? = null,
+    @JsonIgnore @Column(name = "room_from_date") var roomFromDate: LocalDate? = startDate,
     @JsonIgnore
     @Column(name = "finance_revision", nullable = false)
     @ColumnDefault("0")
@@ -65,6 +66,7 @@ data class Reservation(
             phase,
             checkedInAt?.toString(),
             checkedOutAt?.toString(),
+            roomFromDate?.toString(),
         )
 
     companion object {
@@ -105,4 +107,5 @@ data class ReservationInfo(
         if (status == ReservationStatus.CANCELLED) StayPhase.CANCELLED else StayPhase.CONFIRMED,
     val checkedInAt: String? = null,
     val checkedOutAt: String? = null,
+    val roomFromDate: String? = null,
 )
