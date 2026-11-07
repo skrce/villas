@@ -16,7 +16,7 @@ requires an explicit capability decision, server enforcement, and denial tests.
 | Create/read own saved quotes, accept a reviewed quote and read accepted property prices/history | Allowed |
 | Manual price overrides | Disabled by the initial pricing decision |
 | Record/read external payments, allocated refunds and reasoned reversals | Allowed, with reviewed booking versions and operation reconciliation |
-| Future reports | Only after their domain implementation and policy gates |
+| Today, bounded occupancy/charge/collection/balance reports and reviewed CSV exports | Owner-only, with current membership/property checks; no guest contacts or restricted-role access |
 
 The account foundation validates current active membership, property scope, and a
 security generation in services. Administrative mutations serialize on the property

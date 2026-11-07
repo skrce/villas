@@ -16,7 +16,7 @@ start are recorded in [decisions](decisions.md).
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Implemented and independently reviewed in PRs #24 and #25; final merge/CI evidence is in the linked issue |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Implemented and independently reviewed in PRs #26 and #27; verification and merge evidence is in #8 |
 | 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Implemented locally in PRs #28 through #34; verification and merge evidence in #9 |
-| 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Planned |
+| 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | In progress: defined reporting APIs and Today snapshots; staff screens and integrated verification underway |
 | 10 | [Verify production deployment, recovery, and the staff pilot](https://github.com/skrce/villas/issues/11) | 1-9 | Planned |
 
 The first complete booking checkpoint is milestone 7. Milestone 8 completes daily
@@ -471,3 +471,17 @@ resource binding for no-op correction reconciliation. Permanent regressions cove
 all three. Standalone empty lists now retain correct heading levels; Chromium checks
 their desktop and phone accessibility. The separate color polish uses pale blue and
 mint accents with explicit text labels, documented in the frontend guide.
+
+## Milestone 9 delivery
+
+The owner confirmed booked occupancy with an explicit current-roster capacity
+limitation under D14. [The reporting contract](contracts/reporting.md) defines
+room nights, maintenance, saved nightly charges, corrected receipt/refund periods,
+current whole-booking balances, incomplete source handling and download limits.
+[PR #36](https://github.com/skrce/villas/pull/36) adds the Owner-only read and CSV
+contracts. The dependent UI work makes Today the initial page and adds report
+filters, source drill-downs and session-bound downloads. This milestone remains
+in progress until independent review and the complete integrated check pass.
+
+Real Google verification remains explicitly deferred in issue #4. Production
+hosting, recovery and pilot acceptance remain milestone 10 gates.

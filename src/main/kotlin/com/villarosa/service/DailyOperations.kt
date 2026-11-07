@@ -69,6 +69,16 @@ class DailyOperations(
         isolation = Isolation.REPEATABLE_READ,
     )
     fun desk(list: FrontDeskList, after: Int, limit: Int, expectedDate: String?): FrontDeskPage {
+        return deskSnapshot(list, after, limit, expectedDate)
+    }
+
+    @Transactional(readOnly = true, propagation = Propagation.MANDATORY)
+    fun deskSnapshot(
+        list: FrontDeskList,
+        after: Int,
+        limit: Int,
+        expectedDate: String?,
+    ): FrontDeskPage {
         val today = context(after, limit, expectedDate)
         val predicate =
             when (list) {
