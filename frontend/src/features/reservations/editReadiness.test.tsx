@@ -45,18 +45,16 @@ it("preserves clean destination proof when an in-house move receives a replaceme
     6001,
     2,
   );
-  const api = vi
-    .fn<typeof fetch>()
-    .mockImplementation(async (input) =>
-      String(input).endsWith("/readiness")
-        ? json({
-            roomId: 8,
-            state: "CLEAN",
-            version: 3,
-            changedAt: "2026-11-07T09:00:00Z",
-          })
-        : json(first),
-    );
+  const api = vi.fn<typeof fetch>().mockImplementation(async (input) =>
+    String(input).endsWith("/readiness")
+      ? json({
+          roomId: 8,
+          state: "CLEAN",
+          version: 3,
+          changedAt: "2026-11-07T09:00:00Z",
+        })
+      : json(first),
+  );
   const config = new Configuration({ basePath: "/api/v1", fetchApi: api });
   const reservationApi = new ReservationApi(config);
   const edit = vi
