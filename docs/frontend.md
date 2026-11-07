@@ -212,3 +212,12 @@ explicitly opened/reset. This blocks a second click after a fast successful resp
 but before React finishes navigation. Read-only quote/reload actions and the reusable
 invitation form opt into repeatable execution; failures retain deliberate retry and
 operation-reconciliation behavior. No time-based debounce is used.
+
+## Color accents
+
+Shared tokens in `index.css` provide a pale blue canvas and table/calendar surfaces,
+with mint navigation, selected choices and clean/in-house status chips. Dark green
+primary controls remain the main action color. Cleaning uses blue, inspection/dirty
+states use amber, and completed stays use a muted blue-gray. Every status retains a
+text label; color alone never indicates readiness, occupancy or an error. Keep phone
+and desktop contrast/axe checks when adjusting these tokens.

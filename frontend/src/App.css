@@ -4,7 +4,7 @@
   min-height: 100vh;
 }
 .sidebar {
-  background: #f0f2e9;
+  background: var(--nav-surface);
   border-right: 1px solid var(--border);
   padding: 34px 20px;
   display: flex;
@@ -38,7 +38,8 @@
   height: 47px;
   display: grid;
   place-items: center;
-  border: 1px solid #9aab91;
+  border: 1px solid var(--green-border);
+  background: var(--green-soft);
   border-radius: 20px 20px 4px 4px;
   color: var(--brand);
   font-style: italic;
@@ -73,11 +74,11 @@
   font-size: 19px;
 }
 .sidebar nav a.active {
-  background: #e0e8d8;
+  background: var(--nav-active);
   color: #244833;
 }
 .sidebar nav a:hover {
-  background: #e5ebdf;
+  background: var(--green-soft);
 }
 .property-note {
   margin-top: auto;
@@ -380,8 +381,8 @@ th {
   letter-spacing: 0.8px;
   font-size: 10px;
   font-weight: 650;
-  background: #f6f7f3;
-  color: var(--muted);
+  background: var(--blue-soft);
+  color: var(--blue-ink);
   white-space: nowrap;
 }
 th,
@@ -411,9 +412,9 @@ td .subline {
 .status {
   display: inline-flex;
   align-items: center;
-  border: 1px solid #c3d8bb;
-  color: #355d2f;
-  background: #eef6e9;
+  border: 1px solid var(--green-border);
+  color: var(--green-ink);
+  background: var(--green-soft);
   border-radius: 5px;
   padding: 4px 8px;
   font-size: 10px;
@@ -424,6 +425,26 @@ td .subline {
   background: #f3f0ed;
   border-color: #ddd5cd;
 }
+.status-confirmed,
+.readiness-in_progress {
+  color: var(--blue-ink);
+  background: var(--blue-soft);
+  border-color: var(--blue-border);
+}
+.status-checked_in,
+.readiness-clean {
+  color: var(--green-ink);
+  background: var(--green-soft);
+  border-color: var(--green-border);
+}
+.status-checked_out {
+  color: #4d6172;
+  background: #edf2f6;
+  border-color: #cddae3;
+}
+.readiness-dirty,
+.readiness-inspection,
+.status-no_show,
 .status-pending {
   color: #785914;
   background: #faf3dc;
@@ -460,8 +481,9 @@ td .subline {
 .notice {
   padding: 15px 18px;
   border-radius: 8px;
-  background: var(--soft);
-  border: 1px solid #c9dac1;
+  color: var(--blue-ink);
+  background: var(--blue-soft);
+  border: 1px solid var(--blue-border);
   margin-bottom: 20px;
   font-size: 13px;
   line-height: 1.6;
@@ -1213,9 +1235,9 @@ footer {
   gap: 0.35rem;
   padding: 0.7rem;
   border-radius: 8px;
-  background: #e4eee5;
-  border: 1px solid #b4cbb8;
-  color: #24452f;
+  background: var(--blue-soft);
+  border: 1px solid var(--blue-border);
+  color: var(--blue-ink);
   text-decoration: none;
   min-height: 100px;
   overflow-wrap: anywhere;
@@ -1253,7 +1275,7 @@ footer {
 }
 .calendar-selection {
   margin-top: 1rem;
-  background: #edf2e7;
+  background: var(--green-soft);
   padding: 1rem;
   border-radius: 8px;
 }
@@ -1328,7 +1350,7 @@ footer {
   width: 1.7rem;
   height: 1.7rem;
   border-radius: 50%;
-  background: #e8ebe2;
+  background: var(--blue-soft);
 }
 .booking-progress li[aria-current="step"] {
   color: #294d36;
@@ -1370,7 +1392,7 @@ footer {
   font-size: 0.8rem;
 }
 .room-choice[aria-pressed="true"] {
-  background: #e6efe1;
+  background: var(--green-soft);
   border: 2px solid #476b45;
   padding: calc(1rem - 1px);
 }
@@ -1378,7 +1400,7 @@ footer {
   margin: 1rem 0;
   padding: 1rem;
   border-radius: 10px;
-  background: #f4f5ef;
+  background: var(--blue-soft);
 }
 .booking-review-details dl {
   display: grid;

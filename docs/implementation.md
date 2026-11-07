@@ -15,7 +15,7 @@ start are recorded in [decisions](decisions.md).
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Implemented and independently reviewed in PRs #21, #22 and #23; merge/CI evidence is in the linked issue |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Implemented and independently reviewed in PRs #24 and #25; final merge/CI evidence is in the linked issue |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Implemented and independently reviewed in PRs #26 and #27; verification and merge evidence is in #8 |
-| 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Front desk, stay operations, manual settlement and housekeeping implemented; final integrated review/verification in #9 |
+| 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Implemented locally in PRs #28 through #34; verification and merge evidence in #9 |
 | 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Planned |
 | 10 | [Verify production deployment, recovery, and the staff pilot](https://github.com/skrce/villas/issues/11) | 1-9 | Planned |
 
@@ -452,7 +452,8 @@ corrections and reasoned in-house repricing. Dated room allocations preserve ear
 rooms after a move. Independent review identified the need to test a destination with
 a preceding completed guest; native regressions cover that move, repeated moves,
 extensions, allocation migration retries and atomic rollback. The integrated staff
-screens and full-stay browser acceptance remain in progress. Milestone 8 is not complete.
+screens and full-stay browser workflow are implemented in [PR #34](https://github.com/skrce/villas/pull/34).
+The linked issue records final validation and merge acceptance.
 
 
 The integrated operating screens add check-in/out, reasoned no-shows/cancellation,
@@ -463,3 +464,10 @@ deposit, repricing, room moves, clean-room arrival, separate settlement, departu
 cleaning and preserved price/financial/audit history. Lost-arrival recovery survives
 reload and a later payment without another POST. Final independent review and
 complete-gate evidence belong in #9 and its linked PRs.
+
+Independent frontend review found lost destination-readiness metadata on replacement
+quotes, a late background reservation read overwriting an explicit reload, and missing
+resource binding for no-op correction reconciliation. Permanent regressions cover
+all three. Standalone empty lists now retain correct heading levels; Chromium checks
+their desktop and phone accessibility. The separate color polish uses pale blue and
+mint accents with explicit text labels, documented in the frontend guide.
