@@ -441,11 +441,15 @@ reasoned reversals. Balances use immutable accepted prices and the complete effe
 ledger. The confirmed cancellation/no-show policy sets accommodation owed to zero
 while retaining agreements and payments as visible credit until manually refunded.
 See [the payment contract](contracts/payments.md). The financial interface is implemented with explicit review and read-only recovery.
-The complete stay and housekeeping workflow remains in progress. Arrival/departure timing and readiness-override
-policy are confirmed in D13. The lifecycle backend enforces clean-room admission,
-property-day departure, no-shows, audited actual-time corrections and reasoned
-in-house repricing. Dated room allocations preserve earlier rooms after a move.
-Independent review identified the need to test a destination with a preceding
-completed guest; native regressions now cover that move, repeated moves, extensions,
-allocation migration retries and atomic rollback. The integrated staff screens and
-full-stay browser acceptance remain in progress. Milestone 8 is not complete.
+The front-desk lists and phone housekeeping board are implemented, with occupancy,
+dated maintenance, cleaning/inspection transitions and retained read-only recovery.
+Independent review found a filtered-room reload defect; a permanent regression now
+checks that a room removed from the visible filter can still load its current state.
+The Owner confirmed D13, including clean-room-only check-in with no override.
+The lifecycle backend enforces property-day departure, no-shows, audited actual-time
+corrections and reasoned in-house repricing. Dated room allocations preserve earlier
+rooms after a move. Independent review identified the need to test a destination with
+a preceding completed guest; native regressions cover that move, repeated moves,
+extensions, allocation migration retries and atomic rollback. The integrated staff
+screens and full-stay browser acceptance remain in progress. Milestone 8 is not complete.
+

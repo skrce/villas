@@ -21,6 +21,7 @@ import { dateSchema } from "../../shared/schemas";
 import { RecordStatusDialog } from "../../shared/RecordStatusDialog";
 import { RoomEditor } from "./Form";
 import { RoomRatesPanel } from "./Rates";
+import { RoomReadinessPanel } from "../operations/Housekeeping";
 import {
   CancelMaintenance,
   MaintenanceForm,
@@ -405,6 +406,13 @@ export function RoomDetail() {
             </div>
           )}
         </>
+      )}
+      {valid && room.data && (
+        <RoomReadinessPanel
+          roomId={id}
+          name={room.data.name}
+          reference={room.data.reference}
+        />
       )}
       {editing && room.data && (
         <Dialog title="Edit room" busy={busy} onClose={() => setEditing(false)}>
