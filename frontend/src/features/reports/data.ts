@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { frontDeskSchema } from "../../shared/operations";
+import { UUID_SHAPE } from "../../shared/ids";
 import { validDate } from "../../shared/format";
 
 export const kinds = [
@@ -50,16 +51,102 @@ export const balanceSchema = z
     outstandingCents: money,
     creditCents: money,
   })
+  .refine((r) => {
+    const owed =
+      r.agreedCents === null
+        ? null
+        : ["CANCELLED", "NO_SHOW"].includes(r.phase)
+          ? 0
+          : r.agreedCents;
+    return (
+      r.endDate > r.startDate &&
+      (r.agreedCents === null || r.agreedCents > 0) &&
+      r.accommodationCents === owed &&
+      (owed === null
+        ? r.outstandingCents === null && r.creditCents === null
+        : r.outstandingCents === Math.max(0, owed - r.receivedCents) &&
+          r.creditCents === Math.max(0, r.receivedCents - owed))
+    );
+  });
+const chargeSchema = z
+  .object({
+    reservationId: id,
+    roomId: id,
+    roomName: z.string(),
+    roomReference: z.string(),
+    guestName: z.string(),
+    phase,
+    startDate: date,
+    endDate: date,
+    nights: count.positive().max(366),
+    quoteId: z
+      .string()
+      .regex(UUID_SHAPE)
+      .nullish()
+      .transform((v) => v ?? null),
+    chargeCents: money,
+  })
   .refine(
     (r) =>
       r.endDate > r.startDate &&
-      (r.accommodationCents === null
-        ? r.outstandingCents === null && r.creditCents === null
-        : r.outstandingCents ===
-            Math.max(0, r.accommodationCents - r.receivedCents) &&
-          r.creditCents ===
-            Math.max(0, r.receivedCents - r.accommodationCents)),
+      r.nights ===
+        (Date.parse(`${r.endDate}T00:00:00Z`) -
+          Date.parse(`${r.startDate}T00:00:00Z`)) /
+          86400000 &&
+      (r.quoteId === null
+        ? r.chargeCents === null
+        : r.chargeCents !== null &&
+          (["CANCELLED", "NO_SHOW"].includes(r.phase)
+            ? r.chargeCents === 0
+            : r.chargeCents > 0)),
   );
+const collectionSchema = z
+  .object({
+    entryId: decimalId,
+    reservationId: id,
+    guestName: z.string(),
+    kind: z.enum(["PAYMENT", "REFUND", "REVERSAL"]),
+    method: z
+      .enum(["CASH", "CARD", "BANK_TRANSFER"])
+      .nullish()
+      .transform((v) => v ?? null),
+    effectiveDate: date,
+    recordedAt: z.iso.datetime(),
+    amountCents: count.positive(),
+    reference: z.string().nullish(),
+    paymentId: optionalId,
+    reversesId: optionalId,
+    reversedById: optionalId,
+    collectedCents: count,
+    refundedCents: count,
+  })
+  .refine((r) => {
+    if (r.kind === "REVERSAL")
+      return (
+        r.method === null &&
+        r.paymentId === null &&
+        r.reversesId !== null &&
+        r.reversesId !== r.entryId &&
+        r.reversedById === null &&
+        r.collectedCents === 0 &&
+        r.refundedCents === 0
+      );
+    if (
+      r.method === null ||
+      r.reversesId !== null ||
+      r.reversedById === r.entryId
+    )
+      return false;
+    const effective = r.reversedById === null ? r.amountCents : 0;
+    return r.kind === "PAYMENT"
+      ? r.paymentId === null &&
+          r.collectedCents === effective &&
+          r.refundedCents === 0
+      : r.paymentId !== null &&
+          r.paymentId !== r.entryId &&
+          r.collectedCents === 0 &&
+          r.refundedCents === effective;
+  });
 const queue = z
   .object({ count, items: frontDeskSchema.shape.items.max(5) })
   .refine((r) => r.count >= r.items.length);
@@ -135,46 +222,8 @@ export const reportSchema = z
         }),
       )
       .max(500),
-    charges: z
-      .array(
-        z.object({
-          reservationId: id,
-          roomId: id,
-          roomName: z.string(),
-          roomReference: z.string(),
-          guestName: z.string(),
-          phase,
-          startDate: date,
-          endDate: date,
-          nights: count.positive(),
-          quoteId: z
-            .string()
-            .nullish()
-            .transform((v) => v ?? null),
-          chargeCents: money,
-        }),
-      )
-      .max(10000),
-    collections: z
-      .array(
-        z.object({
-          entryId: decimalId,
-          reservationId: id,
-          guestName: z.string(),
-          kind: z.enum(["PAYMENT", "REFUND", "REVERSAL"]),
-          method: z.string().nullish(),
-          effectiveDate: date,
-          recordedAt: z.iso.datetime(),
-          amountCents: count.positive(),
-          reference: z.string().nullish(),
-          paymentId: optionalId,
-          reversesId: optionalId,
-          reversedById: optionalId,
-          collectedCents: count,
-          refundedCents: count,
-        }),
-      )
-      .max(5000),
+    charges: z.array(chargeSchema).max(10000),
+    collections: z.array(collectionSchema).max(5000),
     balances: z.array(balanceSchema).max(2000),
     notices: z.array(
       z.enum([
@@ -191,6 +240,56 @@ export const reportSchema = z
     const sum = (values: number[]) =>
       values.reduce((a, v) => a + BigInt(v), 0n);
     const t = r.totals;
+    const periodNights =
+      (Date.parse(`${r.endDate}T00:00:00Z`) -
+        Date.parse(`${r.startDate}T00:00:00Z`)) /
+      86400000;
+    if (
+      r.roomId !== null &&
+      (r.occupancy.some((row) => row.roomId !== r.roomId) ||
+        r.charges.some((row) => row.roomId !== r.roomId))
+    )
+      return false;
+    if (
+      r.occupancy.some(
+        (row) =>
+          row.roomNights !== (row.active ? periodNights : 0) ||
+          row.bookedNights > periodNights ||
+          (row.active &&
+            row.bookedNights > row.sellableNights &&
+            !r.notices.includes("INVENTORY_CONFLICT")),
+      )
+    )
+      return false;
+    if (
+      (r.kind !== "OCCUPANCY" && r.occupancy.length > 0) ||
+      (r.kind !== "CHARGES" && r.charges.length > 0) ||
+      (r.kind !== "COLLECTIONS" && r.collections.length > 0) ||
+      (r.kind !== "BALANCES" && r.balances.length > 0)
+    )
+      return false;
+    if (
+      r.charges.some(
+        (row) => row.startDate < r.startDate || row.endDate > r.endDate,
+      ) ||
+      r.collections.some(
+        (row) =>
+          row.effectiveDate < r.startDate || row.effectiveDate >= r.endDate,
+      ) ||
+      r.balances.some(
+        (row) => row.startDate >= r.endDate || row.endDate <= r.startDate,
+      )
+    )
+      return false;
+    if (
+      new Set(r.occupancy.map((row) => row.roomId)).size !==
+        r.occupancy.length ||
+      new Set(r.balances.map((row) => row.reservationId)).size !==
+        r.balances.length ||
+      new Set(r.collections.map((row) => row.entryId)).size !==
+        r.collections.length
+    )
+      return false;
     if (r.kind === "OCCUPANCY") {
       const active = r.occupancy.filter((row) => row.active);
       return (
@@ -265,7 +364,7 @@ export const noticeLabel = (notice: Report["notices"][number]) =>
 export const definition = (kind: Kind) =>
   ({
     OCCUPANCY:
-      "Booked nights use dated room assignments and exclude cancellations and no-shows. Sellable nights subtract active maintenance. Readiness does not change capacity. This measures bookings, not actual guest presence.",
+      "Booked nights use dated room assignments and exclude cancellations and no-shows. Capacity uses the current active-room roster throughout the period. Sellable nights subtract active maintenance. Readiness does not change capacity. This measures bookings, not actual guest presence.",
     CHARGES:
       "Nights in this period use the latest accepted quote, including earlier room nights after a repriced move. Cancellations and no-shows owe zero. Current room rates do not change saved prices. These are booked charges, not collected cash or accounting revenue.",
     COLLECTIONS:

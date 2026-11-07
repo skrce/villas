@@ -21,7 +21,7 @@ export const balance = () => ({
   phase: "CONFIRMED",
   startDate: "2026-11-07",
   endDate: "2026-11-10",
-  agreedCents: 15003,
+  agreedCents: 15003 as number | null,
   accommodationCents: 15003,
   receivedCents: 1000,
   outstandingCents: 14003 as number | null,

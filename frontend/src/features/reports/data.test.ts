@@ -20,6 +20,7 @@ it("reconciles saved charge source rows without hiding unknown prices", () => {
   expect(reportSchema.safeParse(report).success).toBe(true);
   report.charges[0].chargeCents = null;
   expect(reportSchema.safeParse(report).success).toBe(false);
+  report.charges[0].quoteId = null;
   report.totals.chargeCents = null;
   report.totals.knownChargeCents = 0;
   report.totals.unknownPriceCount = 1;
@@ -85,4 +86,155 @@ it("keeps complete Today counts separate from bounded examples", () => {
   expect(todaySchema.parse(today).arrivals.count).toBe(7);
   today.activeRooms = 3;
   expect(todaySchema.safeParse(today).success).toBe(false);
+});
+
+it("rejects a fabricated known balance when the accepted agreement is unknown", () => {
+  const r = reportFixture("BALANCES");
+  r.balances = [
+    {
+      ...balance(),
+      agreedCents: null,
+      accommodationCents: 0,
+      outstandingCents: 0,
+      creditCents: 1000,
+    },
+  ];
+  r.totals.outstandingCents = 0;
+  r.totals.knownCreditCents = 1000;
+  r.totals.creditCents = 1000;
+  expect(reportSchema.safeParse(r).success).toBe(false);
+});
+it("rejects a cancelled booking that still claims an accommodation debt", () => {
+  const r = reportFixture("BALANCES");
+  r.balances = [{ ...balance(), phase: "CANCELLED" }];
+  r.totals.knownOutstandingCents = 14003;
+  r.totals.outstandingCents = 14003;
+  r.totals.creditCents = 0;
+  expect(reportSchema.safeParse(r).success).toBe(false);
+});
+it("rejects a bookkeeping reversal counted as collected money", () => {
+  const r = reportFixture("COLLECTIONS");
+  r.collections = [
+    {
+      entryId: "9007199254740993",
+      reservationId: 11,
+      guestName: "Synthetic",
+      kind: "REVERSAL",
+      method: null,
+      effectiveDate: "2026-11-07",
+      recordedAt: "2026-11-07T10:00:00Z",
+      amountCents: 500,
+      reference: null,
+      paymentId: null,
+      reversesId: "9007199254740992",
+      reversedById: null,
+      collectedCents: 500,
+      refundedCents: 0,
+    },
+  ];
+  r.totals.collectedCents = 500;
+  r.totals.netCollectedCents = 500;
+  expect(reportSchema.safeParse(r).success).toBe(false);
+});
+
+it.each([
+  [
+    "cancelled accommodation charged",
+    (r: ReturnType<typeof chargedReport>) => {
+      r.charges[0].phase = "CANCELLED";
+    },
+  ],
+  [
+    "known amount without an accepted quote",
+    (r: ReturnType<typeof chargedReport>) => {
+      r.charges[0].quoteId = null;
+    },
+  ],
+  [
+    "night count that disagrees with source dates",
+    (r: ReturnType<typeof chargedReport>) => {
+      r.charges[0].nights = 4;
+    },
+  ],
+  [
+    "source dates outside the selected period",
+    (r: ReturnType<typeof chargedReport>) => {
+      r.charges[0].startDate = "2026-12-07";
+      r.charges[0].endDate = "2026-12-10";
+    },
+  ],
+  [
+    "source room outside the selected room",
+    (r: ReturnType<typeof chargedReport>) => {
+      r.roomId = 8;
+    },
+  ],
+] as const)("rejects charge sources with %s", (_label, change) => {
+  const r = chargedReport();
+  change(r);
+  expect(reportSchema.safeParse(r).success).toBe(false);
+});
+it("rejects collections whose effective dates are outside their report period", () => {
+  const r = reportFixture("COLLECTIONS");
+  r.collections = [
+    {
+      entryId: "9007199254740993",
+      reservationId: 11,
+      guestName: "Synthetic",
+      kind: "PAYMENT",
+      method: "CASH",
+      effectiveDate: "2026-12-07",
+      recordedAt: "2026-12-07T10:00:00Z",
+      amountCents: 500,
+      reference: null,
+      paymentId: null,
+      reversesId: null,
+      reversedById: null,
+      collectedCents: 500,
+      refundedCents: 0,
+    },
+  ];
+  r.totals.collectedCents = 500;
+  r.totals.netCollectedCents = 500;
+  expect(reportSchema.safeParse(r).success).toBe(false);
+});
+it("rejects current-roster capacity that omits selected period nights", () => {
+  const r = reportFixture("OCCUPANCY");
+  r.occupancy = [
+    {
+      roomId: 7,
+      roomName: "Synthetic",
+      roomReference: "SYN-7",
+      active: true,
+      roomNights: 1,
+      blockedNights: 0,
+      sellableNights: 1,
+      bookedNights: 1,
+    },
+  ];
+  r.totals.roomNights = 1;
+  r.totals.sellableNights = 1;
+  r.totals.bookedNights = 1;
+  expect(reportSchema.safeParse(r).success).toBe(false);
+});
+it("keeps an explicitly disclosed occupancy conflict visible without rejecting its source counts", () => {
+  const r = reportFixture("OCCUPANCY");
+  r.occupancy = [
+    {
+      roomId: 7,
+      roomName: "Synthetic",
+      roomReference: "SYN-7",
+      active: true,
+      roomNights: 3,
+      blockedNights: 1,
+      sellableNights: 2,
+      bookedNights: 3,
+    },
+  ];
+  r.totals.roomNights = 3;
+  r.totals.blockedNights = 1;
+  r.totals.sellableNights = 2;
+  r.totals.bookedNights = 3;
+  r.notices = ["CURRENT_INVENTORY_BASIS", "INVENTORY_CONFLICT"];
+  expect(reportSchema.safeParse(r).success).toBe(true);
 });

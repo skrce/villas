@@ -15,6 +15,7 @@ export function Download({
   const { apis, epoch } = useWorkspace();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [failed, setFailed] = useState(false);
   const active = useRef(true);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -30,6 +31,7 @@ export function Download({
     controller.current = request;
     setBusy(true);
     setMessage("");
+    setFailed(false);
     try {
       const response = await apis.reportsApi.exportReportRaw(
         {
@@ -71,13 +73,15 @@ export function Download({
         active.current &&
         !request.signal.aborted &&
         epoch === getSessionEpoch()
-      )
+      ) {
+        setFailed(true);
         setMessage(
           text ===
             "The result could not be confirmed. Check the saved records before retrying."
             ? "The CSV could not be downloaded. Refresh the report and try again."
             : text,
         );
+      }
     } finally {
       if (active.current && epoch === getSessionEpoch()) setBusy(false);
     }
@@ -96,7 +100,7 @@ export function Download({
         text to preserve exact IDs, cents and receipt formatting. Text guards
         protect formulas and long numbers.
       </p>
-      {message && <Notice>{message}</Notice>}
+      {message && <Notice error={failed}>{message}</Notice>}
     </>
   );
 }

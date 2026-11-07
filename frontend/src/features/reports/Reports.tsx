@@ -171,18 +171,7 @@ export function Reports() {
           required
           defaultValue={to}
         />
-        <SelectField name="room" label="Room" defaultValue={room}>
-          <option value="">All rooms, including archived</option>
-          {room && !rooms.some((r) => r.id === Number(room)) && (
-            <option value={room}>Selected room #{room}</option>
-          )}
-          {rooms.map((r) => (
-            <option key={r.id} value={r.id}>
-              {roomChoiceLabel(r)}
-              {r.active ? "" : " · Archived"}
-            </option>
-          ))}
-        </SelectField>
+        <RoomFilter initial={room} rooms={rooms} />
         <button className="button" type="submit">
           Apply filters
         </button>
@@ -495,5 +484,34 @@ function Summary({ report: r }: { report: Report }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+function RoomFilter({
+  initial,
+  rooms,
+}: {
+  initial: string;
+  rooms: z.infer<typeof roomPage>["items"];
+}) {
+  const [value, setValue] = useState(initial);
+  return (
+    <SelectField
+      name="room"
+      label="Room"
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+    >
+      <option value="">All rooms, including archived</option>
+      {value && !rooms.some((r) => r.id === Number(value)) && (
+        <option value={value}>Selected room #{value}</option>
+      )}
+      {rooms.map((r) => (
+        <option key={r.id} value={r.id}>
+          {roomChoiceLabel(r)}
+          {r.active ? "" : " · Archived"}
+        </option>
+      ))}
+    </SelectField>
   );
 }

@@ -148,6 +148,7 @@ it("renders reconciled charges and source links", async () => {
 });
 it("keeps unpriced source rows visible and the complete charge total unknown", async () => {
   response.charges[0].chargeCents = null;
+  response.charges[0].quoteId = null;
   response.totals.chargeCents = null;
   response.totals.knownChargeCents = 0;
   response.totals.unknownPriceCount = 1;
@@ -333,4 +334,45 @@ it("rejects an oversized CSV response before creating a browser download", async
     await screen.findByText(/CSV could not be downloaded/),
   ).toBeInTheDocument();
   expect(URL.createObjectURL).not.toHaveBeenCalled();
+});
+
+it("does not present an unpriced booking as a complete known zero-debt balance", async () => {
+  response = reportFixture("BALANCES");
+  response.balances = [
+    {
+      ...balance(),
+      agreedCents: null,
+      accommodationCents: 0,
+      outstandingCents: 0,
+      creditCents: 1000,
+    },
+  ];
+  response.totals.outstandingCents = 0;
+  response.totals.knownCreditCents = 1000;
+  response.totals.creditCents = 1000;
+  mount("reports", "/reports?kind=BALANCES&from=2026-11-07&to=2026-11-10");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "could not be loaded or verified",
+  );
+  expect(screen.queryByText("Complete outstanding")).not.toBeInTheDocument();
+});
+
+it("identifies incomplete Today sources without presenting zero work or balances", async () => {
+  api.mockResolvedValueOnce(json({ code: "REPORT_SOURCE_INCOMPLETE" }, 409));
+  mount("today");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Saved report source data is incomplete",
+  );
+  expect(screen.queryByText("Money needing attention")).not.toBeInTheDocument();
+});
+
+it("retains a deep-linked room when asynchronous named room choices replace its fallback option", async () => {
+  response.roomId = 7;
+  mount(
+    "reports",
+    "/reports?kind=CHARGES&from=2026-11-07&to=2026-11-10&room=7",
+  );
+  await screen.findByRole("heading", { name: "Booked charges" });
+  await screen.findByRole("option", { name: "Synthetic lake room · SYN-7" });
+  expect(screen.getByLabelText("Room", { exact: true })).toHaveValue("7");
 });

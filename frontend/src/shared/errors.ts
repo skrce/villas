@@ -3,7 +3,7 @@ import { SessionChangedError } from "../api/session";
 import { OperationRecoveryError } from "../api/bookingActions";
 const messages: Record<string, string> = {
   REPORT_TOO_LARGE:
-    "This complete report exceeds its record limit. Choose a shorter period or a room filter. No partial report was returned.",
+    "This complete report exceeds its source limit. Use a shorter period, or a room filter if the room roster is too large. Coverage and entry limits apply before room filtering. No partial report was returned.",
   REPORT_AMOUNT_LIMIT:
     "The report exceeds the supported exact EUR amount. Narrow its filters.",
   REPORT_SOURCE_INCOMPLETE:

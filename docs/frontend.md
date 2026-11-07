@@ -249,3 +249,9 @@ downloaded, and an in-flight result is discarded on unmount or session change.
 CSV includes metadata and all source rows, formula/precision text guards, exact EUR
 cents and no guest contacts. Import columns as text to preserve their exact format.
 Downloads are private files, not persistent browser caches or shareable public links.
+
+The generated export helper has a text response type. Download through
+`exportReportRaw().raw.blob()` so the UTF-8 BOM and bytes survive intact. Client
+report validation checks phase/agreement rules, ledger effects, accepted quote
+references, date quantities, applied room filters and period capacity before totals
+can appear or a download can be enabled. Invalid source payloads are explicit errors.

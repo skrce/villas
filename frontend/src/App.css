@@ -1159,7 +1159,7 @@ footer {
     color: var(--muted);
     margin-bottom: 6px;
   }
-  .table-wrap td:last-child {
+  .table-wrap td[data-label="Actions"] {
     grid-column: 1 / -1;
     flex-direction: row;
     align-items: center;
@@ -1168,7 +1168,7 @@ footer {
     border-top: 1px solid var(--border);
     padding-top: 8px;
   }
-  .table-wrap td:last-child .mobile-column {
+  .table-wrap td[data-label="Actions"] .mobile-column {
     display: none;
   }
 }
@@ -1560,4 +1560,11 @@ footer {
   font-size: 12px;
   line-height: 1.7;
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .report-sources td[data-label="Ledger source"],
+  .report-sources td[data-label="Booking"] {
+    grid-column: 1 / -1;
+  }
 }

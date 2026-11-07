@@ -147,6 +147,9 @@ test("Today leads to a real check-in, deposit, reconciled reports and a private 
     `/reports?kind=${kind}&from=${from}&to=${to}&room=${room.id}`;
   await page.goto(path("OCCUPANCY"));
   await expect(page.getByText("100.0%", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Room", { exact: true })).toHaveValue(
+    String(room.id),
+  );
   await expect(
     page.getByText(/Historical room availability was not tracked/),
   ).toBeVisible();
@@ -184,6 +187,13 @@ test("Today leads to a real check-in, deposit, reconciled reports and a private 
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
+    if (width === 320)
+      await expect(
+        page
+          .getByRole("region", { name: "Collection ledger sources" })
+          .getByText("Refunded", { exact: true })
+          .last(),
+      ).toBeVisible();
     await page.screenshot({
       path: info.outputPath(`reports-${width}.png`),
       fullPage: true,

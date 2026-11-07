@@ -30,9 +30,10 @@ processing and additional staff roles are outside the initial plan.
 Milestones 1 through 7 have local implementation, independent review and merge
 evidence. Milestone 8 implements daily front desk, stay operations, manual settlement and
 housekeeping. Its integrated review, verification and merge evidence are recorded in
-[issue #9](https://github.com/skrce/villas/issues/9) and [PR #34](https://github.com/skrce/villas/pull/34). Milestone 9 covers the Today dashboard and
+[issue #9](https://github.com/skrce/villas/issues/9) and [PR #34](https://github.com/skrce/villas/pull/34). Milestone 9 implements the Today dashboard and
 reconciled reports, with implementation and verification evidence in
-[issue #10](https://github.com/skrce/villas/issues/10) and [PR #36](https://github.com/skrce/villas/pull/36).
+[issue #10](https://github.com/skrce/villas/issues/10), [PR #36](https://github.com/skrce/villas/pull/36)
+and [PR #37](https://github.com/skrce/villas/pull/37).
 Milestone 10 covers hosting, backups/recovery, deployed checks
 and the staff pilot. Do not start another milestone without Owner authorization.
 

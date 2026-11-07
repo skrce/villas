@@ -9,7 +9,8 @@ import {
   roomChoiceLabel,
 } from "../../shared/format";
 import { deskLabel, phaseLabel, type DeskList } from "../../shared/operations";
-import { Empty, Notice, PageHead, Pending, QueryError } from "../../shared/ui";
+import { Empty, Notice, PageHead, Pending } from "../../shared/ui";
+import { errorMessage } from "../../shared/errors";
 import { useOnline } from "../../shared/useOnline";
 import { todaySchema, type Today as TodayData } from "./data";
 
@@ -18,8 +19,13 @@ export function Today() {
   const online = useOnline();
   const query = useQuery({
     queryKey: ["today"],
-    queryFn: async ({ signal }) =>
-      todaySchema.parse(await apis.reportsApi.today({ signal })),
+    queryFn: async ({ signal }) => {
+      try {
+        return todaySchema.parse(await apis.reportsApi.today({ signal }));
+      } catch (error) {
+        throw new Error(await errorMessage(error));
+      }
+    },
     staleTime: 0,
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
@@ -50,7 +56,20 @@ export function Today() {
       {query.isPending ? (
         <Pending label="Loading today's work…" />
       ) : query.isError && !data ? (
-        <QueryError retry={() => void query.refetch()} />
+        <Notice error>
+          <p>
+            {query.error.message ===
+            "The result could not be confirmed. Check the saved records before retrying."
+              ? "Today's work could not be loaded or verified. Refresh it and try again."
+              : query.error.message}
+          </p>
+          <button
+            className="button secondary"
+            onClick={() => void query.refetch()}
+          >
+            Try again
+          </button>
+        </Notice>
       ) : null}
       {data && (
         <>
@@ -188,7 +207,10 @@ export function Today() {
                   <dd>{euros(data.balances.outstandingCents)}</dd>
                 </div>
                 <div>
-                  <dt>Known credit · {data.balances.creditCount} bookings</dt>
+                  <dt>
+                    Known credit · {data.balances.creditCount}{" "}
+                    {data.balances.creditCount === 1 ? "booking" : "bookings"}
+                  </dt>
                   <dd>{euros(data.balances.creditCents)}</dd>
                 </div>
               </dl>
