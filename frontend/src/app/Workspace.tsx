@@ -33,6 +33,16 @@ const Calendar = lazy(() =>
     default: module.BookingCalendar,
   })),
 );
+const Today = lazy(() =>
+  import("../features/reports/Today").then((module) => ({
+    default: module.Today,
+  })),
+);
+const Reports = lazy(() =>
+  import("../features/reports/Reports").then((module) => ({
+    default: module.Reports,
+  })),
+);
 const FrontDesk = lazy(() =>
   import("../features/operations/FrontDesk").then((module) => ({
     default: module.FrontDesk,
@@ -142,12 +152,14 @@ export default function Workspace() {
   if (session.staff.id !== ownerId)
     return <Pending label="Changing account…" />;
   const routes = [
+    { to: "/today", name: "Today", icon: "⌂" },
     { to: "/calendar", name: "Calendar", icon: "▦" },
     { to: "/front-desk", name: "Front desk", icon: "⌂" },
     { to: "/reservations", name: "Reservations", icon: "▤" },
     { to: "/guests", name: "Guests", icon: "♧" },
     { to: "/rooms", name: "Rooms", icon: "▥" },
     { to: "/housekeeping", name: "Housekeeping", icon: "✓" },
+    { to: "/reports", name: "Reports", icon: "▥" },
     ...(session.permissions.includes("staff:manage")
       ? [{ to: "/settings/staff", name: "Owner settings", icon: "⚙" }]
       : []),
@@ -161,7 +173,7 @@ export default function Workspace() {
               Skip to content
             </a>
             <aside className="sidebar">
-              <NavLink to="/calendar" className="brand">
+              <NavLink to="/today" className="brand">
                 <span className="brand-mark" aria-hidden="true">
                   V
                 </span>
@@ -212,13 +224,15 @@ export default function Workspace() {
                   <Routes>
                     <Route
                       path="/"
-                      element={<Navigate replace to="/calendar" />}
+                      element={<Navigate replace to="/today" />}
                     />
                     <Route
                       path="/login"
-                      element={<Navigate replace to="/calendar" />}
+                      element={<Navigate replace to="/today" />}
                     />
                     <Route path="/calendar" element={<Calendar />} />
+                    <Route path="/today" element={<Today />} />
+                    <Route path="/reports" element={<Reports />} />
                     <Route path="/front-desk" element={<FrontDesk />} />
                     <Route path="/housekeeping" element={<Housekeeping />} />
                     <Route path="/reservations" element={<Reservations />} />
@@ -276,7 +290,7 @@ function RouteContent({ children }: { children: React.ReactNode }) {
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     main.current?.focus();
-    document.title = `${pathname.startsWith("/front-desk") ? "Front desk" : pathname.startsWith("/housekeeping") ? "Housekeeping" : pathname.startsWith("/calendar") ? "Calendar" : pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · Villas`;
+    document.title = `${pathname.startsWith("/today") ? "Today" : pathname.startsWith("/reports") ? "Reports" : pathname.startsWith("/front-desk") ? "Front desk" : pathname.startsWith("/housekeeping") ? "Housekeeping" : pathname.startsWith("/calendar") ? "Calendar" : pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · Villas`;
   }, [pathname, pageIdentity]);
   return (
     <main ref={main} tabIndex={-1} id="main" className="main-content">

@@ -6,12 +6,13 @@ React/TypeScript/Vite, and MariaDB.
 
 Invited Google accounts establish server-side Owner sessions. The responsive workspace
 includes guest/room management, rates and reviewed quotes, a reservation calendar,
-front-desk stay operations, external payment records and housekeeping.
+front-desk stay operations, external payment records, housekeeping, a Today dashboard
+and reconciled occupancy, charge, collection and balance reports with private CSV downloads.
 
 New maintainers and LLM sessions should start with the
 [maintainer context guide](docs/maintainer-context.md) and [AGENTS.md](AGENTS.md).
 The [ten-step tracker](docs/implementation.md) and linked issues distinguish local
-implementation from the open real-Google, reporting, deployment and pilot gates.
+implementation from the open real-Google, deployment and pilot gates.
 
 ## Requirements
 

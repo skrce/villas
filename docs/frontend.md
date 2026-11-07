@@ -16,7 +16,11 @@ original record. Room date filters do not change the room's edit identity.
 
 | Route | Implemented behavior |
 | --- | --- |
-| `/calendar` | Default landing, weekly room grid, phone agenda, active stays/maintenance, keyboard date selection and seeded booking links |
+| `/today` | Default landing, complete daily counts, bounded actionable queues, room readiness and current balance attention |
+| `/reports` | Defined period/room filters, reconciled source rows, completeness notices and reviewed CSV downloads |
+| `/front-desk` | Arrivals, departures, in-house and late/overdue attention lists linked to stay actions |
+| `/housekeeping` | Bounded room readiness, cleaning/inspection transitions and maintenance |
+| `/calendar` | Weekly room grid, phone agenda, active stays/maintenance, keyboard date selection and seeded booking links |
 | `/reservations` | Bounded period/status/room query, URL filters/cursor, empty/error/retry states and record links |
 | `/reservations/new` | Guided dates/party, room/guest and exact quote review, full-form option, inline guest creation, retained drafts and reconciled confirmation |
 | `/reservations/:id` | Current guest/room/stay, versioned move/date/cancellation confirmation and paged history |
@@ -29,8 +33,8 @@ original record. Room date filters do not change the room's edit identity.
 
 Owner settings requires the server-provided `staff:manage` capability. Every supported
 staff account is currently an Owner. Unknown routes have a recovery link. The calendar,
-guest/room management and room rate configuration are implemented. Daily operations,
-settlement and reporting remain milestones 8 and 9, with their own policy gates.
+guest/room management, rate configuration, daily operations, manual settlement and
+reporting are implemented. Real Google and production/pilot acceptance remain separate.
 
 ## Requests, edits and recovery
 
@@ -221,3 +225,27 @@ primary controls remain the main action color. Cleaning uses blue, inspection/di
 states use amber, and completed stays use a muted blue-gray. Every status retains a
 text label; color alone never indicates readiness, occupancy or an error. Keep phone
 and desktop contrast/axe checks when adjusting these tokens.
+
+## Today and reports
+
+`/` and `/login` open `/today` after sign-in. Today reads one Owner-only snapshot,
+refreshes each minute while visible and on window focus, and shows the property day
+and read time. Queue counts cover all matching records; each queue links up to five
+examples and its complete front-desk list. Room readiness and tonight's maintenance
+remain separate. Money attention covers every booking and labels known outstanding,
+known credit and unknown prices explicitly. No business mutation runs from a tile.
+
+`/reports` accepts `kind`, `from`, `to` and optional `room` filters. Forms require an
+explicit Apply filters action. The report heading states its applied dates and room,
+and every kind explains its date meaning and reconciliation. Read the
+[reporting contract](contracts/reporting.md) before changing these definitions.
+Occupancy always discloses current-roster capacity; incomplete prices retain unknown
+totals and named known subtotals. Records beyond the visible 25 rows can be revealed
+without changing the complete totals. Room choices use explicit bounded pages.
+
+Downloads use the reviewed snapshot ID and current session. A server-side source
+change requires a fresh report. Failure is visible, retained stale data cannot be
+downloaded, and an in-flight result is discarded on unmount or session change.
+CSV includes metadata and all source rows, formula/precision text guards, exact EUR
+cents and no guest contacts. Import columns as text to preserve their exact format.
+Downloads are private files, not persistent browser caches or shareable public links.
