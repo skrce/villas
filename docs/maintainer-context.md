@@ -28,10 +28,9 @@ Owners are the only implemented role. Public booking, guest accounts, online pay
 processing and additional staff roles are outside the initial plan.
 
 Milestones 1 through 7 have local implementation, independent review and merge
-evidence. Milestone 8 adds daily front desk, stay operations, manual settlement and
-housekeeping; its final integrated review and verification are recorded in
-[issue #9](https://github.com/skrce/villas/issues/9). The active work must finish that
-acceptance before claiming completion. Milestone 9 covers the Today dashboard and
+evidence. Milestone 8 implements daily front desk, stay operations, manual settlement and
+housekeeping. Its integrated review, verification and merge evidence are recorded in
+[issue #9](https://github.com/skrce/villas/issues/9) and [PR #34](https://github.com/skrce/villas/pull/34). Milestone 9 covers the Today dashboard and
 reconciled reports. Milestone 10 covers hosting, backups/recovery, deployed checks
 and the staff pilot. Do not start another milestone without Owner authorization.
 
