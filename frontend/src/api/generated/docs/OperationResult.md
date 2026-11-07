@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `key` | string
 `kind` | string
+`ledgerEntry` | [LedgerEntryInfo](LedgerEntryInfo.md)
 `maintenance` | [MaintenanceBlock](MaintenanceBlock.md)
 `readiness` | [ReadinessView](ReadinessView.md)
 `reservation` | [ReservationInfo](ReservationInfo.md)
@@ -22,6 +23,7 @@ import type { OperationResult } from ''
 const example = {
   "key": null,
   "kind": null,
+  "ledgerEntry": null,
   "maintenance": null,
   "readiness": null,
   "reservation": null,

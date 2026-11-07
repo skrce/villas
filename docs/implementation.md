@@ -15,7 +15,7 @@ start are recorded in [decisions](decisions.md).
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Implemented and independently reviewed in PRs #21, #22 and #23; merge/CI evidence is in the linked issue |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Implemented and independently reviewed in PRs #24 and #25; final merge/CI evidence is in the linked issue |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Implemented and independently reviewed in PRs #26 and #27; verification and merge evidence is in #8 |
-| 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | In progress: stay/readiness foundation; manual ledger rules confirmed |
+| 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | In progress: stay/readiness foundation and manual-ledger API; front-desk and financial interfaces follow |
 | 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Planned |
 | 10 | [Verify production deployment, recovery, and the staff pilot](https://github.com/skrce/villas/issues/11) | 1-9 | Planned |
 
@@ -426,3 +426,20 @@ a guest changing during a held quote, and an offline guest save failing immediat
 without a reconnection retry. The complete suite also keeps the existing price,
 version, session and operation-recovery regressions. Local verification and exact-head
 CI are recorded independently from actual Google and deployed/pilot acceptance.
+
+## Milestone 8 in progress
+
+[PR #28](https://github.com/skrce/villas/pull/28) adds compatible stay-phase storage,
+versioned room readiness, immutable cleaning/inspection events, and protection for
+rooms and guests with overdue physical occupancy. Two independent reviews found a
+UTC initialization defect, then verified its correction with native MariaDB probes.
+The complete local gate at 28ff3ca passed 412 backend cases, 211 frontend cases,
+13 launcher checks and 14 Chromium workflows. Both required CI jobs passed before merge.
+
+The manual-ledger API adds externally completed EUR receipts, allocated refunds and
+reasoned reversals. Balances use immutable accepted prices and the complete effective
+ledger. The confirmed cancellation/no-show policy sets accommodation owed to zero
+while retaining agreements and payments as visible credit until manually refunded.
+See [the payment contract](contracts/payments.md). Its financial interface and complete
+stay workflow are subsequent slices. Arrival/departure timing and readiness-override
+policy remain pending. Milestone 8 is not complete.

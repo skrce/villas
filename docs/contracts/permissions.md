@@ -13,7 +13,8 @@ requires an explicit capability decision, server enforcement, and denial tests.
 | Read/configure room base and seasonal EUR rates and preview accommodation totals | Allowed |
 | Create/read own saved quotes, accept a reviewed quote and read accepted property prices/history | Allowed |
 | Manual price overrides | Disabled by the initial pricing decision |
-| Future payments, refunds, reports | Only after their domain implementation and policy gates |
+| Record/read external payments, allocated refunds and reasoned reversals | Allowed, with reviewed booking versions and operation reconciliation |
+| Future reports | Only after their domain implementation and policy gates |
 
 The account foundation validates current active membership, property scope, and a
 security generation in services. Administrative mutations serialize on the property

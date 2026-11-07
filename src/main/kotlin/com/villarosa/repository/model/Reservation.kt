@@ -44,6 +44,10 @@ data class Reservation(
         if (status == ReservationStatus.CANCELLED) StayPhase.CANCELLED else StayPhase.CONFIRMED,
     @Column(name = "checked_in_at") var checkedInAt: Instant? = null,
     @Column(name = "checked_out_at") var checkedOutAt: Instant? = null,
+    @JsonIgnore
+    @Column(name = "finance_revision", nullable = false)
+    @ColumnDefault("0")
+    var financeRevision: Long = 0,
 ) {
 
     fun toReservationInfo() =
