@@ -88,6 +88,8 @@ object ReportMoney {
     }
 }
 
+data class ReportWindow(val id: Int, val phase: String, val start: String, val end: String)
+
 data class ReportBooking(val balance: BalanceRow, val quoteId: String?, val quoteJson: String?)
 
 data class ReportAllocation(
@@ -119,33 +121,49 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
             )
             .also { bounded(it.size, MAX_ROOMS) }
 
-    fun bookings(dates: StayDates, room: Int?) =
+    fun windows(dates: StayDates) =
+        windows("r.start_date<? AND r.end_date>?", listOf<Any>(dates.end, dates.start))
+
+    fun windowsFor(ids: List<Int>): List<ReportWindow> =
+        if (ids.isEmpty()) emptyList()
+        else windows("r.id IN (${ids.joinToString(",") { "?" }})", ids)
+
+    private fun windows(predicate: String, args: List<Any>): List<ReportWindow> =
         jdbc
             .query(
-                "SELECT r.id,r.stay_phase,r.start_date,r.end_date,CONCAT(c.first_name,' ',c.last_name) AS guest_name,r.accepted_quote_id,p.quote_json,${ReportMoney.FIELDS},(${ReportMoney.INVALID_SOURCE}) AS invalid_source FROM reservations r JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id ${ReportMoney.JOINS} WHERE r.property_id=? AND r.start_date<? AND r.end_date>? AND (? IS NULL OR EXISTS(SELECT 1 FROM (${RoomAllocations.SQL}) a WHERE a.property_id=r.property_id AND a.reservation_id=r.id AND a.room_id=? AND a.start_date<? AND a.end_date>?)) ORDER BY r.id LIMIT ?",
+                "SELECT r.id,r.stay_phase,r.start_date,r.end_date FROM reservations r WHERE r.property_id=? AND ($predicate) ORDER BY r.id LIMIT ?",
                 { r, _ ->
-                    ReportBooking(
-                        ReportMoney.balance(r),
-                        r.getString("accepted_quote_id"),
-                        r.getString("quote_json"),
+                    ReportWindow(
+                        r.getInt(1),
+                        r.getString(2),
+                        r.getDate(3).toLocalDate().toString(),
+                        r.getDate(4).toLocalDate().toString(),
                     )
                 },
-                PropertyScope.ID,
-                dates.end,
-                dates.start,
-                room,
-                room,
-                dates.end,
-                dates.start,
-                MAX_BOOKINGS + 1,
+                *(listOf<Any>(PropertyScope.ID) + args + listOf(MAX_BOOKINGS + 1)).toTypedArray(),
             )
             .also { bounded(it.size, MAX_BOOKINGS) }
 
-    fun bookingAllocations(dates: StayDates, bookings: List<Int>): List<ReportAllocation> {
+    fun bookings(ids: List<Int>): List<ReportBooking> {
+        if (ids.isEmpty()) return emptyList()
+        return jdbc.query(
+            "SELECT r.id,r.stay_phase,r.start_date,r.end_date,CONCAT(c.first_name,' ',c.last_name) AS guest_name,r.accepted_quote_id,p.quote_json,${ReportMoney.FIELDS},(${ReportMoney.INVALID_SOURCE}) AS invalid_source FROM reservations r JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id ${ReportMoney.JOINS} WHERE r.property_id=? AND r.id IN (${ids.joinToString(",") { "?" }}) ORDER BY r.id",
+            { r, _ ->
+                ReportBooking(
+                    ReportMoney.balance(r),
+                    r.getString("accepted_quote_id"),
+                    r.getString("quote_json"),
+                )
+            },
+            *(listOf<Any>(PropertyScope.ID) + ids).toTypedArray(),
+        )
+    }
+
+    fun bookingAllocations(bookings: List<Int>): List<ReportAllocation> {
         if (bookings.isEmpty()) return emptyList()
         return jdbc
             .query(
-                "SELECT a.reservation_id,a.room_id,a.start_date,a.end_date FROM (${RoomAllocations.SQL}) a WHERE a.property_id=? AND a.start_date<? AND a.end_date>? AND a.reservation_id IN (${bookings.joinToString(",") { "?" }}) ORDER BY a.reservation_id,a.start_date,a.allocation_id LIMIT ?",
+                "SELECT a.reservation_id,a.room_id,a.start_date,a.end_date FROM (${RoomAllocations.SQL}) a WHERE a.property_id=? AND a.reservation_id IN (${bookings.joinToString(",") { "?" }}) ORDER BY a.reservation_id,a.start_date,a.allocation_id LIMIT ?",
                 { r, _ ->
                     ReportAllocation(
                         r.getInt(1),
@@ -154,9 +172,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
                         r.getDate(4).toLocalDate().toString(),
                     )
                 },
-                *(listOf<Any>(PropertyScope.ID, dates.end, dates.start) +
-                        bookings +
-                        listOf(MAX_ALLOCATIONS + 1))
+                *(listOf<Any>(PropertyScope.ID) + bookings + listOf(MAX_ALLOCATIONS + 1))
                     .toTypedArray(),
             )
             .also { bounded(it.size, MAX_ALLOCATIONS) }
@@ -185,10 +201,10 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
             )
             .also { bounded(it.size, MAX_ALLOCATIONS) }
 
-    fun collections(dates: StayDates, room: Int?) =
+    fun collections(dates: StayDates) =
         jdbc
             .query(
-                "SELECT e.*,CONCAT(c.first_name,' ',c.last_name) AS guest_name,x.id AS reversed_by FROM ledger_entries e JOIN reservations r ON r.property_id=e.property_id AND r.id=e.reservation_id JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id LEFT JOIN ledger_entries x ON x.property_id=e.property_id AND x.reverses_id=e.id WHERE e.property_id=? AND e.effective_date>=? AND e.effective_date<? AND (? IS NULL OR EXISTS(SELECT 1 FROM (${RoomAllocations.SQL}) a WHERE a.property_id=r.property_id AND a.reservation_id=r.id AND a.room_id=?)) ORDER BY e.effective_date,e.id LIMIT ?",
+                "SELECT e.*,CONCAT(c.first_name,' ',c.last_name) AS guest_name,x.id AS reversed_by FROM ledger_entries e JOIN reservations r ON r.property_id=e.property_id AND r.id=e.reservation_id JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id LEFT JOIN ledger_entries x ON x.property_id=e.property_id AND x.reverses_id=e.id WHERE e.property_id=? AND e.effective_date>=? AND e.effective_date<? ORDER BY e.effective_date,e.id LIMIT ?",
                 { r, _ ->
                     val kind = r.getString("kind")
                     val reversed = r.getString("reversed_by")
@@ -218,8 +234,6 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
                 PropertyScope.ID,
                 dates.start,
                 dates.end,
-                room,
-                room,
                 MAX_ENTRIES + 1,
             )
             .also { bounded(it.size, MAX_ENTRIES) }
@@ -234,7 +248,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
             if (size > max)
                 conflict(
                     "REPORT_TOO_LARGE",
-                    "The complete report exceeds its record limit. Use a shorter period or a room filter; no partial report was returned.",
+                    "The complete report exceeds its record limit. Use a shorter period, or a room filter if the room roster is too large. Coverage and entry limits apply before room filtering. No partial report was returned.",
                 )
         }
     }

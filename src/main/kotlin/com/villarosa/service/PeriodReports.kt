@@ -73,7 +73,19 @@ class PeriodReports(
                 notices,
             )
         if (kind == ReportKind.COLLECTIONS) {
-            val entries = store.collections(dates, room)
+            val sourceEntries = store.collections(dates)
+            val entries =
+                if (room == null) sourceEntries
+                else {
+                    val windows =
+                        store.windowsFor(sourceEntries.map { it.reservationId }.distinct())
+                    val selected =
+                        validatedAllocations(windows)
+                            .filter { it.roomId == room }
+                            .map { it.reservationId }
+                            .toSet()
+                    sourceEntries.filter { it.reservationId in selected }
+                }
             val paid = ReportMoney.sum(entries.map { it.collectedCents })
             val refunded = ReportMoney.sum(entries.map { it.refundedCents })
             result =
@@ -87,22 +99,24 @@ class PeriodReports(
                         ),
                 )
         } else {
-            val bookings = store.bookings(dates, room)
+            val windows = store.windows(dates)
             val assignments =
-                if (kind in setOf(ReportKind.OCCUPANCY, ReportKind.CHARGES))
-                    validatedAllocations(bookings, dates).filter {
-                        room == null || it.roomId == room
-                    }
-                else emptyList()
+                validatedAllocations(windows).filter {
+                    it.start < end && it.end > start && (room == null || it.roomId == room)
+                }
+            val selected = assignments.map { it.reservationId }.toSet()
+            val bookings =
+                if (kind == ReportKind.OCCUPANCY) emptyList()
+                else store.bookings(selected.toList().sorted())
             when (kind) {
                 ReportKind.OCCUPANCY -> {
                     notices.add("CURRENT_INVENTORY_BASIS")
                     val allocations = assignments
                     val blocks = store.maintenance(dates, room)
                     val eligible =
-                        bookings
-                            .filter { it.balance.phase !in setOf("CANCELLED", "NO_SHOW") }
-                            .map { it.balance.reservationId }
+                        windows
+                            .filter { it.phase !in setOf("CANCELLED", "NO_SHOW") }
+                            .map { it.id }
                             .toSet()
                     val occupancy = rooms.map { r ->
                         val blocked =
@@ -224,28 +238,17 @@ class PeriodReports(
         return normalized.copy(snapshotId = digest)
     }
 
-    private fun validatedAllocations(
-        bookings: List<ReportBooking>,
-        dates: StayDates,
-    ): List<ReportAllocation> {
-        val rows = store.bookingAllocations(dates, bookings.map { it.balance.reservationId })
+    private fun validatedAllocations(windows: List<ReportWindow>): List<ReportAllocation> {
+        val rows = store.bookingAllocations(windows.map { it.id })
         val grouped = rows.groupBy { it.reservationId }
-        for (booking in bookings) {
-            val b = booking.balance
-            val parts =
-                grouped[b.reservationId]
-                    .orEmpty()
-                    .map {
-                        maxOf(it.start, dates.start.toString()) to
-                            minOf(it.end, dates.end.toString())
-                    }
-                    .sortedBy { it.first }
+        for (window in windows) {
+            val parts = grouped[window.id].orEmpty().sortedBy { it.start }
             if (
                 parts.isEmpty() ||
-                    parts.first().first != maxOf(b.startDate, dates.start.toString()) ||
-                    parts.last().second != minOf(b.endDate, dates.end.toString()) ||
-                    parts.any { it.first >= it.second } ||
-                    parts.zipWithNext().any { (a, b) -> a.second != b.first }
+                    parts.first().start != window.start ||
+                    parts.last().end != window.end ||
+                    parts.any { it.start >= it.end } ||
+                    parts.zipWithNext().any { (a, b) -> a.end != b.start }
             )
                 incomplete()
         }
