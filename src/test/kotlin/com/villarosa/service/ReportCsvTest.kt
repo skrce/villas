@@ -8,6 +8,29 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
 class ReportCsvTest {
+    @Test
+    fun emptyCsvRetainsMetadataAndConfigurationNoticesWithoutInventingSourceRows() {
+        val report =
+            PeriodReport(
+                ReportKind.CHARGES,
+                "2026-01-01",
+                "2026-01-02",
+                "2026-01-01",
+                null,
+                "hash",
+                ReportTotals(chargeCents = 0),
+                emptyList(),
+                emptyList(),
+                emptyList(),
+                emptyList(),
+                listOf("NO_ROOMS"),
+            )
+        val csv = ReportCsv.encode(report).toString(Charsets.UTF_8)
+        assertThat(csv)
+            .contains("\"METADATA\"", "\"NO_ROOMS\"", "\"2026-01-01\"")
+            .doesNotContain("\"DATA\"")
+    }
+
     @ParameterizedTest
     @ValueSource(
         strings =
@@ -33,7 +56,10 @@ class ReportCsvTest {
     fun quotesCommasQuotesLineBreaksAndUnicode() {
         assertThat(ReportCsv.cell("Синтетички, \"Гост\"\nsecond line"))
             .isEqualTo("\"Синтетички, \"\"Гост\"\"\nsecond line\"")
-        assertThat(ReportCsv.cell("9007199254740993")).isEqualTo("\"9007199254740993\"")
+        assertThat(ReportCsv.cell("9007199254740993")).isEqualTo("\"'9007199254740993\"")
+        assertThat(ReportCsv.cell("9007199254740991")).isEqualTo("\"'9007199254740991\"")
+        assertThat(ReportCsv.cell("00123")).isEqualTo("\"'00123\"")
+        assertThat(ReportCsv.cell("1e12")).isEqualTo("\"'1e12\"")
     }
 
     @Test

@@ -3,18 +3,24 @@ package com.villarosa
 import com.villarosa.exception.DomainException
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
+import com.villarosa.security.StaffAuthentication
 import com.villarosa.service.*
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.*
+import org.mockito.Mockito
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
@@ -37,6 +43,8 @@ constructor(
     private val clock: MutablePriceClock,
     private val jdbc: JdbcTemplate,
 ) {
+    @MockitoSpyBean private lateinit var dailySnapshot: DailyOperations
+    @MockitoSpyBean private lateinit var storeSnapshot: ReportingStore
     private lateinit var a: Apartment
     private lateinit var b: Apartment
     private var guest = 0
@@ -308,7 +316,7 @@ constructor(
                 .csv(original.kind, original.startDate, original.endDate, null, original.snapshotId)
                 .toString(Charsets.UTF_8)
         assertThat(csv)
-            .startsWith("\uFEFF\"report\"")
+            .startsWith("\uFEFF\"record_type\"")
             .contains("Синтетички Гост")
             .doesNotContain("private@example.test", "Private synthetic note", "123456")
         pay(id, 100)
@@ -385,6 +393,254 @@ constructor(
             .isEqualTo("REPORT_AMOUNT_LIMIT")
         assertThat(assertThrows<DomainException> { dashboard.read() }.code)
             .isEqualTo("REPORT_AMOUNT_LIMIT")
+    }
+
+    @Test
+    fun acceptedSnapshotsRemainAuthoritativeWhenTheQuoteTableTotalDrifts() {
+        val id = book()
+        jdbc.update(
+            "UPDATE booking_quotes SET total_cents=99999 WHERE id=?",
+            quotes.currentPrice(id)!!.quote.id,
+        )
+        assertThat(report(ReportKind.CHARGES).totals.chargeCents).isEqualTo(15003)
+        assertThat(report(ReportKind.BALANCES).totals.outstandingCents)
+            .isEqualTo(ledger.summary(id).outstandingCents)
+        assertThat(dashboard.read().balances.outstandingCents).isEqualTo(15003)
+    }
+
+    @Test
+    fun malformedMissingAndNonintegerAcceptedTotalsFailAllFinancialViews() {
+        val id = book()
+        val original =
+            jdbc.queryForObject(
+                "SELECT quote_json FROM reservation_prices WHERE reservation_id=?",
+                String::class.java,
+                id,
+            )!!
+        assertThat(original).contains("\"totalCents\":15003")
+        for (value in
+            listOf("null", "\"15003\"", "15003.0", "1.5003e4", "0", "-1", "9007199254740992")) {
+            jdbc.update(
+                "UPDATE reservation_prices SET quote_json=? WHERE reservation_id=?",
+                original.replace("\"totalCents\":15003", "\"totalCents\":$value"),
+                id,
+            )
+            for (kind in listOf(ReportKind.CHARGES, ReportKind.BALANCES)) assertThat(
+                    assertThrows<DomainException> { report(kind) }.code
+                )
+                .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+            assertThat(assertThrows<DomainException> { dashboard.read() }.code)
+                .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+        }
+        jdbc.update("UPDATE reservation_prices SET quote_json='{}' WHERE reservation_id=?", id)
+        assertThat(assertThrows<DomainException> { dashboard.read() }.code)
+            .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+        jdbc.update("DELETE FROM reservation_prices WHERE reservation_id=?", id)
+        assertThat(assertThrows<DomainException> { report(ReportKind.BALANCES) }.code)
+            .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+        assertThat(assertThrows<DomainException> { dashboard.read() }.code)
+            .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+    }
+
+    @Test
+    fun exportedLedgerIdsBeyondJavascriptPrecisionRetainTheirDecimalText() {
+        val id = book()
+        val entry = pay(id, 1000)
+        jdbc.update("UPDATE ledger_entries SET id=9007199254740993 WHERE id=?", entry.id.toLong())
+        val result = report(ReportKind.COLLECTIONS)
+        assertThat(result.collections.single().entryId).isEqualTo("9007199254740993")
+        assertThat(
+                reports
+                    .csv(result.kind, result.startDate, result.endDate, null, result.snapshotId)
+                    .toString(Charsets.UTF_8)
+            )
+            .contains("\"'9007199254740993\"")
+    }
+
+    private fun concurrent(action: () -> Unit) {
+        val executor = Executors.newSingleThreadExecutor()
+        try {
+            executor
+                .submit {
+                    SecurityContextHolder.getContext().authentication =
+                        StaffAuthentication(TestData.ownerIdentity())
+                    try {
+                        action()
+                    } finally {
+                        SecurityContextHolder.clearContext()
+                    }
+                }
+                .get(20, TimeUnit.SECONDS)
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
+    fun partialAndOverlappingAllocationSourcesCannotSilentlyChangeChargeTotals() {
+        val id = book()
+        jdbc.update(
+            "UPDATE reservation_allocations SET end_date='2026-11-09' WHERE reservation_id=?",
+            id,
+        )
+        assertThat(assertThrows<DomainException> { report(ReportKind.CHARGES) }.code)
+            .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+        assertThat(assertThrows<DomainException> { report(ReportKind.CHARGES, room = a.id) }.code)
+            .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+        jdbc.update(
+            "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,?,?)",
+            PropertyScope.ID,
+            id,
+            b.id,
+            "2026-11-08",
+            "2026-11-10",
+        )
+        assertThat(assertThrows<DomainException> { report(ReportKind.CHARGES) }.code)
+            .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+        assertThat(assertThrows<DomainException> { report(ReportKind.OCCUPANCY) }.code)
+            .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+    }
+
+    @Test
+    fun collectionCorrectionsOutsideThePeriodRestateTheOriginalReceiptDate() {
+        val id = book()
+        val receipt = pay(id, 1000, "2026-11-06")
+        assertThat(report(ReportKind.COLLECTIONS, "2026-11-06", "2026-11-07").totals.collectedCents)
+            .isEqualTo(1000)
+        ledger.reverse(id, receipt.id, "Synthetic later correction", version(id), key())
+        val earlier = report(ReportKind.COLLECTIONS, "2026-11-06", "2026-11-07")
+        assertThat(earlier.collections).hasSize(1)
+        assertThat(earlier.collections.single().reversedById).isNotNull()
+        assertThat(earlier.totals.collectedCents).isZero()
+    }
+
+    private fun rawBookings(count: Int, days: Int = 1): List<Int> {
+        jdbc.batchUpdate(
+            "INSERT INTO reservations(property_id,customer_id,room_id,start_date,end_date,guest_count,status,stay_phase,version) VALUES(?,?,?,?,?,1,'ACTIVE','CONFIRMED',0)",
+            (1..count).map {
+                arrayOf<Any>(
+                    PropertyScope.ID,
+                    guest,
+                    a.id!!,
+                    "2026-11-07",
+                    java.time.LocalDate.parse("2026-11-07").plusDays(days.toLong()).toString(),
+                )
+            },
+        )
+        return jdbc
+            .queryForList(
+                "SELECT id FROM reservations WHERE property_id=? ORDER BY id",
+                Int::class.java,
+                PropertyScope.ID,
+            )
+            .map { checkNotNull(it) }
+    }
+
+    @Test
+    fun bookingBoundsAcceptTheMaximumAndRejectTheNextCompleteRecord() {
+        rawBookings(ReportingStore.MAX_BOOKINGS)
+        assertThat(report(ReportKind.CHARGES).charges).hasSize(ReportingStore.MAX_BOOKINGS)
+        rawBookings(1)
+        assertThat(assertThrows<DomainException> { report(ReportKind.CHARGES) }.code)
+            .isEqualTo("REPORT_TOO_LARGE")
+    }
+
+    @Test
+    fun allocationBoundsAcceptTheMaximumAndRejectTheNextCompleteRecord() {
+        val ids = rawBookings(1000, 10)
+        val first = java.time.LocalDate.parse("2026-11-07")
+        jdbc.batchUpdate(
+            "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,?,?)",
+            ids.flatMap { id ->
+                (0..9).map { day ->
+                    arrayOf<Any>(
+                        PropertyScope.ID,
+                        id,
+                        if (day % 2 == 0) a.id!! else b.id!!,
+                        first.plusDays(day.toLong()).toString(),
+                        first.plusDays(day + 1L).toString(),
+                    )
+                }
+            },
+        )
+        assertThat(report(ReportKind.CHARGES, end = "2026-11-17").charges)
+            .hasSize(ReportingStore.MAX_ALLOCATIONS)
+        rawBookings(1)
+        assertThat(
+                assertThrows<DomainException> { report(ReportKind.CHARGES, end = "2026-11-17") }
+                    .code
+            )
+            .isEqualTo("REPORT_TOO_LARGE")
+    }
+
+    @Test
+    fun ledgerBoundsAcceptTheMaximumAndRejectTheNextEntry() {
+        val id = book()
+        val sql =
+            "INSERT INTO ledger_entries(property_id,reservation_id,reservation_version,actor_id,operation_key,kind,currency,amount_cents,method,effective_date,recorded_at) VALUES(?,?,?,?,?,'PAYMENT','EUR',1,'CASH','2026-11-07','2026-11-07 12:00:00')"
+        jdbc.batchUpdate(
+            sql,
+            (1..ReportingStore.MAX_ENTRIES).map { n ->
+                arrayOf<Any>(PropertyScope.ID, id, n, TestData.ownerIdentity().id, key())
+            },
+        )
+        assertThat(report(ReportKind.COLLECTIONS).collections).hasSize(ReportingStore.MAX_ENTRIES)
+        jdbc.update(
+            sql,
+            PropertyScope.ID,
+            id,
+            ReportingStore.MAX_ENTRIES + 1,
+            TestData.ownerIdentity().id,
+            key(),
+        )
+        assertThat(assertThrows<DomainException> { report(ReportKind.COLLECTIONS) }.code)
+            .isEqualTo("REPORT_TOO_LARGE")
+    }
+
+    @Test
+    fun todayCountsAndExamplesKeepOneSnapshotAcrossAConcurrentArrivalAndPayment() {
+        val id = book()
+        val target =
+            org.springframework.test.util.AopTestUtils.getUltimateTargetObject<DailyOperations>(
+                dailySnapshot
+            )
+        Mockito.doAnswer { invocation ->
+                concurrent {
+                    book(b)
+                    pay(id, 1000)
+                }
+                invocation.callRealMethod()
+            }
+            .`when`(target)
+            .deskSnapshot(FrontDeskList.ARRIVALS, 0, 5, "2026-11-07")
+        try {
+            val before = dashboard.read()
+            assertThat(before.arrivals.count).isEqualTo(1)
+            assertThat(before.arrivals.items).hasSize(1)
+            assertThat(before.balances.outstandingCents).isEqualTo(15003)
+        } finally {
+            Mockito.reset(target)
+        }
+        assertThat(dashboard.read().arrivals.count).isEqualTo(2)
+        assertThat(dashboard.read().balances.outstandingCents).isEqualTo(32006)
+    }
+
+    @Test
+    fun periodTotalsAndSourceRowsKeepOneSnapshotAcrossAConcurrentPayment() {
+        val id = book()
+        Mockito.doAnswer { invocation ->
+                val result = invocation.callRealMethod()
+                concurrent { pay(id, 2000) }
+                result
+            }
+            .`when`(storeSnapshot)
+            .rooms(null)
+        try {
+            assertThat(report(ReportKind.BALANCES).totals.outstandingCents).isEqualTo(15003)
+        } finally {
+            Mockito.reset(storeSnapshot)
+        }
+        assertThat(report(ReportKind.BALANCES).totals.outstandingCents).isEqualTo(13003)
     }
 
     companion object {

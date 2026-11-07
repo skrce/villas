@@ -21,7 +21,7 @@ class ReportingController(private val reports: PeriodReports, private val today:
 
     @GetMapping("/api/v1/reports")
     @Operation(
-        operationId = "periodReport",
+        operationId = "readPeriodReport",
         summary = "Read a complete bounded report with definitions and source drill-downs",
     )
     fun read(

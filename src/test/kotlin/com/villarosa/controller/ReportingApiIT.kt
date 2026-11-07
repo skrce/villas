@@ -19,7 +19,8 @@ import tools.jackson.databind.ObjectMapper
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-class ReportingApiTest
+@org.testcontainers.junit.jupiter.Testcontainers
+class ReportingApiIT
 @Autowired
 constructor(
     private val mvc: MockMvc,
@@ -32,7 +33,7 @@ constructor(
 
     @BeforeEach
     fun fixtures() {
-        TestData.reset(jdbc)
+        TestData.reset(jdbc, database.jdbcUrl)
         browser = TestHttpSession.create(sessions, mvc)
     }
 
@@ -105,5 +106,32 @@ constructor(
             .andExpect(status().isConflict)
             .andExpect(jsonPath("$.code").value("REPORT_CHANGED"))
             .andExpect(header().doesNotExist("Content-Disposition"))
+    }
+
+    companion object {
+        @org.testcontainers.junit.jupiter.Container
+        @JvmField
+        val database = com.villarosa.TestDatabases.mariaDb()
+
+        @JvmStatic
+        @org.junit.jupiter.api.BeforeAll
+        fun migrate() {
+            com.villarosa.DatabaseMigrations.migrate(
+                database.jdbcUrl,
+                database.username,
+                database.password,
+            )
+        }
+
+        @JvmStatic
+        @org.springframework.test.context.DynamicPropertySource
+        fun properties(registry: org.springframework.test.context.DynamicPropertyRegistry) {
+            registry.add("spring.session.jdbc.initialize-schema") { "never" }
+            registry.add("spring.datasource.url", database::getJdbcUrl)
+            registry.add("spring.datasource.username", database::getUsername)
+            registry.add("spring.datasource.password", database::getPassword)
+            registry.add("spring.datasource.driver-class-name", database::getDriverClassName)
+            registry.add("spring.jpa.hibernate.ddl-auto") { "validate" }
+        }
     }
 }

@@ -4443,7 +4443,7 @@
     },
     "/reports": {
       "get": {
-        "operationId": "periodReport",
+        "operationId": "readPeriodReport",
         "parameters": [
           {
             "in": "query",

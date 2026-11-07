@@ -5,7 +5,7 @@ All URIs are relative to */api/v1*
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
 | [**exportReport**](ReportsApi.md#exportreport) | **GET** /reports/export | Download a bounded UTF-8 CSV only when its source snapshot still matches the reviewed report |
-| [**periodReport**](ReportsApi.md#periodreport) | **GET** /reports | Read a complete bounded report with definitions and source drill-downs |
+| [**readPeriodReport**](ReportsApi.md#readperiodreport) | **GET** /reports | Read a complete bounded report with definitions and source drill-downs |
 | [**today**](ReportsApi.md#today) | **GET** /today | Read a consistent Owner-only snapshot of today\&#39;s work and current balance attention |
 
 
@@ -92,9 +92,9 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
-## periodReport
+## readPeriodReport
 
-> PeriodReport periodReport(kind, startDate, endDate, roomId)
+> PeriodReport readPeriodReport(kind, startDate, endDate, roomId)
 
 Read a complete bounded report with definitions and source drill-downs
 
@@ -105,7 +105,7 @@ import {
   Configuration,
   ReportsApi,
 } from '';
-import type { PeriodReportRequest } from '';
+import type { ReadPeriodReportRequest } from '';
 
 async function example() {
   console.log("🚀 Testing  SDK...");
@@ -124,10 +124,10 @@ async function example() {
     endDate: endDate_example,
     // number (optional)
     roomId: 56,
-  } satisfies PeriodReportRequest;
+  } satisfies ReadPeriodReportRequest;
 
   try {
-    const data = await api.periodReport(body);
+    const data = await api.readPeriodReport(body);
     console.log(data);
   } catch (error) {
     console.error(error);

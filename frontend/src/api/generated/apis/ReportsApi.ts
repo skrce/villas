@@ -36,8 +36,8 @@ export interface ExportReportRequest {
     roomId?: number;
 }
 
-export interface PeriodReportRequest {
-    kind: PeriodReportKindEnum;
+export interface ReadPeriodReportRequest {
+    kind: ReadPeriodReportKindEnum;
     startDate: string;
     endDate: string;
     roomId?: number;
@@ -132,25 +132,25 @@ export class ReportsApi extends runtime.BaseAPI {
     /**
      * Read a complete bounded report with definitions and source drill-downs
      */
-    async periodReportRaw(requestParameters: PeriodReportRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<PeriodReport>> {
+    async readPeriodReportRaw(requestParameters: ReadPeriodReportRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<PeriodReport>> {
         if (requestParameters['kind'] == null) {
             throw new runtime.RequiredError(
                 'kind',
-                'Required parameter "kind" was null or undefined when calling periodReport().'
+                'Required parameter "kind" was null or undefined when calling readPeriodReport().'
             );
         }
 
         if (requestParameters['startDate'] == null) {
             throw new runtime.RequiredError(
                 'startDate',
-                'Required parameter "startDate" was null or undefined when calling periodReport().'
+                'Required parameter "startDate" was null or undefined when calling readPeriodReport().'
             );
         }
 
         if (requestParameters['endDate'] == null) {
             throw new runtime.RequiredError(
                 'endDate',
-                'Required parameter "endDate" was null or undefined when calling periodReport().'
+                'Required parameter "endDate" was null or undefined when calling readPeriodReport().'
             );
         }
 
@@ -190,8 +190,8 @@ export class ReportsApi extends runtime.BaseAPI {
     /**
      * Read a complete bounded report with definitions and source drill-downs
      */
-    async periodReport(requestParameters: PeriodReportRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PeriodReport> {
-        const response = await this.periodReportRaw(requestParameters, initOverrides);
+    async readPeriodReport(requestParameters: ReadPeriodReportRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<PeriodReport> {
+        const response = await this.readPeriodReportRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -239,10 +239,10 @@ export type ExportReportKindEnum = typeof ExportReportKindEnum[keyof typeof Expo
 /**
  * @export
  */
-export const PeriodReportKindEnum = {
+export const ReadPeriodReportKindEnum = {
     Occupancy: 'OCCUPANCY',
     Charges: 'CHARGES',
     Collections: 'COLLECTIONS',
     Balances: 'BALANCES'
 } as const;
-export type PeriodReportKindEnum = typeof PeriodReportKindEnum[keyof typeof PeriodReportKindEnum];
+export type ReadPeriodReportKindEnum = typeof ReadPeriodReportKindEnum[keyof typeof ReadPeriodReportKindEnum];

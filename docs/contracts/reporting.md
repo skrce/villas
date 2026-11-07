@@ -81,10 +81,14 @@ It recomputes the complete report under the current session. A changed content h
 returns `REPORT_CHANGED` and requires a refresh, rather than downloading numbers that
 do not match the screen. Hashes contain no raw identifiers or guest fields. Downloads
 are synchronous, at most 5 MiB, and include all rows rather than a visible UI page.
+They include a METADATA row even when no source records match, followed by DATA rows.
 They use UTF-8 with a BOM, quoted comma-separated cells, CRLF rows, explicit EUR-cent
 columns, fixed filenames, attachment disposition, no-store and nosniff headers.
 Unknown cells say UNKNOWN. Text beginning with spreadsheet formula markers, including
 after leading whitespace/control characters, receives an apostrophe before quoting.
+Long digit strings, leading-zero numbers and exponent-like values also receive a
+text guard. Import CSV columns as text to retain exact IDs, cents, dates and receipt
+formatting; automatic spreadsheet type conversion is not a lossless import contract.
 No guest contacts, raw reasons, staff identities, operation keys or credentials are
 exported. Source links lead to authenticated booking, ledger or room pages.
 

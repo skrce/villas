@@ -24,9 +24,21 @@ object ReportMoney {
           GROUP BY e.property_id,e.reservation_id
         ) f ON f.property_id=r.property_id AND f.reservation_id=r.id
     """
-    const val AGREED = "CASE WHEN p.id IS NULL THEN NULL ELSE q.total_cents END"
+    const val AMOUNT = "CAST(JSON_VALUE(p.quote_json,'$.price.totalCents') AS DECIMAL(65,0))"
+    const val INVALID_SOURCE =
+        """r.accepted_quote_id IS NOT NULL AND (
+        p.id IS NULL
+        OR COALESCE(JSON_TYPE(JSON_EXTRACT(p.quote_json,'$.price.totalCents')),'')<>'INTEGER'
+        OR COALESCE(JSON_VALUE(p.quote_json,'$.price.totalCents'),'') NOT REGEXP '^[1-9][0-9]{0,15}$'
+        OR ($AMOUNT) NOT BETWEEN 1 AND 9007199254740991
+        OR BINARY COALESCE(JSON_VALUE(p.quote_json,'$.id'),'')<>BINARY r.accepted_quote_id
+        OR BINARY COALESCE(JSON_VALUE(p.quote_json,'$.price.currency'),'')<>'EUR'
+        OR BINARY COALESCE(JSON_VALUE(p.quote_json,'$.startDate'),'')<>BINARY CAST(r.start_date AS CHAR)
+        OR BINARY COALESCE(JSON_VALUE(p.quote_json,'$.endDate'),'')<>BINARY CAST(r.end_date AS CHAR)
+    )"""
+    const val AGREED = "CASE WHEN p.id IS NULL THEN NULL ELSE $AMOUNT END"
     const val OWED =
-        "CASE WHEN p.id IS NULL THEN NULL WHEN r.stay_phase IN ('CANCELLED','NO_SHOW') THEN 0 ELSE q.total_cents END"
+        "CASE WHEN p.id IS NULL THEN NULL WHEN r.stay_phase IN ('CANCELLED','NO_SHOW') THEN 0 ELSE $AMOUNT END"
     const val RECEIVED = "(COALESCE(f.paid,0)-COALESCE(f.refunded,0))"
     const val OUTSTANDING = "GREATEST(0,($OWED)-$RECEIVED)"
     const val CREDIT = "GREATEST(0,$RECEIVED-($OWED))"
@@ -51,8 +63,17 @@ object ReportMoney {
             "The report exceeds supported exact EUR cents. Narrow the report filters.",
         )
 
-    fun balance(row: ResultSet) =
-        BalanceRow(
+    fun assertSource(invalid: Boolean) {
+        if (invalid)
+            conflict(
+                "REPORT_SOURCE_INCOMPLETE",
+                "Saved accepted-price data is incomplete. Review the booking records before relying on a total.",
+            )
+    }
+
+    fun balance(row: ResultSet): BalanceRow {
+        assertSource(row.getBoolean("invalid_source"))
+        return BalanceRow(
             row.getInt("id"),
             row.getString("guest_name"),
             row.getString("stay_phase"),
@@ -64,6 +85,7 @@ object ReportMoney {
             row.getBigDecimal("outstanding")?.let(::exact),
             row.getBigDecimal("credit")?.let(::exact),
         )
+    }
 }
 
 data class ReportBooking(val balance: BalanceRow, val quoteId: String?, val quoteJson: String?)
@@ -100,7 +122,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
     fun bookings(dates: StayDates, room: Int?) =
         jdbc
             .query(
-                "SELECT r.id,r.stay_phase,r.start_date,r.end_date,CONCAT(c.first_name,' ',c.last_name) AS guest_name,r.accepted_quote_id,p.quote_json,${ReportMoney.FIELDS} FROM reservations r JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id ${ReportMoney.JOINS} WHERE r.property_id=? AND r.start_date<? AND r.end_date>? AND (? IS NULL OR EXISTS(SELECT 1 FROM (${RoomAllocations.SQL}) a WHERE a.property_id=r.property_id AND a.reservation_id=r.id AND a.room_id=? AND a.start_date<? AND a.end_date>?)) ORDER BY r.id LIMIT ?",
+                "SELECT r.id,r.stay_phase,r.start_date,r.end_date,CONCAT(c.first_name,' ',c.last_name) AS guest_name,r.accepted_quote_id,p.quote_json,${ReportMoney.FIELDS},(${ReportMoney.INVALID_SOURCE}) AS invalid_source FROM reservations r JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id ${ReportMoney.JOINS} WHERE r.property_id=? AND r.start_date<? AND r.end_date>? AND (? IS NULL OR EXISTS(SELECT 1 FROM (${RoomAllocations.SQL}) a WHERE a.property_id=r.property_id AND a.reservation_id=r.id AND a.room_id=? AND a.start_date<? AND a.end_date>?)) ORDER BY r.id LIMIT ?",
                 { r, _ ->
                     ReportBooking(
                         ReportMoney.balance(r),
@@ -119,10 +141,11 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
             )
             .also { bounded(it.size, MAX_BOOKINGS) }
 
-    fun allocations(dates: StayDates, room: Int?) =
-        jdbc
+    fun bookingAllocations(dates: StayDates, bookings: List<Int>): List<ReportAllocation> {
+        if (bookings.isEmpty()) return emptyList()
+        return jdbc
             .query(
-                "SELECT a.reservation_id,a.room_id,a.start_date,a.end_date FROM (${RoomAllocations.SQL}) a JOIN reservations r ON r.property_id=a.property_id AND r.id=a.reservation_id WHERE a.property_id=? AND a.start_date<? AND a.end_date>? AND (? IS NULL OR a.room_id=?) ORDER BY a.reservation_id,a.start_date,a.allocation_id LIMIT ?",
+                "SELECT a.reservation_id,a.room_id,a.start_date,a.end_date FROM (${RoomAllocations.SQL}) a WHERE a.property_id=? AND a.start_date<? AND a.end_date>? AND a.reservation_id IN (${bookings.joinToString(",") { "?" }}) ORDER BY a.reservation_id,a.start_date,a.allocation_id LIMIT ?",
                 { r, _ ->
                     ReportAllocation(
                         r.getInt(1),
@@ -131,14 +154,13 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
                         r.getDate(4).toLocalDate().toString(),
                     )
                 },
-                PropertyScope.ID,
-                dates.end,
-                dates.start,
-                room,
-                room,
-                MAX_ALLOCATIONS + 1,
+                *(listOf<Any>(PropertyScope.ID, dates.end, dates.start) +
+                        bookings +
+                        listOf(MAX_ALLOCATIONS + 1))
+                    .toTypedArray(),
             )
             .also { bounded(it.size, MAX_ALLOCATIONS) }
+    }
 
     fun maintenance(dates: StayDates, room: Int?) =
         jdbc

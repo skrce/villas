@@ -23,6 +23,13 @@ class TodayDashboard(
     )
     fun read(): TodayView {
         access.current(current.identity())
+        ReportMoney.assertSource(
+            jdbc.queryForObject(
+                "SELECT EXISTS(SELECT 1 FROM reservations r ${ReportMoney.JOINS} WHERE r.property_id=? AND (${ReportMoney.INVALID_SOURCE}))",
+                Boolean::class.java,
+                PropertyScope.ID,
+            ) == true
+        )
         val now = time.now()
         val today = time.date(now)
         fun queue(list: FrontDeskList, predicate: String, vararg dates: Any): TodayQueue {
@@ -75,7 +82,7 @@ class TodayDashboard(
             )
         val balances =
             jdbc.query(
-                "SELECT r.id,r.stay_phase,r.start_date,r.end_date,CONCAT(c.first_name,' ',c.last_name) AS guest_name,${ReportMoney.FIELDS} FROM reservations r JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id ${ReportMoney.JOINS} WHERE r.property_id=? AND (p.id IS NULL OR (${ReportMoney.OUTSTANDING})>0 OR (${ReportMoney.CREDIT})>0) ORDER BY CASE WHEN p.id IS NULL THEN 0 ELSE 1 END,(${ReportMoney.OUTSTANDING}) DESC,(${ReportMoney.CREDIT}) DESC,r.id LIMIT 5",
+                "SELECT r.id,r.stay_phase,r.start_date,r.end_date,CONCAT(c.first_name,' ',c.last_name) AS guest_name,${ReportMoney.FIELDS},(${ReportMoney.INVALID_SOURCE}) AS invalid_source FROM reservations r JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id ${ReportMoney.JOINS} WHERE r.property_id=? AND (p.id IS NULL OR (${ReportMoney.OUTSTANDING})>0 OR (${ReportMoney.CREDIT})>0) ORDER BY CASE WHEN p.id IS NULL THEN 0 ELSE 1 END,(${ReportMoney.OUTSTANDING}) DESC,(${ReportMoney.CREDIT}) DESC,r.id LIMIT 5",
                 { r, _ -> ReportMoney.balance(r) },
                 PropertyScope.ID,
             )

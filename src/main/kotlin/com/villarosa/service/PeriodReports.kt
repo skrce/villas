@@ -88,10 +88,16 @@ class PeriodReports(
                 )
         } else {
             val bookings = store.bookings(dates, room)
+            val assignments =
+                if (kind in setOf(ReportKind.OCCUPANCY, ReportKind.CHARGES))
+                    validatedAllocations(bookings, dates).filter {
+                        room == null || it.roomId == room
+                    }
+                else emptyList()
             when (kind) {
                 ReportKind.OCCUPANCY -> {
                     notices.add("CURRENT_INVENTORY_BASIS")
-                    val allocations = store.allocations(dates, room)
+                    val allocations = assignments
                     val blocks = store.maintenance(dates, room)
                     val eligible =
                         bookings
@@ -138,39 +144,37 @@ class PeriodReports(
                     val byId = bookings.associateBy { it.balance.reservationId }
                     val byRoom = rooms.associateBy { it.id }
                     val prices = bookings.associate { it.balance.reservationId to price(it) }
-                    val charges =
-                        store.allocations(dates, room).map { a ->
-                            val b = byId[a.reservationId] ?: incomplete()
-                            val r = byRoom[a.roomId] ?: incomplete()
-                            val from = maxOf(start, a.start)
-                            val to = minOf(end, a.end)
-                            val price = prices[a.reservationId]
-                            val amount =
-                                if (price == null) null
-                                else if (b.balance.phase in setOf("CANCELLED", "NO_SHOW")) 0L
-                                else
-                                    ReportMoney.sum(
-                                        price.lines.map { line ->
-                                            val count =
-                                                overlap(line.startDate, line.endDate, from, to)
-                                            if (count == 0L) 0L
-                                            else EuroCents.multiply(line.nightlyCents, count)
-                                        }
-                                    )
-                            ChargeRow(
-                                a.reservationId,
-                                a.roomId,
-                                r.name,
-                                r.reference,
-                                b.balance.guestName,
-                                b.balance.phase,
-                                from,
-                                to,
-                                overlap(from, to, from, to),
-                                b.quoteId,
-                                amount,
-                            )
-                        }
+                    val charges = assignments.map { a ->
+                        val b = byId[a.reservationId] ?: incomplete()
+                        val r = byRoom[a.roomId] ?: incomplete()
+                        val from = maxOf(start, a.start)
+                        val to = minOf(end, a.end)
+                        val price = prices[a.reservationId]
+                        val amount =
+                            if (price == null) null
+                            else if (b.balance.phase in setOf("CANCELLED", "NO_SHOW")) 0L
+                            else
+                                ReportMoney.sum(
+                                    price.lines.map { line ->
+                                        val count = overlap(line.startDate, line.endDate, from, to)
+                                        if (count == 0L) 0L
+                                        else EuroCents.multiply(line.nightlyCents, count)
+                                    }
+                                )
+                        ChargeRow(
+                            a.reservationId,
+                            a.roomId,
+                            r.name,
+                            r.reference,
+                            b.balance.guestName,
+                            b.balance.phase,
+                            from,
+                            to,
+                            overlap(from, to, from, to),
+                            b.quoteId,
+                            amount,
+                        )
+                    }
                     val unknown =
                         charges
                             .filter { it.chargeCents == null }
@@ -218,6 +222,34 @@ class PeriodReports(
                 .digest(json.writeValueAsBytes(normalized))
                 .joinToString("") { "%02x".format(it) }
         return normalized.copy(snapshotId = digest)
+    }
+
+    private fun validatedAllocations(
+        bookings: List<ReportBooking>,
+        dates: StayDates,
+    ): List<ReportAllocation> {
+        val rows = store.bookingAllocations(dates, bookings.map { it.balance.reservationId })
+        val grouped = rows.groupBy { it.reservationId }
+        for (booking in bookings) {
+            val b = booking.balance
+            val parts =
+                grouped[b.reservationId]
+                    .orEmpty()
+                    .map {
+                        maxOf(it.start, dates.start.toString()) to
+                            minOf(it.end, dates.end.toString())
+                    }
+                    .sortedBy { it.first }
+            if (
+                parts.isEmpty() ||
+                    parts.first().first != maxOf(b.startDate, dates.start.toString()) ||
+                    parts.last().second != minOf(b.endDate, dates.end.toString()) ||
+                    parts.any { it.first >= it.second } ||
+                    parts.zipWithNext().any { (a, b) -> a.second != b.first }
+            )
+                incomplete()
+        }
+        return rows
     }
 
     private fun price(booking: ReportBooking): StayPrice? {
@@ -427,12 +459,21 @@ object ReportCsv {
             }
         val csv = buildString {
             append('\uFEFF')
-            append((common + columns).joinToString(",", transform = ::cell)).append("\r\n")
-            for (row in rows) append(
-                    (prefix + row.map { it?.toString() ?: "UNKNOWN" }).joinToString(
+            append((listOf("record_type") + common + columns).joinToString(",", transform = ::cell))
+                .append("\r\n")
+            append(
+                    (listOf("METADATA") + prefix + List(columns.size) { "" }).joinToString(
                         ",",
                         transform = ::cell,
                     )
+                )
+                .append("\r\n")
+            for (row in rows) append(
+                    (listOf("DATA") + prefix + row.map { it?.toString() ?: "UNKNOWN" })
+                        .joinToString(
+                            ",",
+                            transform = ::cell,
+                        )
                 )
                 .append("\r\n")
         }
@@ -452,7 +493,8 @@ object ReportCsv {
         val safe =
             if (
                 significant.firstOrNull() in listOf('=', '+', '-', '@') ||
-                    value.firstOrNull() in listOf('\t', '\r', '\n')
+                    value.firstOrNull() in listOf('\t', '\r', '\n') ||
+                    value.matches(Regex("[0-9]{16,}|0[0-9]+|[0-9]+(?:\\.[0-9]+)?[eE][+-]?[0-9]+"))
             )
                 "'$value"
             else value
