@@ -83,7 +83,7 @@ constructor(
 
     @Test
     fun sameStateIsANoopButStaleVersionsAndBlankResetReasonsAreRejected() {
-        change(ReadinessState.DIRTY, 0)
+        assertThat(change(ReadinessState.DIRTY, 0).readinessEvent).isNull()
         assertThat(service.read(room.id!!).version).isZero()
         assertThat(service.history(room.id!!, "0", 50).items).isEmpty()
         clean()
@@ -159,9 +159,15 @@ constructor(
     @Test
     fun historicalReplayKeepsTheOriginalResultAndNeverRepeatsEvents() {
         val stable = key()
-        val first = service.change(room.id!!, ReadinessState.IN_PROGRESS, 0, stable, null)
+        val first =
+            service.change(room.id!!, ReadinessState.IN_PROGRESS, 0, stable, "Synthetic cleaning")
+        assertThat(first.readinessEvent!!.reason).isEqualTo("Synthetic cleaning")
+        assertThat(first.readinessEvent.actorId).isEqualTo(TestData.ownerIdentity().id)
+        assertThat(first.readinessEvent.operationKey).isEqualTo(stable)
+        assertThat(first.readinessEvent.version).isEqualTo(1)
         change(ReadinessState.INSPECTION, 1)
-        val replay = service.change(room.id!!, ReadinessState.IN_PROGRESS, 0, stable, null)
+        val replay =
+            service.change(room.id!!, ReadinessState.IN_PROGRESS, 0, stable, "Synthetic cleaning")
         assertThat(replay).isEqualTo(first)
         assertThat(service.read(room.id!!).state).isEqualTo(ReadinessState.INSPECTION)
         assertThat(service.history(room.id!!, "0", 50).items).hasSize(2)

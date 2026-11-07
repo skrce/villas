@@ -960,6 +960,14 @@
             ],
             "nullable": true
           },
+          "readinessEvent": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReadinessEventInfo"
+              }
+            ],
+            "nullable": true
+          },
           "reservation": {
             "allOf": [
               {
