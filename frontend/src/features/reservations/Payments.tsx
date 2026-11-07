@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { OperationRecoveryError } from "../../api/bookingActions";
 import {
   useInfiniteQuery,
   useQuery,
@@ -15,6 +16,7 @@ import {
   refundablePaymentsSchema,
   type FinancialAction,
   type LedgerEntry,
+  type LedgerSummary,
   type PaymentMethod,
 } from "../../shared/ledger";
 import { useOnline } from "../../shared/useOnline";
@@ -34,11 +36,13 @@ import {
 type Mode = FinancialAction["kind"];
 export function ReservationPayments({ id }: { id: number }) {
   const { apis } = useWorkspace();
+  const cache = useQueryClient();
   const online = useOnline();
   const [open, setOpen] = useState<{
     kind: Mode;
     version: number;
     entry?: LedgerEntry;
+    recoveryOnly: boolean;
   }>();
   const [saved, setSaved] = useState(false);
   const summary = useQuery({
@@ -49,7 +53,10 @@ export function ReservationPayments({ id }: { id: number }) {
       );
       if (data.reservation.id !== id)
         throw new Error("The financial record belongs to another reservation.");
-      return data;
+      const cached = cache.getQueryData<LedgerSummary>(["ledger", id]);
+      return cached && cached.reservation.version > data.reservation.version
+        ? cached
+        : data;
     },
   });
   const history = useInfiniteQuery({
@@ -81,7 +88,12 @@ export function ReservationPayments({ id }: { id: number }) {
   const show = (kind: Mode, entry?: LedgerEntry) => {
     if (!summary.data) return;
     setSaved(false);
-    setOpen({ kind, entry, version: summary.data.reservation.version });
+    setOpen({
+      kind,
+      entry,
+      version: summary.data.reservation.version,
+      recoveryOnly: kind === "REVERSAL" && !!entry && reversed.has(entry.id),
+    });
   };
   return (
     <section className="panel" id="payments">
@@ -220,13 +232,15 @@ export function ReservationPayments({ id }: { id: number }) {
                       Refund or check a previous save
                     </button>
                   )}
-                  {entry.kind !== "REVERSAL" && !reversed.has(entry.id) && (
+                  {entry.kind !== "REVERSAL" && (
                     <button
                       className="text-button"
                       disabled={!available}
                       onClick={() => show("REVERSAL", entry)}
                     >
-                      Correct record
+                      {reversed.has(entry.id)
+                        ? "Check previous correction"
+                        : "Correct record"}
                     </button>
                   )}
                 </div>
@@ -255,6 +269,12 @@ export function ReservationPayments({ id }: { id: number }) {
           id={id}
           kind={open.kind}
           entry={open.entry}
+          recoveryOnly={
+            open.recoveryOnly ||
+            (open.kind === "REVERSAL" &&
+              !!open.entry &&
+              reversed.has(open.entry.id))
+          }
           expectedVersion={open.version}
           currentVersion={summary.data.reservation.version}
           propertyDate={summary.data.propertyDate}
@@ -282,6 +302,7 @@ function FundsForm({
   kind,
   entry,
   expectedVersion,
+  recoveryOnly,
   currentVersion,
   propertyDate,
   onClose,
@@ -292,6 +313,7 @@ function FundsForm({
   entry?: LedgerEntry;
   expectedVersion: number;
   currentVersion: number;
+  recoveryOnly: boolean;
   propertyDate: string;
   onClose: () => void;
   onSaved: () => void;
@@ -353,6 +375,11 @@ function FundsForm({
     (result) => {
       const data = ledgerSummarySchema.parse(result);
       if (data.reservation.id !== id) return;
+      const cached = cache.getQueryData<LedgerSummary>(["ledger", id]);
+      if (cached && cached.reservation.version > data.reservation.version)
+        throw new OperationRecoveryError(
+          "A newer balance is already loaded. Load the latest balance again before reviewing a new record.",
+        );
       cache.setQueryData(["ledger", id], data);
       draft.reload(values, data.reservation.version);
       setReview(undefined);
@@ -401,6 +428,7 @@ function FundsForm({
     save.resetStatus();
   };
   const prepare = () => {
+    if (recoveryOnly) return;
     const action = actionFor(values);
     if (
       !action ||
@@ -539,6 +567,12 @@ function FundsForm({
             onChange={(event) => change("reason", event.target.value)}
           />
         )}
+        {recoveryOnly && (
+          <Notice>
+            This record has a linked reversal. Check the previous correction
+            save using its original reason. A new reversal is unavailable.
+          </Notice>
+        )}
         {message && <Notice error>{message}</Notice>}
         {save.message && <Notice error>{save.message}</Notice>}
         {latest.message && <Notice error>{latest.message}</Notice>}
@@ -612,7 +646,7 @@ function FundsForm({
             <button
               type="button"
               className="button"
-              disabled={busy || !online || stale || save.stale}
+              disabled={busy || !online || stale || save.stale || recoveryOnly}
               onClick={() =>
                 void save.submit({ action: review, recoveryOnly: false })
               }
@@ -627,11 +661,11 @@ function FundsForm({
             </button>
           </section>
         )}
-        {!review && (
+        {!review && !recoveryOnly && (
           <div className="dialog-actions">
             <button
               className="button"
-              disabled={busy || !online || stale || save.stale}
+              disabled={busy || !online || stale || save.stale || recoveryOnly}
             >
               Review record
             </button>

@@ -282,3 +282,63 @@ test("a lost payment response survives cancellation and both tabs reconcile the 
   expect(record.creditCents).toBe(2501);
   expect(record.reservation.version).toBe(2);
 });
+
+test("a lost reversal response remains recoverable from its reversed original after reload", async ({
+  page,
+}) => {
+  await signIn(page);
+  const { id } = await createStay(page);
+  await page.goto(`/reservations/${id}`);
+  await payment(page, "10.00", "Synthetic reversal recovery");
+  const entries = await (
+    await page.request.get(`/api/v1/reservations/${id}/ledger/entries`)
+  ).json();
+  const receiptId = entries.items[0].id;
+  const target = `/api/v1/reservations/${id}/ledger/entries/${receiptId}/reversal`;
+  let posts = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === target
+    )
+      posts++;
+  });
+  await page.route(`**${target}`, async (route) => {
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    await route.abort("failed");
+  });
+  await page
+    .locator(".ledger-history li")
+    .filter({ hasText: "Synthetic reversal recovery" })
+    .getByRole("button", { name: "Correct record" })
+    .click();
+  let dialog = page.getByRole("dialog", { name: "Correct financial record" });
+  await dialog.getByLabel("Reason").fill("Synthetic duplicated receipt");
+  await dialog.getByRole("button", { name: "Review record" }).click();
+  await dialog.getByRole("button", { name: "Confirm reversal record" }).click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "could not be confirmed",
+  );
+  await page.reload();
+  await expect(figure(page, "Net received")).toHaveText("€0.00");
+  await page
+    .getByRole("button", { name: "Check previous correction", exact: true })
+    .click();
+  dialog = page.getByRole("dialog", { name: "Correct financial record" });
+  await dialog.getByLabel("Reason").fill("Synthetic duplicated receipt");
+  await expect(
+    dialog.getByRole("button", { name: "Review record" }),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "Confirm reversal record" }),
+  ).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Check previous save" }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(posts).toBe(1);
+  const final = await (
+    await page.request.get(`/api/v1/reservations/${id}/ledger/entries`)
+  ).json();
+  expect(final.items).toHaveLength(2);
+  expect(final.items[0].reversesId).toBe(receiptId);
+});
