@@ -48,7 +48,9 @@ Each minute it checks liveness, readiness, required counter availability, backup
 success/age and new failures since the prior baseline. Five new auth failures or one
 new failed booking/database/service signal raises the corresponding condition. Expected
 booking conflicts have a separate counter and do not raise the failed-write alert.
-An absent, unreadable, future-dated or stale backup status is unhealthy. The first
+Age uses the conservative database snapshot point, not upload completion time.
+Missing snapshot-point metadata, an unreadable/future-dated status or a stale backup
+is unhealthy. The first
 probe establishes a counter baseline, and counter resets are tolerated.
 
 Configure a private `alert_url` file only after selecting and authorizing the receiver.

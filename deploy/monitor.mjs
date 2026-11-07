@@ -49,7 +49,8 @@ export function assess({ live, ready, metricsAvailable = true, current, previous
   }
   if (backup?.ok !== true) active.push('backup_failed');
   const completed = Date.parse(backup?.completedAt);
-  if (!Number.isFinite(completed) || completed > now || now - completed > maximumAge * 1000) active.push('backup_stale');
+  const protectedAt = Date.parse(backup?.protectedAt);
+  if (!Number.isFinite(completed) || !Number.isFinite(protectedAt) || completed > now || protectedAt > completed || now - protectedAt > maximumAge * 1000) active.push('backup_stale');
   return active.sort();
 }
 

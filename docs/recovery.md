@@ -75,7 +75,10 @@ With explicit personal Docker context, project and private env file on every com
 
 The scheduler waits the configured interval after each completed/failed attempt.
 RPO depends on successful completion time, job duration and outages, not only the
-interval setting. Monitor actual snapshot age against the approved target. Changing
+interval setting. Status records both completion and conservative `protectedAt`
+(before the database snapshot starts). The monitor uses `protectedAt` for age, so
+a slow dump/upload does not make old data appear fresh. Missing snapshot-point
+metadata is unhealthy until a new successful backup. Changing
 backup host identity or repository requires a deliberate retention/recovery plan for
 older snapshots. Recheck restore regularly and after schema/runtime changes.
 

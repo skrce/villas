@@ -104,13 +104,16 @@ const host = () => {
   if (!/^villas-(staging|production|rehearsal)-[a-z0-9-]{1,48}$/.test(name ?? '')) throw stageError('backup-host');
   return name;
 };
-const status = (ok, stage) => {
+const status = (ok, stage, protectedAt) => {
   const path = process.env.VILLAS_BACKUP_STATUS_FILE;
   if (!path || !isAbsolute(path)) throw stageError('status-file');
   let previous = {};
   try { previous = JSON.parse(readFileSync(path, 'utf8')); } catch { /* No successful run exists before the first backup. */ }
   const now = new Date().toISOString();
-  const result = { ok, stage, checkedAt: now, completedAt: ok ? now : (previous.completedAt ?? null) };
+  const result = {
+    ok, stage, checkedAt: now, completedAt: ok ? now : (previous.completedAt ?? null),
+    protectedAt: ok ? new Date(protectedAt).toISOString() : (previous.protectedAt ?? null),
+  };
   writeFileSync(`${path}.tmp`, `${JSON.stringify(result)}\n`, { mode: 0o600 });
   renameSync(`${path}.tmp`, path);
 };
@@ -156,7 +159,7 @@ const backup = async () => {
   if (!/^[a-f0-9]{64}$/.test(id ?? '')) throw stageError('backup-summary');
   await restic(['tag', '--remove', tag, '--add', 'villas-complete', id], 'snapshot-commit');
   await restic(['forget', '--host', host(), '--path', '/villas.sql', '--tag', 'villas-complete', '--group-by', 'host,paths', '--keep-hourly', String(hourly), '--keep-daily', String(daily), '--prune'], 'retention');
-  status(true, 'complete');
+  status(true, 'complete', started);
   console.log('villas_backup_complete');
 };
 const runBackup = async () => {
