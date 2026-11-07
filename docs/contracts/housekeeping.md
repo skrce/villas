@@ -29,7 +29,21 @@ version, reason, optional reservation reference and UTC time. They contain no gu
 contact or financial fields. Missing/foreign-property rooms return 404.
 
 The storage foundation also adds confirmed, checked-in, checked-out, cancelled and
-no-show stay phases with UTC arrival/departure fields. Daily lists, lifecycle actions,
-checkout integration and the mobile cleaning workflow are the next Milestone 8
-checkpoint. Arrival/departure and readiness-override policy remain pending Owner
+no-show stay phases with UTC arrival/departure fields. Daily read lists are implemented below. Lifecycle actions, checkout integration
+and the mobile cleaning workflow are subsequent Milestone 8 work. Arrival/departure and readiness-override policy remain pending Owner
 confirmation. No override is enabled by this foundation.
+
+## Daily room list
+
+`GET /api/v1/housekeeping` returns active room names/references, physical occupancy,
+readiness/version/time and active dated maintenance overlapping the next seven property
+days. It never joins guest or financial tables. Occupied means an actual CHECKED_IN
+stay, even when its scheduled departure is overdue. Missing readiness reads as DIRTY
+at version zero without inserting a row. Archived rooms stay in room administration.
+
+The read uses its own repeatable-read transaction for rooms, readiness and maintenance.
+An optional exact state filter applies before pagination. `afterId` is an exclusive
+nonnegative room cursor and limit is 1 to 50, default 50. A maintenance overflow fails
+explicitly instead of showing a partial list. `expectedDate`, when supplied for another
+page, must match the current server property date; otherwise PROPERTY_DATE_CHANGED
+requires a fresh first page. The response includes propertyDate and maintenanceUntil.

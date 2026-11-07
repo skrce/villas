@@ -10,6 +10,7 @@ requires an explicit capability decision, server enforcement, and denial tests.
 | Read/create/edit/archive/restore rooms and manage dated maintenance | Allowed |
 | Invite another Owner, revoke invitations, deactivate accounts, revoke sessions | Allowed, with current membership and last-owner protection |
 | Read operational and staff audit history | Allowed |
+| Read bounded front-desk and housekeeping lists; change versioned readiness | Allowed, without adding a housekeeping role |
 | Read/configure room base and seasonal EUR rates and preview accommodation totals | Allowed |
 | Create/read own saved quotes, accept a reviewed quote and read accepted property prices/history | Allowed |
 | Manual price overrides | Disabled by the initial pricing decision |
