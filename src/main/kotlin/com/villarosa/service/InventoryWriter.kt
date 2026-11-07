@@ -21,6 +21,9 @@ class InventoryWriter(
     private val availability: InventoryAvailability,
     private val currentStaff: CurrentStaff,
     private val quotes: QuoteService,
+    private val readiness: ReadinessService,
+    private val time: PropertyTime,
+    private val allocations: RoomAllocations,
 ) {
     fun create(
         customerId: Int,
@@ -58,6 +61,7 @@ class InventoryWriter(
                 )
             )
         quotes.accept(price, booking)
+        allocations.replace(booking, listOf(RoomNightAllocation(roomId, dates.start, dates.end)))
         reservationEvent(booking, key, "CREATED")
         return OperationResult(
             key,
@@ -73,20 +77,34 @@ class InventoryWriter(
         expected: Long?,
         key: String,
         quoteId: String? = null,
+        reason: String? = null,
+        allowCheckedIn: Boolean = false,
+        readinessVersion: Long? = null,
     ): OperationResult {
         checkGuest(
             reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
         )
         val original =
             reservations.roomId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
-        val locked = lockRooms(listOf(original, destination))
+        val before =
+            reservations.findByPropertyIdAndId(PropertyScope.ID, id)
+                ?: missing("Reservation does not exist.")
+        val locked = lockRooms(allocations.rooms(before).toList() + listOf(original, destination))
         val booking = current(id, expected, locked.keys)
-        active(booking)
+        active(booking, allowCheckedIn)
+        var event: InventoryEventInfo? = null
+        var destinationReadiness: ReadinessView? = null
         if (booking.roomId != destination) {
             val room = locked.getValue(destination)
             val dates = StayDates(booking.startDate!!, booking.endDate!!)
             checkRoom(room, booking.guestCount)
-            checkAvailable(destination, dates, id)
+            val moveDay = time.today()
+            val planned = allocations.moved(booking, destination, moveDay)
+            for (allocation in planned) checkAvailable(
+                allocation.roomId,
+                StayDates(allocation.start, allocation.end),
+                id,
+            )
             val price =
                 quotes.acceptable(
                     quoteId
@@ -98,17 +116,33 @@ class InventoryWriter(
                     dates,
                     booking.guestCount,
                 )
+            if (booking.phase == StayPhase.CHECKED_IN) {
+                OperationReason.required(reason)
+                if (readinessVersion == null)
+                    conflict(
+                        "READINESS_REVIEW_REQUIRED",
+                        "Review the destination room's current readiness before moving this stay.",
+                    )
+                destinationReadiness = readiness.assertReady(room, readinessVersion)
+                readiness.dirty(locked.getValue(original), key, id)
+            }
+            ensureWritable(booking)
+            booking.roomFromDate =
+                if (booking.phase == StayPhase.CHECKED_IN) moveDay else booking.startDate
             booking.roomId = destination
             booking.acceptedQuoteId = price.id
             reservations.saveAndFlush(booking)
             quotes.accept(price, booking)
-            reservationEvent(booking, key, "MOVED", original)
+            allocations.replace(booking, planned)
+            event = reservationEvent(booking, key, "MOVED", original, reason)
         }
         return OperationResult(
             key,
             OperationKind.MOVE,
             id,
             reservation = booking.toReservationInfo(),
+            inventoryEvent = event,
+            readiness = destinationReadiness,
         )
     }
 
@@ -119,17 +153,43 @@ class InventoryWriter(
         expected: Long,
         key: String,
         quoteId: String? = null,
+        reason: String? = null,
+        allowCheckedIn: Boolean = false,
     ): OperationResult {
         checkGuest(
             reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
         )
         val roomId =
             reservations.roomId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
-        val room = lockRooms(listOf(roomId)).getValue(roomId)
+        val before =
+            reservations.findByPropertyIdAndId(PropertyScope.ID, id)
+                ?: missing("Reservation does not exist.")
+        val locked = lockRooms(allocations.rooms(before).toList() + roomId)
+        val room = locked.getValue(roomId)
         val booking = current(id, expected, setOf(roomId))
-        active(booking)
+        active(booking, allowCheckedIn)
+        if (booking.phase == StayPhase.CHECKED_IN) {
+            OperationReason.required(reason)
+            val arrived = time.date(booking.checkedInAt!!)
+            if (dates.start > arrived || dates.end <= arrived)
+                conflict(
+                    "ARRIVAL_OUTSIDE_STAY",
+                    "The new dates must contain the recorded arrival date.",
+                )
+            if (dates.end < time.today())
+                conflict(
+                    "DEPARTURE_DATE_PASSED",
+                    "A checked-in stay's departure date cannot precede today.",
+                )
+        }
+        var event: InventoryEventInfo? = null
         checkRoom(room, guestCount)
-        checkAvailable(roomId, dates, id)
+        val planned = allocations.changed(booking, dates)
+        for (allocation in planned) checkAvailable(
+            allocation.roomId,
+            StayDates(allocation.start, allocation.end),
+            id,
+        )
         if (
             booking.startDate != dates.start ||
                 booking.endDate != dates.end ||
@@ -146,40 +206,49 @@ class InventoryWriter(
                     dates,
                     guestCount,
                 )
+            ensureWritable(booking)
+            if (booking.phase != StayPhase.CHECKED_IN) booking.roomFromDate = dates.start
             booking.startDate = dates.start
             booking.endDate = dates.end
             booking.guestCount = guestCount
             booking.acceptedQuoteId = price.id
             reservations.saveAndFlush(booking)
             quotes.accept(price, booking)
-            reservationEvent(booking, key, "CHANGED")
+            allocations.replace(booking, planned)
+            event = reservationEvent(booking, key, "CHANGED", reason = reason)
         }
         return OperationResult(
             key,
             OperationKind.CHANGE,
             id,
             reservation = booking.toReservationInfo(),
+            inventoryEvent = event,
         )
     }
 
-    fun cancel(id: Int, expected: Long?, key: String): OperationResult {
+    fun cancel(id: Int, expected: Long?, key: String, reason: String? = null): OperationResult {
         val roomId =
             reservations.roomId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
         lockRooms(listOf(roomId))
         val booking = current(id, expected, setOf(roomId))
+        if (booking.phase == StayPhase.NO_SHOW)
+            conflict("STAY_NOT_EDITABLE", "A no-show outcome cannot be changed to cancellation.")
+        var event: InventoryEventInfo? = null
         if (booking.status != ReservationStatus.CANCELLED) {
             if (booking.phase != StayPhase.CONFIRMED)
                 conflict("STAY_NOT_EDITABLE", "Only a confirmed reservation can be cancelled.")
+            ensureWritable(booking)
             booking.status = ReservationStatus.CANCELLED
             booking.phase = StayPhase.CANCELLED
             reservations.saveAndFlush(booking)
-            reservationEvent(booking, key, "CANCELLED")
+            event = reservationEvent(booking, key, "CANCELLED", reason = reason)
         }
         return OperationResult(
             key,
             OperationKind.CANCEL,
             id,
             reservation = booking.toReservationInfo(),
+            inventoryEvent = event,
         )
     }
 
@@ -236,10 +305,18 @@ class InventoryWriter(
             conflict("STALE_VERSION", "The record changed. Reload it before editing.")
     }
 
-    private fun active(booking: Reservation) {
+    private fun ensureWritable(booking: Reservation) {
+        if (booking.version >= EuroCents.MAX)
+            conflict("VERSION_LIMIT", "This record has reached its supported version limit.")
+    }
+
+    private fun active(booking: Reservation, allowCheckedIn: Boolean = false) {
         if (booking.status != ReservationStatus.ACTIVE)
             conflict("RESERVATION_CANCELLED", "A cancelled reservation cannot be changed.")
-        if (booking.phase != StayPhase.CONFIRMED)
+        if (
+            booking.phase != StayPhase.CONFIRMED &&
+                !(allowCheckedIn && booking.phase == StayPhase.CHECKED_IN)
+        )
             conflict("STAY_NOT_EDITABLE", "This stay is already in progress or closed.")
     }
 
@@ -261,29 +338,35 @@ class InventoryWriter(
             conflict("INVENTORY_CONFLICT", "The room is unavailable for those dates.")
     }
 
-    private fun reservationEvent(
+    fun reservationEvent(
         booking: Reservation,
         key: String,
         kind: String,
         previous: Int? = null,
-    ) {
-        events.saveAndFlush(
-            InventoryEvent(
-                actorId = currentStaff.identity().id,
-                operationKey = key,
-                kind = kind,
-                reservationId = booking.id,
-                resourceVersion = booking.version,
-                roomId = booking.roomId!!,
-                previousRoomId = previous,
-                startDate = booking.startDate!!,
-                endDate = booking.endDate!!,
-                guestCount = booking.guestCount,
-                phase = booking.phase,
-                checkedInAt = booking.checkedInAt,
-                checkedOutAt = booking.checkedOutAt,
+        reason: String? = null,
+    ): InventoryEventInfo {
+        val event =
+            events.saveAndFlush(
+                InventoryEvent(
+                    actorId = currentStaff.identity().id,
+                    operationKey = key,
+                    kind = kind,
+                    reservationId = booking.id,
+                    resourceVersion = booking.version,
+                    roomId = booking.roomId!!,
+                    previousRoomId = previous,
+                    startDate = booking.startDate!!,
+                    endDate = booking.endDate!!,
+                    guestCount = booking.guestCount,
+                    phase = booking.phase,
+                    checkedInAt = booking.checkedInAt,
+                    checkedOutAt = booking.checkedOutAt,
+                    roomFromDate = booking.roomFromDate,
+                    reason = reason,
+                    occurredAt = time.now(),
+                )
             )
-        )
+        return InventoryEventInfo.from(event)
     }
 
     private fun blockEvent(block: MaintenanceBlock, key: String, kind: String) {

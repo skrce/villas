@@ -83,6 +83,7 @@ data class InventoryEvent(
     val phase: StayPhase? = null,
     @Column(name = "checked_in_at") val checkedInAt: Instant? = null,
     @Column(name = "checked_out_at") val checkedOutAt: Instant? = null,
+    @Column(name = "room_from_date") val roomFromDate: LocalDate? = null,
 )
 
 enum class OperationKind {
@@ -110,5 +111,6 @@ data class OperationResult(
     val maintenance: MaintenanceBlock? = null,
     val readiness: ReadinessView? = null,
     val readinessEvent: ReadinessEventInfo? = null,
+    val inventoryEvent: InventoryEventInfo? = null,
     val ledgerEntry: LedgerEntryInfo? = null,
 )

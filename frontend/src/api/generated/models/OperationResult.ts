@@ -41,6 +41,13 @@ import {
     ReadinessViewToJSON,
     ReadinessViewToJSONTyped,
 } from './ReadinessView';
+import type { InventoryEventInfo } from './InventoryEventInfo';
+import {
+    InventoryEventInfoFromJSON,
+    InventoryEventInfoFromJSONTyped,
+    InventoryEventInfoToJSON,
+    InventoryEventInfoToJSONTyped,
+} from './InventoryEventInfo';
 import type { MaintenanceBlock } from './MaintenanceBlock';
 import {
     MaintenanceBlockFromJSON,
@@ -55,6 +62,12 @@ import {
  * @interface OperationResult
  */
 export interface OperationResult {
+    /**
+     * 
+     * @type {InventoryEventInfo}
+     * @memberof OperationResult
+     */
+    inventoryEvent?: InventoryEventInfo | null;
     /**
      * 
      * @type {string}
@@ -148,6 +161,7 @@ export function OperationResultFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
+        'inventoryEvent': json['inventoryEvent'] == null ? undefined : InventoryEventInfoFromJSON(json['inventoryEvent']),
         'key': json['key'],
         'kind': json['kind'],
         'ledgerEntry': json['ledgerEntry'] == null ? undefined : LedgerEntryInfoFromJSON(json['ledgerEntry']),
@@ -170,6 +184,7 @@ export function OperationResultToJSONTyped(value?: OperationResult | null, ignor
 
     return {
         
+        'inventoryEvent': InventoryEventInfoToJSON(value['inventoryEvent']),
         'key': value['key'],
         'kind': value['kind'],
         'ledgerEntry': LedgerEntryInfoToJSON(value['ledgerEntry']),

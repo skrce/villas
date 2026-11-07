@@ -6,11 +6,13 @@
 
 Name | Type
 ------------ | -------------
+`allocationId` | string
 `customerId` | number
 `endDate` | string
 `guestCount` | number
 `guestName` | string
 `id` | number
+`phase` | string
 `roomId` | number
 `startDate` | string
 `status` | string
@@ -23,11 +25,13 @@ import type { CalendarStay } from ''
 
 // TODO: Update the object below with actual values
 const example = {
+  "allocationId": null,
   "customerId": null,
   "endDate": null,
   "guestCount": null,
   "guestName": null,
   "id": null,
+  "phase": null,
   "roomId": null,
   "startDate": null,
   "status": null,

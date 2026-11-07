@@ -31,6 +31,8 @@ data class CalendarStay(
     val guestCount: Int,
     val version: Long,
     val status: String = "ACTIVE",
+    val allocationId: String = "reservation:$id",
+    val phase: String = "CONFIRMED",
 )
 
 data class CalendarMaintenance(
@@ -75,7 +77,7 @@ class CalendarStore(private val jdbc: JdbcTemplate) {
 
     fun stays(ids: List<Int>, dates: StayDates): List<CalendarStay> =
         jdbc.query(
-            "SELECT r.id,r.room_id,r.customer_id,c.first_name,c.last_name,r.start_date,r.end_date,r.guest_count,r.version FROM reservations r LEFT JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id WHERE r.property_id=? AND r.status='ACTIVE' AND r.start_date<? AND r.end_date>? AND r.room_id IN (${ids.joinToString(",") { "?" }}) ORDER BY r.room_id,r.start_date,r.id LIMIT ?",
+            "SELECT r.id,a.room_id,r.customer_id,c.first_name,c.last_name,a.start_date,a.end_date,r.guest_count,r.version,a.allocation_id,r.stay_phase FROM reservations r JOIN (${RoomAllocations.SQL}) a ON a.property_id=r.property_id AND a.reservation_id=r.id LEFT JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id WHERE r.property_id=? AND r.status='ACTIVE' AND a.start_date<? AND a.end_date>? AND a.room_id IN (${ids.joinToString(",") { "?" }}) ORDER BY a.room_id,a.start_date,r.id,a.allocation_id LIMIT ?",
             { r, _ ->
                 CalendarStay(
                     r.getInt("id"),
@@ -89,6 +91,8 @@ class CalendarStore(private val jdbc: JdbcTemplate) {
                     r.getDate("end_date").toLocalDate().toString(),
                     r.getInt("guest_count"),
                     r.getLong("version"),
+                    allocationId = r.getString("allocation_id"),
+                    phase = r.getString("stay_phase"),
                 )
             },
             *(listOf(PropertyScope.ID, Date.valueOf(dates.end), Date.valueOf(dates.start)) +

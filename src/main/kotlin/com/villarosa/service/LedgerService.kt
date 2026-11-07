@@ -72,7 +72,15 @@ class LedgerService(
     )
     fun summary(id: Int): LedgerSummary {
         val booking = read(id)
-        val agreed = quotes.currentPrice(id)?.quote?.price?.totalCents
+        return position(booking)
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
+    fun position(booking: Reservation): LedgerSummary {
+        access.current(current.identity())
+        check(booking.propertyId == PropertyScope.ID)
+        val id = booking.id!!
+        val agreed = quotes.currentPrice(booking.id!!)?.quote?.price?.totalCents
         val charge = agreed?.let {
             if (booking.phase in setOf(StayPhase.CANCELLED, StayPhase.NO_SHOW)) 0L else it
         }

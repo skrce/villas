@@ -21,6 +21,36 @@
         },
         "type": "object"
       },
+      "ActualTimesRequest": {
+        "properties": {
+          "checkedInAt": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "checkedOutAt": {
+            "nullable": true,
+            "type": "string"
+          },
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkedInAt",
+          "expectedVersion",
+          "reason"
+        ],
+        "type": "object"
+      },
       "Apartment": {
         "properties": {
           "active": {
@@ -204,6 +234,9 @@
       },
       "CalendarStay": {
         "properties": {
+          "allocationId": {
+            "type": "string"
+          },
           "customerId": {
             "format": "int32",
             "type": "integer"
@@ -222,6 +255,9 @@
             "format": "int32",
             "type": "integer"
           },
+          "phase": {
+            "type": "string"
+          },
           "roomId": {
             "format": "int32",
             "type": "integer"
@@ -237,6 +273,55 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "CheckInRequest": {
+        "properties": {
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "readinessVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "readinessVersion"
+        ],
+        "type": "object"
+      },
+      "CheckOutRequest": {
+        "properties": {
+          "acknowledgeBalance": {
+            "nullable": true,
+            "type": "boolean"
+          },
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "acknowledgeBalance",
+          "expectedVersion"
+        ],
         "type": "object"
       },
       "Customer": {
@@ -646,6 +731,10 @@
             "format": "int64",
             "type": "integer"
           },
+          "roomFromDate": {
+            "nullable": true,
+            "type": "string"
+          },
           "roomId": {
             "format": "int32",
             "type": "integer"
@@ -914,6 +1003,14 @@
       },
       "OperationResult": {
         "properties": {
+          "inventoryEvent": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InventoryEventInfo"
+              }
+            ],
+            "nullable": true
+          },
           "key": {
             "type": "string"
           },
@@ -985,6 +1082,87 @@
           "key",
           "kind",
           "resourceId"
+        ],
+        "type": "object"
+      },
+      "OperationalChangeRequest": {
+        "properties": {
+          "endDate": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "guestCount": {
+            "format": "int32",
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "quoteId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          },
+          "startDate": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endDate",
+          "expectedVersion",
+          "guestCount",
+          "reason",
+          "startDate"
+        ],
+        "type": "object"
+      },
+      "OperationalMoveRequest": {
+        "properties": {
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "quoteId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "readinessVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          },
+          "roomId": {
+            "format": "int32",
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "reason",
+          "roomId"
         ],
         "type": "object"
       },
@@ -1075,6 +1253,46 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "PropertyTimeOption": {
+        "properties": {
+          "offset": {
+            "type": "string"
+          },
+          "utc": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PropertyTimeOptions": {
+        "properties": {
+          "localDateTime": {
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PropertyTimeOption"
+            },
+            "type": "array"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PropertyTimeRequest": {
+        "properties": {
+          "localDateTime": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "localDateTime"
+        ],
         "type": "object"
       },
       "QuoteConfirmationRequest": {
@@ -1542,6 +1760,10 @@
             ],
             "type": "string"
           },
+          "roomFromDate": {
+            "nullable": true,
+            "type": "string"
+          },
           "roomId": {
             "format": "int32",
             "nullable": true,
@@ -1619,6 +1841,53 @@
           "expectedVersion",
           "reason"
         ],
+        "type": "object"
+      },
+      "RoomAllocationInfo": {
+        "properties": {
+          "endDate": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "roomName": {
+            "type": "string"
+          },
+          "roomReference": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RoomAllocationPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RoomAllocationInfo"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reservationId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "reservationVersion": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "RoomBlockRequest": {
@@ -1912,6 +2181,27 @@
             "type": "integer"
           }
         },
+        "type": "object"
+      },
+      "StayReasonRequest": {
+        "properties": {
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "reason"
+        ],
         "type": "object"
       }
     },
@@ -3686,6 +3976,47 @@
         ]
       }
     },
+    "/property-time/options": {
+      "post": {
+        "operationId": "propertyTimeOptions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PropertyTimeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyTimeOptions"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Resolve a Skopje time to explicit UTC choices, including repeated or missing daylight-saving times",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
     "/reservations": {
       "delete": {
         "operationId": "cancelReservation",
@@ -4144,6 +4475,376 @@
         ]
       }
     },
+    "/reservations/{id}/actual-times": {
+      "post": {
+        "operationId": "correctStayTimes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualTimesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Correct actual arrival/departure times with a retained Owner reason",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/reservations/{id}/allocations": {
+      "get": {
+        "operationId": "reservationAllocations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "afterId",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expectedVersion",
+            "required": false,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomAllocationPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read versioned dated room allocations without changing the whole-stay price",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/reservations/{id}/cancel": {
+      "post": {
+        "operationId": "cancelStay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StayReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Record a reasoned cancellation without an automatic refund",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/reservations/{id}/change": {
+      "post": {
+        "operationId": "changeStay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperationalChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Accept a new whole-stay quote and change reviewed dates or party size",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/reservations/{id}/check-in": {
+      "post": {
+        "operationId": "checkInStay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Record arrival within the booked dates into a reviewed clean room",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/reservations/{id}/check-out": {
+      "post": {
+        "operationId": "checkOutStay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckOutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Record departure and mark its room dirty in one transaction",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
     "/reservations/{id}/ledger": {
       "get": {
         "operationId": "reservationLedger",
@@ -4491,6 +5192,126 @@
         "summary": "Record an externally completed refund against one receipt",
         "tags": [
           "Payments"
+        ]
+      }
+    },
+    "/reservations/{id}/move": {
+      "post": {
+        "operationId": "moveStay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OperationalMoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Accept a new whole-stay quote and move a confirmed or in-house stay",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/reservations/{id}/no-show": {
+      "post": {
+        "operationId": "recordNoShow",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StayReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Record a reasoned no-show after the arrival day",
+        "tags": [
+          "Operations"
         ]
       }
     },

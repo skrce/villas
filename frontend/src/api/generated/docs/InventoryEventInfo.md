@@ -19,6 +19,7 @@ Name | Type
 `previousRoomId` | number
 `reason` | string
 `resourceVersion` | number
+`roomFromDate` | string
 `roomId` | number
 `startDate` | Date
 
@@ -42,6 +43,7 @@ const example = {
   "previousRoomId": null,
   "reason": null,
   "resourceVersion": null,
+  "roomFromDate": null,
   "roomId": null,
   "startDate": null,
 } satisfies InventoryEventInfo

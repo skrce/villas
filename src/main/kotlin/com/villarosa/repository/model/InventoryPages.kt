@@ -35,6 +35,7 @@ data class InventoryEventInfo(
     val phase: StayPhase? = null,
     val checkedInAt: String? = null,
     val checkedOutAt: String? = null,
+    val roomFromDate: String? = null,
 ) {
     companion object {
         fun from(event: InventoryEvent) =
@@ -54,6 +55,7 @@ data class InventoryEventInfo(
                 event.phase,
                 event.checkedInAt?.toString(),
                 event.checkedOutAt?.toString(),
+                event.roomFromDate?.toString(),
             )
     }
 }

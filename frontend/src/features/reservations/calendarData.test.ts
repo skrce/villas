@@ -124,4 +124,51 @@ describe("complete calendar snapshots", () => {
       "reservation-create-guest-5",
     );
   });
+  it("keeps dated allocations of one in-house stay in separate rooms", () => {
+    const fixture = calendarFixture();
+    const moved = {
+      ...fixture,
+      rooms: [room, { ...room, id: 8, reference: "GARDEN" }],
+      stays: [
+        {
+          ...fixture.stays[0],
+          allocationId: "allocation:21",
+          phase: "CHECKED_IN",
+          endDate: "2030-01-02",
+        },
+        {
+          ...fixture.stays[0],
+          allocationId: "allocation:22",
+          phase: "CHECKED_IN",
+          roomId: 8,
+          startDate: "2030-01-02",
+        },
+      ],
+    };
+    const data = confirm(moved);
+    expect(data.stays).toHaveLength(2);
+    expect(freePeriod(data, 7, "2030-01-02", "2030-01-05")).toBe(true);
+    expect(freePeriod(data, 8, "2030-01-02", "2030-01-03")).toBe(false);
+    expect(() =>
+      confirm({
+        ...moved,
+        stays: moved.stays.map((stay, index) => ({ ...stay, version: index })),
+      }),
+    ).toThrow(/inconsistent/);
+    expect(() =>
+      confirm({
+        ...moved,
+        stays: moved.stays.map((stay) => ({
+          ...stay,
+          allocationId: "allocation:21",
+        })),
+      }),
+    ).toThrow(/duplicate/);
+    expect(() =>
+      confirm({
+        ...moved,
+        stays: [moved.stays[0], { ...moved.stays[1], startDate: "2030-01-01" }],
+      }),
+    ).toThrow(/inconsistent/);
+  });
 });

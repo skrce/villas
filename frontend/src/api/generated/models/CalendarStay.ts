@@ -21,6 +21,12 @@ import { mapValues } from '../runtime';
 export interface CalendarStay {
     /**
      * 
+     * @type {string}
+     * @memberof CalendarStay
+     */
+    allocationId?: string;
+    /**
+     * 
      * @type {number}
      * @memberof CalendarStay
      */
@@ -49,6 +55,12 @@ export interface CalendarStay {
      * @memberof CalendarStay
      */
     id?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof CalendarStay
+     */
+    phase?: string;
     /**
      * 
      * @type {number}
@@ -92,11 +104,13 @@ export function CalendarStayFromJSONTyped(json: any, ignoreDiscriminator: boolea
     }
     return {
         
+        'allocationId': json['allocationId'] == null ? undefined : json['allocationId'],
         'customerId': json['customerId'] == null ? undefined : json['customerId'],
         'endDate': json['endDate'] == null ? undefined : json['endDate'],
         'guestCount': json['guestCount'] == null ? undefined : json['guestCount'],
         'guestName': json['guestName'] == null ? undefined : json['guestName'],
         'id': json['id'] == null ? undefined : json['id'],
+        'phase': json['phase'] == null ? undefined : json['phase'],
         'roomId': json['roomId'] == null ? undefined : json['roomId'],
         'startDate': json['startDate'] == null ? undefined : json['startDate'],
         'status': json['status'] == null ? undefined : json['status'],
@@ -115,11 +129,13 @@ export function CalendarStayToJSONTyped(value?: CalendarStay | null, ignoreDiscr
 
     return {
         
+        'allocationId': value['allocationId'],
         'customerId': value['customerId'],
         'endDate': value['endDate'],
         'guestCount': value['guestCount'],
         'guestName': value['guestName'],
         'id': value['id'],
+        'phase': value['phase'],
         'roomId': value['roomId'],
         'startDate': value['startDate'],
         'status': value['status'],

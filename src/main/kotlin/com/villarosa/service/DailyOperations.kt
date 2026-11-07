@@ -199,6 +199,7 @@ class DailyOperations(
             StayPhase.valueOf(row.getString("stay_phase")),
             instant(row, "checked_in_at")?.toString(),
             instant(row, "checked_out_at")?.toString(),
+            row.getDate("room_from_date")?.toLocalDate()?.toString(),
         )
     }
 }

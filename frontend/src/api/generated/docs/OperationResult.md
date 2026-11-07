@@ -6,6 +6,7 @@
 
 Name | Type
 ------------ | -------------
+`inventoryEvent` | [InventoryEventInfo](InventoryEventInfo.md)
 `key` | string
 `kind` | string
 `ledgerEntry` | [LedgerEntryInfo](LedgerEntryInfo.md)
@@ -22,6 +23,7 @@ import type { OperationResult } from ''
 
 // TODO: Update the object below with actual values
 const example = {
+  "inventoryEvent": null,
   "key": null,
   "kind": null,
   "ledgerEntry": null,

@@ -75,6 +75,12 @@ export interface ReservationInfo {
     phase?: ReservationInfoPhaseEnum;
     /**
      * 
+     * @type {string}
+     * @memberof ReservationInfo
+     */
+    roomFromDate?: string | null;
+    /**
+     * 
      * @type {number}
      * @memberof ReservationInfo
      */
@@ -148,6 +154,7 @@ export function ReservationInfoFromJSONTyped(json: any, ignoreDiscriminator: boo
         'id': json['id'] == null ? undefined : json['id'],
         'nights': json['nights'] == null ? undefined : json['nights'],
         'phase': json['phase'] == null ? undefined : json['phase'],
+        'roomFromDate': json['roomFromDate'] == null ? undefined : json['roomFromDate'],
         'roomId': json['roomId'] == null ? undefined : json['roomId'],
         'startDate': json['startDate'] == null ? undefined : json['startDate'],
         'status': json['status'] == null ? undefined : json['status'],
@@ -175,6 +182,7 @@ export function ReservationInfoToJSONTyped(value?: ReservationInfo | null, ignor
         'id': value['id'],
         'nights': value['nights'],
         'phase': value['phase'],
+        'roomFromDate': value['roomFromDate'],
         'roomId': value['roomId'],
         'startDate': value['startDate'],
         'status': value['status'],
