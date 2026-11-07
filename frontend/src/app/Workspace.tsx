@@ -33,6 +33,16 @@ const Calendar = lazy(() =>
     default: module.BookingCalendar,
   })),
 );
+const FrontDesk = lazy(() =>
+  import("../features/operations/FrontDesk").then((module) => ({
+    default: module.FrontDesk,
+  })),
+);
+const Housekeeping = lazy(() =>
+  import("../features/operations/Housekeeping").then((module) => ({
+    default: module.Housekeeping,
+  })),
+);
 const Reservations = lazy(() =>
   import("../features/reservations/List").then((module) => ({
     default: module.Reservations,
@@ -107,7 +117,11 @@ export default function Workspace() {
         apis.maintenanceApi,
         apis.apartmentApi,
         apis.quotesApi,
-        { payments: apis.paymentsApi, actorId: ownerId },
+        {
+          payments: apis.paymentsApi,
+          operations: apis.operationsApi,
+          actorId: ownerId,
+        },
       ),
     };
   }, [ownerId, epoch]);
@@ -129,9 +143,11 @@ export default function Workspace() {
     return <Pending label="Changing account…" />;
   const routes = [
     { to: "/calendar", name: "Calendar", icon: "▦" },
+    { to: "/front-desk", name: "Front desk", icon: "⌂" },
     { to: "/reservations", name: "Reservations", icon: "▤" },
     { to: "/guests", name: "Guests", icon: "♧" },
     { to: "/rooms", name: "Rooms", icon: "▥" },
+    { to: "/housekeeping", name: "Housekeeping", icon: "✓" },
     ...(session.permissions.includes("staff:manage")
       ? [{ to: "/settings/staff", name: "Owner settings", icon: "⚙" }]
       : []),
@@ -203,6 +219,8 @@ export default function Workspace() {
                       element={<Navigate replace to="/calendar" />}
                     />
                     <Route path="/calendar" element={<Calendar />} />
+                    <Route path="/front-desk" element={<FrontDesk />} />
+                    <Route path="/housekeeping" element={<Housekeeping />} />
                     <Route path="/reservations" element={<Reservations />} />
                     <Route
                       path="/reservations/new"
@@ -258,7 +276,7 @@ function RouteContent({ children }: { children: React.ReactNode }) {
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     main.current?.focus();
-    document.title = `${pathname.startsWith("/calendar") ? "Calendar" : pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · Villas`;
+    document.title = `${pathname.startsWith("/front-desk") ? "Front desk" : pathname.startsWith("/housekeeping") ? "Housekeeping" : pathname.startsWith("/calendar") ? "Calendar" : pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · Villas`;
   }, [pathname, pageIdentity]);
   return (
     <main ref={main} tabIndex={-1} id="main" className="main-content">

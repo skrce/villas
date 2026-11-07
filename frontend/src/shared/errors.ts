@@ -37,6 +37,12 @@ const messages: Record<string, string> = {
     "Enter a reason of up to 500 characters without control characters.",
   REASON_REQUIRED: "Enter a reason before confirming this action.",
   INVALID_METHOD: "Choose cash, an external card payment or a bank transfer.",
+  ROOM_OCCUPIED:
+    "This room has a checked-in guest. Record departure before changing readiness or using the room.",
+  INVALID_READINESS_TRANSITION:
+    "Complete cleaning, inspection and clean in order. Reload the current state before confirming.",
+  PROPERTY_DATE_CHANGED:
+    "The property day changed. Refresh the list before loading more records.",
   INVENTORY_CONFLICT:
     "That room is no longer available for these dates. Choose another room or change the dates.",
   STALE_VERSION:

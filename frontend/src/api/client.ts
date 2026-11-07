@@ -10,6 +10,7 @@ import {
   QuotesApi,
   CalendarApi,
   PaymentsApi,
+  OperationsApi,
 } from './generated';
 import { API_BASE, scopedSessionFetch } from './session';
 
@@ -31,5 +32,6 @@ export const buildApis = (staffId: string, epoch: number) => {
     quotesApi: new QuotesApi(configuration),
     calendarApi: new CalendarApi(configuration),
     paymentsApi: new PaymentsApi(configuration),
+    operationsApi: new OperationsApi(configuration),
   };
 };
