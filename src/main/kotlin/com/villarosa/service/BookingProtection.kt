@@ -33,7 +33,7 @@ class BookingProtection(private val jdbc: JdbcTemplate, private val clock: Clock
     private fun reject(filter: String, values: List<Int>, code: String, message: String) {
         val ids =
             jdbc.query(
-                "SELECT id FROM reservations WHERE property_id=? AND status='ACTIVE' AND end_date>? AND $filter ORDER BY start_date,id LIMIT 21",
+                "SELECT id FROM reservations WHERE property_id=? AND status='ACTIVE' AND (end_date>? OR stay_phase='CHECKED_IN') AND $filter ORDER BY start_date,id LIMIT 21",
                 { row, _ -> row.getInt("id") },
                 PropertyScope.ID,
                 LocalDate.now(clock.withZone(ZoneId.of("Europe/Skopje"))),

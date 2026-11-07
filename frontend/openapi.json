@@ -489,6 +489,14 @@
           "actorId": {
             "type": "string"
           },
+          "checkedInAt": {
+            "nullable": true,
+            "type": "string"
+          },
+          "checkedOutAt": {
+            "nullable": true,
+            "type": "string"
+          },
           "endDate": {
             "format": "date",
             "type": "string"
@@ -511,10 +519,25 @@
           "operationKey": {
             "type": "string"
           },
+          "phase": {
+            "enum": [
+              "CONFIRMED",
+              "CHECKED_IN",
+              "CHECKED_OUT",
+              "CANCELLED",
+              "NO_SHOW"
+            ],
+            "nullable": true,
+            "type": "string"
+          },
           "previousRoomId": {
             "format": "int32",
             "nullable": true,
             "type": "integer"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
           },
           "resourceVersion": {
             "format": "int64",
@@ -661,7 +684,12 @@
               "CHANGE",
               "CANCEL",
               "BLOCK",
-              "UNBLOCK"
+              "UNBLOCK",
+              "CHECK_IN",
+              "CHECK_OUT",
+              "NO_SHOW",
+              "CORRECT_STAY",
+              "SET_READINESS"
             ],
             "type": "string"
           },
@@ -669,6 +697,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MaintenanceBlock"
+              }
+            ],
+            "nullable": true
+          },
+          "readiness": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReadinessView"
               }
             ],
             "nullable": true
@@ -928,6 +964,128 @@
         ],
         "type": "object"
       },
+      "ReadinessChangeRequest": {
+        "properties": {
+          "expectedVersion": {
+            "format": "int64",
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "DIRTY",
+              "IN_PROGRESS",
+              "INSPECTION",
+              "CLEAN"
+            ],
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "state"
+        ],
+        "type": "object"
+      },
+      "ReadinessEventInfo": {
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "operationKey": {
+            "type": "string"
+          },
+          "previousState": {
+            "enum": [
+              "DIRTY",
+              "IN_PROGRESS",
+              "INSPECTION",
+              "CLEAN"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reservationId": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "DIRTY",
+              "IN_PROGRESS",
+              "INSPECTION",
+              "CLEAN"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ReadinessHistory": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReadinessEventInfo"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ReadinessView": {
+        "properties": {
+          "changedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "DIRTY",
+              "IN_PROGRESS",
+              "INSPECTION",
+              "CLEAN"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "RecordStatusRequest": {
         "properties": {
           "active": {
@@ -953,6 +1111,14 @@
             "nullable": true,
             "type": "string"
           },
+          "checkedInAt": {
+            "nullable": true,
+            "type": "string"
+          },
+          "checkedOutAt": {
+            "nullable": true,
+            "type": "string"
+          },
           "customerId": {
             "format": "int32",
             "nullable": true,
@@ -974,6 +1140,16 @@
           "nights": {
             "format": "int64",
             "type": "integer"
+          },
+          "phase": {
+            "enum": [
+              "CONFIRMED",
+              "CHECKED_IN",
+              "CHECKED_OUT",
+              "CANCELLED",
+              "NO_SHOW"
+            ],
+            "type": "string"
           },
           "roomId": {
             "format": "int32",
@@ -1831,6 +2007,167 @@
         "summary": "Archive or restore a room while retaining its history",
         "tags": [
           "Apartment"
+        ]
+      }
+    },
+    "/apartments/{roomId}/readiness": {
+      "get": {
+        "operationId": "roomReadiness",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read current room readiness without guest or financial data",
+        "tags": [
+          "Operations"
+        ]
+      },
+      "post": {
+        "operationId": "changeRoomReadiness",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadinessChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Record a reviewed room-readiness transition",
+        "tags": [
+          "Operations"
+        ]
+      }
+    },
+    "/apartments/{roomId}/readiness/events": {
+      "get": {
+        "operationId": "roomReadinessHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roomId",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "afterId",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessHistory"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read bounded room-readiness history",
+        "tags": [
+          "Operations"
         ]
       }
     },
@@ -2744,7 +3081,12 @@
                 "CHANGE",
                 "CANCEL",
                 "BLOCK",
-                "UNBLOCK"
+                "UNBLOCK",
+                "CHECK_IN",
+                "CHECK_OUT",
+                "NO_SHOW",
+                "CORRECT_STAY",
+                "SET_READINESS"
               ],
               "type": "string"
             }

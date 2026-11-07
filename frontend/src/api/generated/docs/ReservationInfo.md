@@ -7,11 +7,14 @@
 Name | Type
 ------------ | -------------
 `acceptedQuoteId` | string
+`checkedInAt` | string
+`checkedOutAt` | string
 `customerId` | number
 `endDate` | string
 `guestCount` | number
 `id` | number
 `nights` | number
+`phase` | string
 `roomId` | number
 `startDate` | string
 `status` | string
@@ -25,11 +28,14 @@ import type { ReservationInfo } from ''
 // TODO: Update the object below with actual values
 const example = {
   "acceptedQuoteId": null,
+  "checkedInAt": null,
+  "checkedOutAt": null,
   "customerId": null,
   "endDate": null,
   "guestCount": null,
   "id": null,
   "nights": null,
+  "phase": null,
   "roomId": null,
   "startDate": null,
   "status": null,

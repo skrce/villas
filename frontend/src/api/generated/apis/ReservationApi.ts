@@ -609,6 +609,11 @@ export const GetOperationKindEnum = {
     Change: 'CHANGE',
     Cancel: 'CANCEL',
     Block: 'BLOCK',
-    Unblock: 'UNBLOCK'
+    Unblock: 'UNBLOCK',
+    CheckIn: 'CHECK_IN',
+    CheckOut: 'CHECK_OUT',
+    NoShow: 'NO_SHOW',
+    CorrectStay: 'CORRECT_STAY',
+    SetReadiness: 'SET_READINESS'
 } as const;
 export type GetOperationKindEnum = typeof GetOperationKindEnum[keyof typeof GetOperationKindEnum];

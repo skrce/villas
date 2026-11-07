@@ -4,6 +4,7 @@ apis/CalendarApi.ts
 apis/CustomerApi.ts
 apis/InventoryApi.ts
 apis/MaintenanceApi.ts
+apis/OperationsApi.ts
 apis/QuotesApi.ts
 apis/RatesApi.ts
 apis/ReservationApi.ts
@@ -35,6 +36,7 @@ docs/MaintenanceApi.md
 docs/MaintenanceBlock.md
 docs/MaintenancePage.md
 docs/OperationResult.md
+docs/OperationsApi.md
 docs/PriceHistory.md
 docs/PriceLine.md
 docs/QuoteConfirmationRequest.md
@@ -45,6 +47,10 @@ docs/QuotesApi.md
 docs/RatePreviewRequest.md
 docs/RateUpdateRequest.md
 docs/RatesApi.md
+docs/ReadinessChangeRequest.md
+docs/ReadinessEventInfo.md
+docs/ReadinessHistory.md
+docs/ReadinessView.md
 docs/RecordStatusRequest.md
 docs/ReservationApi.md
 docs/ReservationInfo.md
@@ -92,6 +98,10 @@ models/QuotedRoomChange.ts
 models/QuotedStayChange.ts
 models/RatePreviewRequest.ts
 models/RateUpdateRequest.ts
+models/ReadinessChangeRequest.ts
+models/ReadinessEventInfo.ts
+models/ReadinessHistory.ts
+models/ReadinessView.ts
 models/RecordStatusRequest.ts
 models/ReservationInfo.ts
 models/ReservationPage.ts

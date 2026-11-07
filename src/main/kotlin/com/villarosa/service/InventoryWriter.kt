@@ -168,7 +168,10 @@ class InventoryWriter(
         lockRooms(listOf(roomId))
         val booking = current(id, expected, setOf(roomId))
         if (booking.status != ReservationStatus.CANCELLED) {
+            if (booking.phase != StayPhase.CONFIRMED)
+                conflict("STAY_NOT_EDITABLE", "Only a confirmed reservation can be cancelled.")
             booking.status = ReservationStatus.CANCELLED
+            booking.phase = StayPhase.CANCELLED
             reservations.saveAndFlush(booking)
             reservationEvent(booking, key, "CANCELLED")
         }
@@ -236,6 +239,8 @@ class InventoryWriter(
     private fun active(booking: Reservation) {
         if (booking.status != ReservationStatus.ACTIVE)
             conflict("RESERVATION_CANCELLED", "A cancelled reservation cannot be changed.")
+        if (booking.phase != StayPhase.CONFIRMED)
+            conflict("STAY_NOT_EDITABLE", "This stay is already in progress or closed.")
     }
 
     private fun checkRoom(room: Apartment, guestCount: Int) {
@@ -274,6 +279,9 @@ class InventoryWriter(
                 startDate = booking.startDate!!,
                 endDate = booking.endDate!!,
                 guestCount = booking.guestCount,
+                phase = booking.phase,
+                checkedInAt = booking.checkedInAt,
+                checkedOutAt = booking.checkedOutAt,
             )
         )
     }
