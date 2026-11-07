@@ -129,14 +129,14 @@ export const deskLabel = (list: DeskList) =>
     IN_HOUSE: "In-house",
     ATTENTION: "Needs attention",
   })[list];
-export const phaseLabel = (phase: string) =>
-  ({
-    CONFIRMED: "Confirmed",
-    CHECKED_IN: "Checked in",
-    CHECKED_OUT: "Checked out",
-    CANCELLED: "Cancelled",
-    NO_SHOW: "No-show",
-  })[phase as "CONFIRMED"] ?? phase;
+const phaseLabels: Record<string, string> = {
+  CONFIRMED: "Confirmed",
+  CHECKED_IN: "Checked in",
+  CHECKED_OUT: "Checked out",
+  CANCELLED: "Cancelled",
+  NO_SHOW: "No-show",
+};
+export const phaseLabel = (phase: string) => phaseLabels[phase] ?? phase;
 export const frontDeskSchema = z.object({
   propertyDate: date,
   list: z.enum(deskLists),

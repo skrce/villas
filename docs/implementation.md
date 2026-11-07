@@ -441,5 +441,9 @@ reasoned reversals. Balances use immutable accepted prices and the complete effe
 ledger. The confirmed cancellation/no-show policy sets accommodation owed to zero
 while retaining agreements and payments as visible credit until manually refunded.
 See [the payment contract](contracts/payments.md). The financial interface is implemented with explicit review and read-only recovery.
-The complete stay and housekeeping workflow remains in progress. Arrival/departure timing and readiness-override
-policy remain pending. Milestone 8 is not complete.
+The front-desk lists and phone housekeeping board are implemented, with occupancy,
+dated maintenance, cleaning/inspection transitions and retained read-only recovery.
+Independent review found a filtered-room reload defect; a permanent regression now
+checks that a room removed from the visible filter can still load its current state.
+The Owner confirmed D13, including clean-room-only check-in with no override.
+The complete stay lifecycle remains in progress. Milestone 8 is not complete.

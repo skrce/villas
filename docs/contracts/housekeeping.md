@@ -29,9 +29,9 @@ version, reason, optional reservation reference and UTC time. They contain no gu
 contact or financial fields. Missing/foreign-property rooms return 404.
 
 The storage foundation also adds confirmed, checked-in, checked-out, cancelled and
-no-show stay phases with UTC arrival/departure fields. Daily read lists are implemented below. Lifecycle actions, checkout integration
-and the mobile cleaning workflow are subsequent Milestone 8 work. Arrival/departure and readiness-override policy remain pending Owner
-confirmation. No override is enabled by this foundation.
+no-show stay phases with UTC arrival/departure fields. D13 requires a clean room for
+check-in and permits no override. Lifecycle actions and checkout integration remain
+separate Milestone 8 work.
 
 ## Daily room list
 
@@ -47,3 +47,17 @@ nonnegative room cursor and limit is 1 to 50, default 50. A maintenance overflow
 explicitly instead of showing a partial list. `expectedDate`, when supplied for another
 page, must match the current server property date; otherwise PROPERTY_DATE_CHANGED
 requires a fresh first page. The response includes propertyDate and maintenanceUntil.
+
+## Staff screens
+
+The housekeeping board works on desktop and phone, with state filters, occupancy,
+dated maintenance and an explicit confirmation for each completed cleaning step.
+Occupied rooms allow read-only recovery, with no manual readiness change. A state
+change during review requires an explicit reload before a fresh confirmation.
+
+Room details retain paged readiness history and read-only previous-save recovery,
+including after archival. Reconciliation validates the original actor, operation,
+version, state, reason and immutable event. Persistent browser metadata contains
+only a hashed identity, opaque operation key and reviewed version. Reasons remain
+in the same Owner's memory-only draft. Reauthentication and reconnect never submit
+a readiness change automatically. Readiness history links related stays when present.

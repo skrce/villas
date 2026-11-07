@@ -99,9 +99,13 @@ export function Housekeeping() {
     setSaved(false);
     setSelected({ room, target, recoveryOnly });
   };
+  const listed = rooms.find((room) => room.roomId === selected?.room.roomId);
   const current =
-    rooms.find((room) => room.roomId === selected?.room.roomId) ??
-    selected?.room;
+    listed &&
+    selected &&
+    listed.readiness.version < selected.room.readiness.version
+      ? { ...listed, readiness: selected.room.readiness }
+      : (listed ?? selected?.room);
   return (
     <>
       <PageHead title="Housekeeping" eyebrow="Room operations">
@@ -255,6 +259,9 @@ export function Housekeeping() {
           expectedVersion={selected.room.readiness.version}
           recoveryOnly={selected.recoveryOnly || current.occupied || !fresh}
           onTarget={(target) => setSelected({ ...selected, target })}
+          onLoaded={(readiness) =>
+            setSelected({ ...selected, room: { ...current, readiness } })
+          }
           onClose={() => setSelected(undefined)}
           onSaved={() => {
             setSelected(undefined);
@@ -272,6 +279,7 @@ function ReadinessDialog({
   expectedVersion,
   recoveryOnly,
   onTarget,
+  onLoaded,
   onClose,
   onSaved,
 }: {
@@ -280,6 +288,7 @@ function ReadinessDialog({
   expectedVersion: number;
   recoveryOnly: boolean;
   onTarget: (state: ReadinessState) => void;
+  onLoaded?: (readiness: ReturnType<typeof readinessSchema.parse>) => void;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -340,6 +349,7 @@ function ReadinessDialog({
         );
       cache.setQueryData(["room-readiness", room.roomId], data);
       draft.reload({ reason }, data.version);
+      onLoaded?.(data);
       save.resetStatus();
       setMessage("");
     },
@@ -347,6 +357,10 @@ function ReadinessDialog({
   );
   const busy = save.isPending || reload.isPending;
   const stale = draft.expectedVersion !== room.readiness.version;
+  const allowed =
+    target === "DIRTY"
+      ? room.readiness.state !== "DIRTY"
+      : nextState(room.readiness.state) === target;
   const submit = (check: boolean) => {
     if (reason.length > 500 || (target === "DIRTY" && !reason.trim())) {
       setMessage(
@@ -354,14 +368,7 @@ function ReadinessDialog({
       );
       return;
     }
-    if (
-      !check &&
-      (recoveryOnly ||
-        stale ||
-        room.occupied ||
-        room.readiness.state === target)
-    )
-      return;
+    if (!check && (recoveryOnly || stale || room.occupied || !allowed)) return;
     void save.submit(check);
   };
   return (
@@ -426,6 +433,12 @@ function ReadinessDialog({
             current state before a new confirmation.
           </Notice>
         )}
+        {!recoveryOnly && !stale && !allowed && (
+          <Notice error>
+            This step is no longer available from the current room state. Close
+            this dialog and choose the next cleaning step.
+          </Notice>
+        )}
         {message && <Notice error>{message}</Notice>}
         {save.message && <Notice error>{save.message}</Notice>}
         {reload.message && <Notice error>{reload.message}</Notice>}
@@ -456,7 +469,7 @@ function ReadinessDialog({
                   stale ||
                   save.stale ||
                   room.occupied ||
-                  room.readiness.state === target
+                  !allowed
                 }
               >
                 {busy ? "Confirming…" : "Confirm readiness"}
@@ -553,6 +566,11 @@ export function RoomReadinessPanel({
                   </strong>
                   <p>{eventLabel(event.occurredAt)}</p>
                   {event.reason && <p>Reason: {event.reason}</p>}
+                  {event.reservationId && (
+                    <Link to={`/reservations/${event.reservationId}`}>
+                      Stay #{event.reservationId}
+                    </Link>
+                  )}
                 </div>
               </li>
             ))}
