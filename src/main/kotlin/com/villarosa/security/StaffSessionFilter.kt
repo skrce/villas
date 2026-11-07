@@ -1,5 +1,6 @@
 package com.villarosa.security
 
+import com.villarosa.ReleasePaths
 import com.villarosa.exception.DomainException
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -19,6 +20,11 @@ class StaffSessionFilter(
         response: HttpServletResponse,
         chain: FilterChain,
     ) {
+        if (ReleasePaths.matches(request)) {
+            response.setHeader("Cache-Control", "no-store")
+            chain.doFilter(request, response)
+            return
+        }
         val authentication = SecurityContextHolder.getContext().authentication
         if (authentication is StaffAuthentication) {
             val session = request.getSession(false)

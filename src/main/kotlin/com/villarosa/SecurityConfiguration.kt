@@ -75,6 +75,7 @@ class SecurityConfiguration {
         contexts: DelegatingSecurityContextRepository,
         csrf: HttpSessionCsrfTokenRepository,
         authorizedClients: OAuth2AuthorizedClientService,
+        environment: Environment,
     ): SecurityFilterChain {
         val oidc = OidcUserService().apply { setRetrieveUserInfo { false } }
         http
@@ -108,6 +109,8 @@ class SecurityConfiguration {
             }
             .authorizeHttpRequests {
                 it.dispatcherTypeMatchers(DispatcherType.ERROR)
+                    .permitAll()
+                    .requestMatchers(ReleasePaths)
                     .permitAll()
                     .requestMatchers(
                         "/api/v1/auth/session",
@@ -184,6 +187,22 @@ class SecurityConfiguration {
                 StaffSessionFilter(settings, access, clock),
                 SecurityContextHolderFilter::class.java,
             )
+        if (environment.containsProperty("villas.web-root")) {
+            http.headers { headers ->
+                headers.contentSecurityPolicy {
+                    it.policyDirectives(
+                        "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+                    )
+                }
+                headers.addHeaderWriter { _, response ->
+                    response.setHeader("Referrer-Policy", "no-referrer")
+                    response.setHeader(
+                        "Permissions-Policy",
+                        "camera=(), microphone=(), geolocation=()",
+                    )
+                }
+            }
+        }
         return http.build()
     }
 }

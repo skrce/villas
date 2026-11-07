@@ -1,0 +1,78 @@
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+x-app: &app
+  image: ${VILLAS_APP_IMAGE:?Set an immutable application image reference}
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=128m"]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  mem_limit: 768m
+  pids_limit: 256
+  logging: *logging
+  environment: &app-env
+    VILLAS_MODE: production
+    VILLAS_DB_URL: jdbc:mariadb://db:3306/villarosa
+    VILLAS_DB_USERNAME: villas_runtime
+    VILLAS_DB_PASSWORD_FILE: /run/secrets/db_runtime
+    VILLAS_PUBLIC_URL: https://${VILLAS_DOMAIN:?Set the Villas domain}
+    VILLAS_GOOGLE_CLIENT_ID_FILE: /run/secrets/google_client_id
+    VILLAS_GOOGLE_CLIENT_SECRET_FILE: /run/secrets/google_client_secret
+  depends_on:
+    db: { condition: service_healthy }
+services:
+  db:
+    image: ${VILLAS_MARIADB_IMAGE:?Use the pinned MariaDB image}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root
+      MARIADB_ROOT_HOST: localhost
+      MARIADB_DATABASE: villarosa
+    secrets: [db_root, db_migration, db_runtime, db_backup]
+    volumes:
+      - database:/var/lib/mysql
+      - ./init-db.sh:/docker-entrypoint-initdb.d/10-villas.sh:ro
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    mem_limit: 768m
+    pids_limit: 256
+  api:
+    <<: *app
+    restart: unless-stopped
+    secrets: [db_runtime, google_client_id, google_client_secret]
+  migrate:
+    <<: *app
+    profiles: [operations]
+    command: [migrate]
+    environment:
+      VILLAS_DB_URL: jdbc:mariadb://db:3306/villarosa
+      VILLAS_DB_USERNAME: villas_migration
+      VILLAS_DB_PASSWORD_FILE: /run/secrets/db_migration
+    secrets: [db_migration]
+  proxy:
+    image: ${VILLAS_PROXY_IMAGE:?Set an immutable proxy image reference}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      VILLAS_SITE: ${VILLAS_DOMAIN:?Set the Villas domain}
+    ports: ["80:80", "443:443"]
+    volumes: [tls_data:/data, tls_config:/config]
+    depends_on:
+      api: { condition: service_healthy }
+    mem_limit: 128m
+    pids_limit: 128
+secrets:
+  db_root: { file: "${VILLAS_SECRET_DIR:?Use an absolute private secrets directory}/db_root" }
+  db_migration: { file: "${VILLAS_SECRET_DIR}/db_migration" }
+  db_runtime: { file: "${VILLAS_SECRET_DIR}/db_runtime" }
+  db_backup: { file: "${VILLAS_SECRET_DIR}/db_backup" }
+  google_client_id: { file: "${VILLAS_SECRET_DIR}/google_client_id" }
+  google_client_secret: { file: "${VILLAS_SECRET_DIR}/google_client_secret" }
+volumes:
+  database:
+  tls_data:
+  tls_config:

@@ -14,6 +14,10 @@ New maintainers and LLM sessions should start with the
 The [ten-step tracker](docs/implementation.md) and linked issues distinguish local
 implementation from the open real-Google, deployment and pilot gates.
 
+Release work starts in the [deployment guide](docs/deployment.md),
+[recovery procedure](docs/recovery.md) and [release checklist](docs/release-checklist.md).
+Milestone 10 is active; hosting and live acceptance remain open.
+
 ## Requirements
 
 - Linux, macOS, or WSL with Docker integration. Run the scripts inside WSL on Windows;

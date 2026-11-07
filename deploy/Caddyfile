@@ -1,0 +1,23 @@
+{
+	admin off
+	log default {
+		level ERROR
+		output discard
+	}
+}
+
+{$VILLAS_SITE} {
+	@private path /internal /internal/* /v3 /v3/* /swagger-ui* /actuator /actuator/*
+	respond @private 404
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy {$VILLAS_UPSTREAM:api:9098} {
+		header_up -Forwarded
+		header_up -X-Forwarded-For
+		header_up -X-Forwarded-Host
+		header_up -X-Forwarded-Proto
+		header_up -X-Real-IP
+	}
+}

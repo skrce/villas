@@ -34,8 +34,9 @@ housekeeping. Its integrated review, verification and merge evidence are recorde
 reconciled reports, with implementation and verification evidence in
 [issue #10](https://github.com/skrce/villas/issues/10), [PR #36](https://github.com/skrce/villas/pull/36)
 and [PR #37](https://github.com/skrce/villas/pull/37).
-Milestone 10 covers hosting, backups/recovery, deployed checks
-and the staff pilot. Do not start another milestone without Owner authorization.
+Milestone 10 is active for portable deployment packaging, backups/recovery, deployed
+checks and the staff pilot. Read [deployment](deployment.md), [recovery](recovery.md)
+and the [release checklist](release-checklist.md) before release work.
 
 Milestone 3's real Google setup and live-provider acceptance were explicitly deferred
 by the Owner. [Issue #4](https://github.com/skrce/villas/issues/4) remains open for
@@ -99,6 +100,7 @@ production/pilot acceptance is implied by the local demo.
 | Safe browser mutations and drafts | `api/bookingActions.ts`, `ledgerActions.ts`, `readinessActions.ts`, `stayActions.ts`; `shared/useSave.ts`, `useDraft.ts`, `useVersionedDraft.ts` |
 | Generated API contract/client | `frontend/openapi.json`, `frontend/src/api/generated/`, `ApiContractTest.kt`, `scripts/sync-openapi.mjs`, `generate-api.mjs` |
 | Local process/database ownership | `scripts/local-db.mjs`, `dev-db.mjs`, `run-api.mjs`, `demo.mjs`, `e2e.mjs` |
+| Release image, secrets, SPA, health and isolated container rehearsal | `deploy/`, `scripts/build-release.mjs`, `release-check.mjs`, `PrivateSettings.kt`, `ReleaseHttp.kt` |
 
 Backend paths in the table are relative to `src/main/kotlin/com/villarosa/` unless
 fully prefixed. Use `rg --files` to locate a renamed class rather than assuming this

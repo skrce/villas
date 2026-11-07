@@ -73,3 +73,12 @@ an unreviewed retry is refused, and completing the missing precondition followed
 explicit repair allows the identical SQL to rerun. Unicode guests and bookings
 survive throughout. This test is not a production backup/restore rehearsal and does
 not authorize automatic repair of a real database.
+
+## Release delivery
+
+The reference [deployment](deployment.md) runs migrations as a one-off process with
+a separate schema-local DDL account. Web startup still validates rather than creates
+schema. Runtime grants are explicit in `deploy/runtime-grants.sql`. Review additions
+when introducing tables. Record the old schema/images, close writes and verify a
+backup before delivery. Partial MariaDB DDL may survive an error; investigate and use
+a tested forward fix or isolated restore. There is no automatic down migration.

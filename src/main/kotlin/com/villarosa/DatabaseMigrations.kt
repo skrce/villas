@@ -24,8 +24,9 @@ object DatabaseMigrations {
         configured(url, username, password).migrate()
 
     fun fromEnvironment() {
+        val settings = PrivateSettings.resolve()
         fun required(name: String) =
-            System.getenv(name)?.takeIf { it.isNotBlank() }
+            settings[name]?.takeIf { it.isNotBlank() }
                 ?: error("Migration setting $name is required.")
         val result =
             migrate(

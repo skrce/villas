@@ -91,5 +91,6 @@ const server = createServer(async (request, response) => {
     output(response, 400, { error: 'invalid_request' });
   }
 });
-server.listen(Number(issuer.port), '127.0.0.1', () => console.log('Villas synthetic identity provider is ready on loopback.'));
+if (process.env.VILLAS_CONTAINER_REHEARSAL && !/^e2e-[a-f0-9]{12}$/.test(process.env.VILLAS_LOCAL_INSTANCE ?? '')) throw new Error('A container fixture requires a disposable browser instance.');
+server.listen(Number(issuer.port), process.env.VILLAS_CONTAINER_REHEARSAL === '1' ? '0.0.0.0' : '127.0.0.1', () => console.log('Villas synthetic identity provider is ready in its private test environment.'));
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.close());

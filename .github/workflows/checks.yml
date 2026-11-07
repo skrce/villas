@@ -80,10 +80,15 @@ jobs:
       - run: npm run lint
       - run: npm run test:coverage
       - run: npm run build
-      - run: node --test scripts/e2e.test.mjs scripts/demo.test.mjs
+      - run: node --test scripts/e2e.test.mjs scripts/demo.test.mjs scripts/release-artifacts.test.mjs
         working-directory: .
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run test:e2e
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: frontend-release
+          path: frontend/dist/
+          if-no-files-found: error
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
@@ -93,3 +98,29 @@ jobs:
             frontend/playwright-report/
             frontend/test-results/
           if-no-files-found: error
+
+  release-package:
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with: { name: backend-contract-and-app, path: target }
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with: { name: frontend-release, path: frontend/dist }
+      - run: npm install --global npm@11.6.2
+      - run: npm --prefix frontend ci
+      - run: npx --no-install playwright install --with-deps chromium
+        working-directory: frontend
+      - run: node scripts/build-release.mjs
+      - run: node scripts/release-check.mjs
