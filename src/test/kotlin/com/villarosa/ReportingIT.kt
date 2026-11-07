@@ -502,6 +502,61 @@ constructor(
     }
 
     @Test
+    fun aRoomFilterCannotHideAWholeWindowAllocationGap() {
+        val id = book()
+        pay(id, 1000)
+        jdbc.update(
+            "UPDATE reservation_allocations SET end_date='2026-11-08' WHERE reservation_id=?",
+            id,
+        )
+        for (kind in
+            listOf(ReportKind.CHARGES, ReportKind.OCCUPANCY, ReportKind.BALANCES)) assertThat(
+                assertThrows<DomainException> { report(kind, "2026-11-08", "2026-11-09", a.id) }
+                    .code
+            )
+            .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+        assertThat(
+                assertThrows<DomainException> {
+                        report(ReportKind.COLLECTIONS, "2026-11-07", "2026-11-08", a.id)
+                    }
+                    .code
+            )
+            .isEqualTo("REPORT_SOURCE_INCOMPLETE")
+        jdbc.update(
+            "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,?,?)",
+            PropertyScope.ID,
+            id,
+            b.id,
+            "2026-11-08",
+            "2026-11-10",
+        )
+        assertThat(report(ReportKind.CHARGES, "2026-11-08", "2026-11-09", a.id).totals.chargeCents)
+            .isZero()
+        assertThat(report(ReportKind.BALANCES, "2026-11-08", "2026-11-09", a.id).balances).isEmpty()
+        assertThat(
+                report(ReportKind.COLLECTIONS, "2026-11-07", "2026-11-08", a.id)
+                    .totals
+                    .collectedCents
+            )
+            .isEqualTo(1000)
+        assertThat(
+                report(ReportKind.COLLECTIONS, "2026-11-07", "2026-11-08", b.id)
+                    .totals
+                    .collectedCents
+            )
+            .isEqualTo(1000)
+    }
+
+    @Test
+    fun unrelatedAcceptedPriceDamageDoesNotChangeRoomScopedMoneyOrBookedOccupancy() {
+        book(a)
+        val damaged = book(b)
+        jdbc.update("UPDATE reservation_prices SET quote_json='{}' WHERE reservation_id=?", damaged)
+        assertThat(report(ReportKind.CHARGES, room = a.id).totals.chargeCents).isEqualTo(15003)
+        assertThat(report(ReportKind.OCCUPANCY).totals.bookedNights).isEqualTo(6)
+    }
+
+    @Test
     fun collectionCorrectionsOutsideThePeriodRestateTheOriginalReceiptDate() {
         val id = book()
         val receipt = pay(id, 1000, "2026-11-06")
@@ -641,6 +696,45 @@ constructor(
             Mockito.reset(storeSnapshot)
         }
         assertThat(report(ReportKind.BALANCES).totals.outstandingCents).isEqualTo(13003)
+    }
+
+    @Test
+    fun allocationsAndCurrentPriceRemainOneSnapshotAcrossAConcurrentMoveAndRepricing() {
+        val id = book()
+        val dates = StayDates.parse("2026-11-07", "2026-11-10")
+        Mockito.doAnswer { invocation ->
+                val result = invocation.callRealMethod()
+                concurrent {
+                    val q = quotes.create(b.id!!, "2026-11-07", "2026-11-10", 2)
+                    stays.move(id, b.id!!, version(id), q.id, 0, "Synthetic concurrent move", key())
+                }
+                result
+            }
+            .`when`(storeSnapshot)
+            .windows(dates)
+        val original =
+            try {
+                report(ReportKind.CHARGES)
+            } finally {
+                Mockito.reset(storeSnapshot)
+            }
+        assertThat(original.charges.single().roomId).isEqualTo(a.id)
+        assertThat(original.totals.chargeCents).isEqualTo(15003)
+        assertThat(report(ReportKind.CHARGES).charges.single().roomId).isEqualTo(b.id)
+        assertThat(report(ReportKind.CHARGES).totals.chargeCents).isEqualTo(18003)
+        assertThat(
+                assertThrows<DomainException> {
+                        reports.csv(
+                            original.kind,
+                            original.startDate,
+                            original.endDate,
+                            null,
+                            original.snapshotId,
+                        )
+                    }
+                    .code
+            )
+            .isEqualTo("REPORT_CHANGED")
     }
 
     companion object {

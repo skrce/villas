@@ -73,7 +73,12 @@ stays, and explicitly separates known balances and unknown prices.
 GET `/api/v1/reports` accepts `kind` OCCUPANCY, CHARGES, COLLECTIONS or BALANCES,
 `startDate`, `endDate` and optional `roomId`. A complete report supports at most 500
 rooms, 2,000 selected bookings, 10,000 allocation or maintenance rows and 5,000 ledger
-entries. Exceeding an applicable bound returns `REPORT_TOO_LARGE`; nothing is silently
+entries. Coverage checks select period-overlapping bookings and validate their full
+assignment histories before applying a room filter. Room-filtered collections first
+select period entries, then validate their source bookings before room selection.
+These booking, allocation and entry bounds apply before room filtering; reduce the
+period if exceeded. A room filter can reduce a room-roster or maintenance bound.
+Exceeding an applicable bound returns `REPORT_TOO_LARGE`; nothing is silently
 truncated. Money aggregates must fit the supported exact-cent range.
 
 GET `/api/v1/reports/export` takes the same filters and the reviewed `snapshotId`.
