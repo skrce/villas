@@ -15,7 +15,7 @@ export default defineConfig({
   webServer: [
     { command: 'node ../scripts/test-identity-provider.mjs', url: 'http://127.0.0.1:19108/jwks', reuseExistingServer: false, gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 } },
     {
-      command: 'node ../scripts/run-api.mjs --packaged',
+      command: 'node ../scripts/run-api.mjs --packaged --browser-clock',
       url: 'http://127.0.0.1:19098/v3/api-docs',
       timeout: 90_000,
       reuseExistingServer: false,

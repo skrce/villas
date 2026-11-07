@@ -18,8 +18,8 @@ Kotlin/Spring, Java 21, React/TypeScript/Vite, and MariaDB stack remains in use.
 
 ## Business policy gates
 
-D05 is confirmed below. The remaining proposals require an owner decision before
-shipping their dependent features.
+The business policies below are confirmed. Hosting and operational recovery targets
+remain open under D04 and must be settled before the production milestone.
 
 | Gate | Current behavior or proposal | Required before |
 | --- | --- | --- |

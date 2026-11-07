@@ -1,6 +1,6 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { rmSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 
 process.env.VILLAS_LOCAL_INSTANCE = `e2e-${randomBytes(6).toString('hex')}`;
 process.env.VILLAS_MODE = 'local';
@@ -14,6 +14,8 @@ process.env.VILLAS_PORT = '19098';
 process.env.VILLAS_API_TARGET = 'http://127.0.0.1:19098';
 const { localDatabase, root } = await import('./local-db.mjs');
 const database = localDatabase({ create: true });
+const clockDirectory = `${root}/.local-state/${process.env.VILLAS_LOCAL_INSTANCE}/browser-clock`;
+process.env.VILLAS_BROWSER_CLOCK_FILE = `${clockDirectory}/instant.txt`;
 let activeChild;
 let interruptedBy;
 let shutdownTimer;
@@ -49,6 +51,13 @@ const run = (args, cwd = root) => new Promise((resolve, reject) => {
   });
 });
 try {
+  mkdirSync(`${clockDirectory}/META-INF/spring`, { recursive: true, mode: 0o700 });
+  writeFileSync(`${clockDirectory}/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`, 'com.villas.browser.BrowserClockConfiguration\n');
+  const archive = spawnSync(process.env.JAVA_HOME ? `${process.env.JAVA_HOME}/bin/jar` : 'jar',
+    ['--create', '--file', `${clockDirectory}/browser-clock.jar`, '-C', `${root}/target/test-classes`, 'com/villas/browser/BrowserClockConfiguration.class', '-C', `${root}/target/test-classes`, 'com/villas/browser/BrowserFileClock.class', '-C', clockDirectory, 'META-INF'],
+    { cwd: root, stdio: 'inherit' });
+  if (archive.error) throw archive.error;
+  if (archive.status !== 0) throw new Error('Compile the browser clock fixture with ./mvnw verify before running browser checks.');
   await run(['scripts/dev-db.mjs', 'start']);
   await run(['scripts/run-api.mjs', '--migrate']);
   await run(['scripts/dev-db.mjs', 'fixtures']);

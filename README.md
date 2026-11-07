@@ -4,10 +4,14 @@ Staff management for Villa Rosa, starting in North Macedonia with EUR and the
 `Europe/Skopje` property timezone. The application uses Kotlin/Spring, Java 21,
 React/TypeScript/Vite, and MariaDB.
 
-Invited Google accounts establish server-side Owner sessions. The current frontend
-has a routed staff workspace with guest/room administration and dated maintenance. Calendar, rates, payments,
-and production deployment follow the
-[ten-step implementation tracker](docs/implementation.md).
+Invited Google accounts establish server-side Owner sessions. The responsive workspace
+includes guest/room management, rates and reviewed quotes, a reservation calendar,
+front-desk stay operations, external payment records and housekeeping.
+
+New maintainers and LLM sessions should start with the
+[maintainer context guide](docs/maintainer-context.md) and [AGENTS.md](AGENTS.md).
+The [ten-step tracker](docs/implementation.md) and linked issues distinguish local
+implementation from the open real-Google, reporting, deployment and pilot gates.
 
 ## Requirements
 

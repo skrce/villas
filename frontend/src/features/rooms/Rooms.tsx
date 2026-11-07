@@ -89,7 +89,7 @@ export function Rooms() {
         <QueryError retry={() => void query.refetch()} />
       ) : !items.length ? (
         <section className="panel">
-          <Empty title="No rooms configured">
+          <Empty headingLevel={2} title="No rooms configured">
             Add your first room, or change the filters to find an archived room.
           </Empty>
         </section>

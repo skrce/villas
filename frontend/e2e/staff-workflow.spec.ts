@@ -232,6 +232,9 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
   await page.getByRole("button", { name: "Edit stay", exact: true }).click();
   const edit = page.getByRole("dialog", { name: "Edit stay" });
   await edit.getByLabel("Check-out", { exact: true }).fill("2026-11-10");
+  await edit
+    .getByLabel("Reason", { exact: true })
+    .fill("Synthetic stay change");
   await edit.getByRole("button", { name: "Review price", exact: true }).click();
   await edit.getByRole("button", { name: /^Confirm changes ·/ }).click();
   await expect(edit).not.toBeVisible();
@@ -240,6 +243,9 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
   await move
     .getByLabel("New room")
     .selectOption({ label: "Synthetic garden room · East · DEMO-GARDEN" });
+  await move
+    .getByLabel("Reason", { exact: true })
+    .fill("Synthetic room change");
   await move.getByRole("button", { name: "Review price", exact: true }).click();
   await move.getByRole("button", { name: /^Confirm changes ·/ }).click();
   await expect(move).not.toBeVisible();
@@ -253,10 +259,19 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
   await page
     .getByRole("button", { name: "Cancel reservation", exact: true })
     .click();
-  const cancel = page.getByRole("dialog", { name: "Cancel reservation?" });
+  const cancel = page.getByRole("dialog", {
+    name: "Cancel reservation",
+    exact: true,
+  });
+  await cancel
+    .getByLabel("Reason", { exact: true })
+    .fill("Synthetic cancellation");
+  await cancel.getByRole("button", { name: "Review action" }).click();
   await cancel.getByRole("button", { name: "Confirm cancellation" }).click();
   await expect(cancel).not.toBeVisible();
-  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Cancelled", { exact: true }).first(),
+  ).toBeVisible();
   expect(
     await (
       await page.request.get(`/api/v1/reservations/${reservationId}`)
@@ -790,16 +805,27 @@ test("Owner guest and room management protects stays and retains maintenance/his
     .getByRole("button", { name: "Confirm maintenance cancellation" })
     .click();
   await expect(cancelBlock).not.toBeVisible();
-  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Cancelled", { exact: true }).first(),
+  ).toBeVisible();
   await page.goto(`/reservations/${reservationId}`);
   await page
     .getByRole("button", { name: "Cancel reservation", exact: true })
     .click();
-  await page
-    .getByRole("dialog", { name: "Cancel reservation?" })
+  const cancellation = page.getByRole("dialog", {
+    name: "Cancel reservation",
+    exact: true,
+  });
+  await cancellation
+    .getByLabel("Reason", { exact: true })
+    .fill("Synthetic cancellation");
+  await cancellation.getByRole("button", { name: "Review action" }).click();
+  await cancellation
     .getByRole("button", { name: "Confirm cancellation" })
     .click();
-  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Cancelled", { exact: true }).first(),
+  ).toBeVisible();
   await page.getByRole("link", { name: "Guests", exact: true }).click();
   await page.getByLabel("Name", { exact: true }).fill("проверка синтетичка");
   await page.getByLabel("Phone", { exact: true }).fill("000 000");
@@ -812,7 +838,9 @@ test("Owner guest and room management protects stays and retains maintenance/his
   await expect(
     page.getByRole("heading", { name: "Reservation history", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Cancelled", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Cancelled", { exact: true }).first(),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Archive guest", exact: true })
     .click();
@@ -1347,13 +1375,13 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
     /^Reservation #\d+$/,
   );
   const id = Number(new URL(page.url()).pathname.split("/").pop());
-  const target = `/api/v1/reservations/${id}/dates/quoted`;
+  const target = `/api/v1/reservations/${id}/change`;
   let editWrites = 0;
   let quoteWrites = 0;
   const keys: string[] = [];
   page.on("request", (request) => {
     const path = new URL(request.url()).pathname;
-    if (request.method() === "PATCH" && path === target) {
+    if (request.method() === "POST" && path === target) {
       editWrites++;
       keys.push(request.headers()["idempotency-key"]);
     }
@@ -1363,6 +1391,9 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
   await page.getByRole("button", { name: "Edit stay", exact: true }).click();
   const edit = page.getByRole("dialog", { name: "Edit stay" });
   await edit.getByLabel("Check-out", { exact: true }).fill("2034-06-04");
+  await edit
+    .getByLabel("Reason", { exact: true })
+    .fill("Synthetic stay change");
   await edit.getByRole("button", { name: "Review price", exact: true }).click();
   await expect(
     edit.getByRole("button", {
@@ -1401,7 +1432,7 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
       .version,
   ).toBe(0);
   await page.route(`**${target}`, async (route) => {
-    if (route.request().method() !== "PATCH") return route.continue();
+    if (route.request().method() !== "POST") return route.continue();
     const response = await route.fetch();
     expect(response.ok()).toBeTruthy();
     await route.abort("failed");
@@ -1435,9 +1466,12 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
   const quoteCount = quoteWrites;
   await page.reload();
   await page
-    .getByRole("button", { name: "Check previous save", exact: true })
+    .getByRole("button", { name: "Check previous booking edit", exact: true })
     .click();
   const recovered = page.getByRole("dialog", { name: "Check previous save" });
+  await recovered
+    .getByLabel("Reason", { exact: true })
+    .fill("Synthetic stay change");
   await expect(recovered.getByLabel("Check-out", { exact: true })).toHaveValue(
     "2034-06-04",
   );

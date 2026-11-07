@@ -1,3 +1,4 @@
+import { phaseLabel } from "../../shared/operations";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -406,7 +407,13 @@ function CalendarCard({
           ? `${event.guestCount} ${event.guestCount === 1 ? "guest" : "guests"} · #${event.id}`
           : event.reason}
       </small>
-      <Status value={event.status} />
+      {event.kind === "stay" && event.phase ? (
+        <span className={`status status-${event.phase.toLowerCase()}`}>
+          {phaseLabel(event.phase)}
+        </span>
+      ) : (
+        <Status value={event.status} />
+      )}
     </Link>
   );
 }

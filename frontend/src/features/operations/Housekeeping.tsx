@@ -165,7 +165,7 @@ export function Housekeeping() {
       ) : query.isError && !query.data ? (
         <QueryError retry={() => void query.refetch()} />
       ) : rooms.length === 0 ? (
-        <Empty title="No rooms match">
+        <Empty headingLevel={2} title="No rooms match">
           Add rooms or choose another readiness state.
         </Empty>
       ) : (

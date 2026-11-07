@@ -31,6 +31,8 @@ jobs:
           path: |
             target/openapi.json
             target/villarosa-*.jar
+            target/test-classes/com/villas/browser/BrowserClockConfiguration.class
+            target/test-classes/com/villas/browser/BrowserFileClock.class
           if-no-files-found: error
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()

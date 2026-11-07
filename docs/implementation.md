@@ -15,7 +15,7 @@ start are recorded in [decisions](decisions.md).
 | 5 | [Deliver guest and room management](https://github.com/skrce/villas/issues/6) | 2, 3, 4 | Implemented and independently reviewed in PRs #21, #22 and #23; merge/CI evidence is in the linked issue |
 | 6 | [Implement seasonal rates and saved booking quotes](https://github.com/skrce/villas/issues/7) | 2, 3, 4, 5 | Implemented and independently reviewed in PRs #24 and #25; final merge/CI evidence is in the linked issue |
 | 7 | [Deliver the reservation calendar and booking workflow](https://github.com/skrce/villas/issues/8) | 2, 3, 4, 5, 6 | Implemented and independently reviewed in PRs #26 and #27; verification and merge evidence is in #8 |
-| 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | In progress: stay/readiness foundation and manual-ledger API; front-desk and financial interfaces follow |
+| 8 | [Complete front-desk operations, payments, and housekeeping](https://github.com/skrce/villas/issues/9) | 2, 3, 4, 5, 6, 7 | Front desk, stay operations, manual settlement and housekeeping implemented; final integrated review/verification in #9 |
 | 9 | [Deliver the Today dashboard and reconciled reports](https://github.com/skrce/villas/issues/10) | 3, 4, 5, 6, 7, 8 | Planned |
 | 10 | [Verify production deployment, recovery, and the staff pilot](https://github.com/skrce/villas/issues/11) | 1-9 | Planned |
 
@@ -143,14 +143,15 @@ production acceptance is implied by the local checks.
 | Cloud deployment and recovery | Not performed; D04 remains open | Milestone 10 |
 | Staff pilot | Not performed | Milestone 10 |
 
-## Known limitations
+## Remaining release work
 
-Milestone 4 replaces the console with a routed responsive workspace. The schema has
-versioned migrations, reference constraints, and strict calendar dates. Inventory
-transactions, version checks, retry reconciliation, and bounded queries are implemented.
-Cancellation retains the record and events. Price integers are fixture values, not the
-implemented EUR-cent model. Owner accounts and server sessions are implemented locally. Rates, a ledger, and a
-calendar remain planned. Real Google setup and verification remain open. These limitations are not relaxed by the new test setup.
+The routed workspace, guests, rooms, rates, quotes, calendar, manual settlement and
+Milestone 8 operating workflows are implemented locally. The active milestone issue
+records final review and verification separately. Real Google setup/acceptance under
+Milestone 3 remains explicitly deferred. Milestone 9 reporting and Milestone 10
+hosting, recovery and staff acceptance remain planned. Historical checkpoints below
+record their state at delivery; use the [maintainer guide](maintainer-context.md),
+current contracts and issue checklist for current behavior.
 
 ## Milestone 3 local checkpoint
 
@@ -453,3 +454,12 @@ a preceding completed guest; native regressions cover that move, repeated moves,
 extensions, allocation migration retries and atomic rollback. The integrated staff
 screens and full-stay browser acceptance remain in progress. Milestone 8 is not complete.
 
+
+The integrated operating screens add check-in/out, reasoned no-shows/cancellation,
+quoted in-house changes, dated room assignments and audited precise-time correction.
+A test-only external clock fixture advances the packaged API across property days
+without adding a production time control. The complete browser stay covers creation,
+deposit, repricing, room moves, clean-room arrival, separate settlement, departure,
+cleaning and preserved price/financial/audit history. Lost-arrival recovery survives
+reload and a later payment without another POST. Final independent review and
+complete-gate evidence belong in #9 and its linked PRs.

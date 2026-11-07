@@ -5,6 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import type { z } from "zod";
 import type { ReservationInfo } from "../../api/generated";
+import {
+  PendingIntentMissingError,
+  OperationRecoveryError,
+} from "../../api/bookingActions";
 import { useWorkspace } from "../../app/context";
 import { staySchema } from "../../shared/schemas";
 import {
@@ -21,17 +25,20 @@ import {
   stayIdentity,
   type QuoteData,
 } from "../../shared/pricing";
-import { Field, SelectField, Notice } from "../../shared/ui";
+import { Field, SelectField, Notice, TextArea } from "../../shared/ui";
+import { readinessSchema } from "../../shared/operations";
+import { useOnline } from "../../shared/useOnline";
 import { QuoteSummary } from "./PriceSummary";
 
 type Stay = z.infer<typeof staySchema>;
-type Record = Stay & { roomId: number };
+type Record = Stay & { roomId: number; phase?: string };
 type Props = {
   kind: "move" | "stay" | "cancel";
   reservationId: number;
   expectedVersion: number;
   currentVersion?: number;
   recoveryOnly?: boolean;
+  operational?: boolean;
   draftKey: string;
   record: Record;
   rooms: {
@@ -82,6 +89,7 @@ function PriceEdit({
   expectedVersion,
   currentVersion,
   recoveryOnly = false,
+  operational = false,
   draftKey,
   record,
   rooms,
@@ -90,13 +98,15 @@ function PriceEdit({
 }: Props & { kind: "move" | "stay" }) {
   const { apis, booking } = useWorkspace();
   const cache = useQueryClient();
+  const online = useOnline();
   const draft = useVersionedDraft(
     draftKey,
-    { ...record, room: "" },
+    { ...record, room: "", reason: "" },
     expectedVersion,
   );
   const [base, setBase] = useState(record);
   const [room, setRoom] = useState(draft.initial.room);
+  const [reason, setReason] = useState(draft.initial.reason);
   const [includeUnavailable, setIncludeUnavailable] = useState(false);
   const form = useForm<Stay>({
     defaultValues: draft.initial,
@@ -107,10 +117,25 @@ function PriceEdit({
       form.subscribe({
         formState: { values: true },
         callback: ({ values }) =>
-          draft.save({ ...values, room, roomId: base.roomId }),
+          draft.save({
+            ...values,
+            room,
+            roomId: base.roomId,
+            phase: base.phase,
+            reason,
+          }),
       }),
-    [form, draft, room, base.roomId],
+    [form, draft, room, base.roomId, base.phase, reason],
   );
+  useEffect(() => {
+    draft.save({
+      ...form.getValues(),
+      room,
+      roomId: base.roomId,
+      phase: base.phase,
+      reason,
+    });
+  }, [draft, form, room, base.roomId, base.phase, reason]);
   const values = form.watch();
   const inputFor = (stay: Stay = form.getValues()) => ({
     customerId: reservationId,
@@ -129,20 +154,39 @@ function PriceEdit({
     value: QuoteData;
     identity: string;
     refreshed: boolean;
+    readinessVersion?: number;
   }>();
   const identity = (stay: Stay = form.getValues()) =>
-    `${draft.expectedVersion}:${stayIdentity(inputFor(stay))}`;
+    `${draft.expectedVersion}:${stayIdentity(inputFor(stay))}:${operational ? reason.trim() : ""}`;
   const visible = quote?.identity === identity(values) ? quote : undefined;
   const staleDraft =
     !validVersion(currentVersion) || draft.expectedVersion !== currentVersion;
   const review = useSave<Stay>(
     async (stay) => {
       if (recoveryOnly || staleDraft || !changed)
-        throw new Error(
+        throw new OperationRecoveryError(
           "Review the current reservation and changed stay details first.",
         );
       setQuote(undefined);
+      if (!online)
+        throw new OperationRecoveryError(
+          "Reconnect before reviewing a change.",
+        );
+      if (operational && (!reason.trim() || reason.length > 500))
+        throw new OperationRecoveryError(
+          "Enter a reason of up to 500 characters for this change.",
+        );
       const input = inputFor(stay);
+      const ready =
+        operational && kind === "move" && base.phase === "CHECKED_IN"
+          ? readinessSchema.parse(
+              await apis.operationsApi.roomReadiness({ roomId: input.roomId }),
+            )
+          : undefined;
+      if (ready && (ready.roomId !== input.roomId || ready.state !== "CLEAN"))
+        throw new OperationRecoveryError(
+          "The destination must be clean before moving an in-house guest.",
+        );
       return {
         value: confirmedQuote(
           await apis.quotesApi.createBookingQuote({
@@ -157,6 +201,7 @@ function PriceEdit({
         ),
         identity: identity(stay),
         refreshed: false,
+        readinessVersion: ready?.version,
       };
     },
     (result) => {
@@ -178,10 +223,25 @@ function PriceEdit({
         staleDraft ||
         !changed
       )
-        throw new Error(
+        throw new OperationRecoveryError(
           "Review the current booking and a new price before confirming.",
         );
       const target = inputFor(stay);
+      if (!online)
+        throw new OperationRecoveryError(
+          "Reconnect before confirming a change.",
+        );
+      if (operational)
+        return booking.editStay(
+          reservationId,
+          target,
+          reason,
+          draft.expectedVersion,
+          visible.value.id,
+          visible.readinessVersion,
+          false,
+          kind === "move",
+        );
       return kind === "move"
         ? booking.move(
             reservationId,
@@ -214,25 +274,44 @@ function PriceEdit({
           const fresh = refreshedQuote(body, inputFor());
           setQuote(
             fresh
-              ? { value: fresh, identity: identity(), refreshed: true }
+              ? {
+                  value: fresh,
+                  identity: identity(),
+                  refreshed: true,
+                  readinessVersion: visible?.readinessVersion,
+                }
               : undefined,
           );
         }
       },
     },
   );
-  const recovery = useSave<Stay>(
-    (stay) =>
-      kind === "move"
-        ? booking.recoverMove(reservationId, Number(room))
-        : booking.recoverChange(
-            reservationId,
-            stay.startDate,
-            stay.endDate,
-            stay.guestCount,
-          ),
-    saved,
-  );
+  const recovery = useSave<Stay>(async (stay) => {
+    if (operational) {
+      try {
+        return await booking.editStay(
+          reservationId,
+          inputFor(stay),
+          reason,
+          draft.expectedVersion,
+          undefined,
+          undefined,
+          true,
+          kind === "move",
+        );
+      } catch (error) {
+        if (!(error instanceof PendingIntentMissingError)) throw error;
+      }
+    }
+    return kind === "move"
+      ? booking.recoverMove(reservationId, Number(room))
+      : booking.recoverChange(
+          reservationId,
+          stay.startDate,
+          stay.endDate,
+          stay.guestCount,
+        );
+  }, saved);
   const reload = useSave<void>(
     async () => {
       const latest = await apis.reservationApi.getReservation({
@@ -245,10 +324,17 @@ function PriceEdit({
         !validVersion(latest.version) ||
         !Number.isSafeInteger(latest.roomId) ||
         latest.roomId! <= 0 ||
-        latest.status !== "ACTIVE"
+        latest.status !== "ACTIVE" ||
+        (latest.phase && !["CONFIRMED", "CHECKED_IN"].includes(latest.phase))
       )
-        throw new Error("The current active reservation could not be loaded.");
-      const next = { ...checked.data, roomId: latest.roomId! };
+        throw new OperationRecoveryError(
+          "The current active reservation could not be loaded.",
+        );
+      const next = {
+        ...checked.data,
+        roomId: latest.roomId!,
+        phase: latest.phase,
+      };
       return { latest, next, version: latest.version };
     },
     (result) => {
@@ -262,14 +348,14 @@ function PriceEdit({
         reservationId,
       ]);
       if (cached && validVersion(cached.version) && cached.version > version)
-        throw new Error(
+        throw new OperationRecoveryError(
           "A newer reservation is already loaded. Load the latest stay again.",
         );
       cache.setQueryData(["reservations", reservationId], latest);
       setBase(next);
       setRoom("");
       form.reset(next);
-      draft.reload({ ...next, room: "" }, version);
+      draft.reload({ ...next, room: "", reason }, version);
       setQuote(undefined);
       mutation.resetStatus();
       review.resetStatus();
@@ -327,6 +413,8 @@ function PriceEdit({
                   ...form.getValues(),
                   roomId: base.roomId,
                   room: event.target.value,
+                  reason,
+                  phase: base.phase,
                 });
               }}
             >
@@ -386,10 +474,29 @@ function PriceEdit({
           </div>
         )}
       </fieldset>
+      {operational && (
+        <TextArea
+          label="Reason"
+          value={reason}
+          maxLength={500}
+          disabled={busy}
+          onChange={(event) => setReason(event.target.value)}
+        />
+      )}
+      {operational &&
+        base.phase === "CHECKED_IN" &&
+        kind === "move" &&
+        !recoveryOnly && (
+          <p className="hint">
+            The destination must be clean and vacant. Past nights keep their
+            original room; remaining nights move today. The old room becomes
+            dirty.
+          </p>
+        )}
       {recoveryOnly ? (
         <Notice>
-          This reservation is cancelled. Re-enter the original requested details
-          to check a previous save. This check only reads a saved result.
+          Re-enter the original requested details and reason to check a previous
+          save. This check only reads a saved result.
         </Notice>
       ) : (
         <p className="hint">
@@ -443,7 +550,7 @@ function PriceEdit({
         <button
           type="button"
           className="button quiet"
-          disabled={busy || (kind === "move" && !room)}
+          disabled={busy || !online || (kind === "move" && !room)}
           onClick={() => void submit(recovery.submit)()}
         >
           Check previous save
@@ -451,7 +558,9 @@ function PriceEdit({
         {!recoveryOnly && (
           <button
             className="button secondary"
-            disabled={busy || staleDraft || mutation.stale || !changed}
+            disabled={
+              busy || !online || staleDraft || mutation.stale || !changed
+            }
           >
             {review.isPending
               ? "Loading price…"
@@ -464,7 +573,9 @@ function PriceEdit({
           <button
             type="button"
             className="button"
-            disabled={busy || staleDraft || mutation.stale || !changed}
+            disabled={
+              busy || !online || staleDraft || mutation.stale || !changed
+            }
             onClick={() => void submit(mutation.submit)()}
           >
             {mutation.isPending

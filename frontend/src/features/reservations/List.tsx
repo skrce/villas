@@ -2,6 +2,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
 import { useWorkspace } from "../../app/context";
+import { phaseLabel } from "../../shared/operations";
 import { positiveId } from "./calendarData";
 import { useRooms } from "../rooms/queries";
 import {
@@ -19,7 +20,6 @@ import {
   PageHead,
   Pending,
   QueryError,
-  Status,
   Table,
 } from "../../shared/ui";
 export function Reservations() {
@@ -159,7 +159,7 @@ export function Reservations() {
         ) : query.isError ? (
           <QueryError retry={() => void query.refetch()} />
         ) : !query.data.items.length ? (
-          <Empty title="No stays in this period">
+          <Empty headingLevel={2} title="No stays in this period">
             Change the dates or add a reservation.
           </Empty>
         ) : (
@@ -190,7 +190,11 @@ export function Reservations() {
                   </td>
                   <td>{booking.guestCount}</td>
                   <td>
-                    <Status value={booking.status} />
+                    <span
+                      className={`status status-${(booking.phase ?? booking.status)?.toLowerCase()}`}
+                    >
+                      {phaseLabel(booking.phase ?? booking.status ?? "Unknown")}
+                    </span>
                   </td>
                   <td>
                     <Link
