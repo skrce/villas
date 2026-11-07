@@ -76,3 +76,24 @@ or REVERSE_ENTRY. A repeated key/input returns its historical committed result e
 after repricing or cancellation. A changed input with the same key conflicts. Missing
 or indeterminate responses are not evidence that money was unrecorded. The frontend
 workflow and browser recovery checks follow in the next implementation slice.
+
+## Staff interface and recovery
+
+The reservation's Payments section shows accommodation owed, net received,
+outstanding funds, credit and paged immutable history. Owners choose an external
+method, actual date and optional receipt reference, then review the exact EUR amount
+before a separate final confirmation. Refunds select a receipt and require a reason.
+Corrections review the entire original amount and a reason. History retains originals
+and links to refund/reversal records. Phone layouts use the same controls.
+
+Financial form fields and reviewed versions stay in the same Owner's memory-only
+draft across reauthentication. Persistent browser metadata contains only a hashed
+operation identity, opaque key and original version. It contains no amounts, methods,
+receipt references or reasons. Tabs serialize shared identity changes with Web Locks.
+
+An indeterminate response keeps the key. Check previous save performs only read-back,
+including after cancellation or another tab's confirmation. It validates the committed
+actor, booking, original version, kind, amount, method, date and links before clearing
+matching metadata. It never treats current booking state as the historical result.
+A new record after a stale version requires an explicit fresh balance and review.
+No payment write is automatically resubmitted after login, reconnect or a failed read.

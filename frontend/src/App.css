@@ -523,6 +523,13 @@ td .subline {
   font-size: 12px;
   margin: 7px 0 0;
 }
+.ledger-history li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.financial-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 .history strong {
   text-transform: capitalize;
   font-weight: 550;

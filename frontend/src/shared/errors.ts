@@ -17,8 +17,26 @@ const messages: Record<string, string> = {
     "Seasonal price periods overlap. Adjust their start and end dates.",
   INVALID_AMOUNT:
     "Enter a positive EUR amount with at most two decimal places.",
-  AMOUNT_TOO_LARGE: "This accommodation total exceeds the supported amount.",
-  UNSUPPORTED_CURRENCY: "Room prices must use EUR.",
+  AMOUNT_TOO_LARGE: "This amount or total exceeds the supported EUR limit.",
+  UNSUPPORTED_CURRENCY: "Amounts must use EUR.",
+  REFUND_EXCEEDS_RECEIVED:
+    "The refund exceeds the money remaining on that receipt. Load the latest balance and review the amount.",
+  PAYMENT_UNAVAILABLE:
+    "Choose an unreversed receipt for a new refund. You can still check a previous save.",
+  PAYMENT_HAS_REFUNDS:
+    "Correct the linked refund records before reversing their receipt.",
+  ENTRY_ALREADY_REVERSED:
+    "This record has already been corrected. Review its linked reversal in the payment history.",
+  AGREED_PRICE_REQUIRED:
+    "This historical booking has no agreed EUR price. Payment recording is unavailable.",
+  FUTURE_PAYMENT:
+    "Use the date money was actually received or returned, up to today in Skopje.",
+  INVALID_REFERENCE:
+    "Use a receipt reference of up to 100 characters without control characters.",
+  INVALID_REASON:
+    "Enter a reason of up to 500 characters without control characters.",
+  REASON_REQUIRED: "Enter a reason before confirming this action.",
+  INVALID_METHOD: "Choose cash, an external card payment or a bank transfer.",
   INVENTORY_CONFLICT:
     "That room is no longer available for these dates. Choose another room or change the dates.",
   STALE_VERSION:

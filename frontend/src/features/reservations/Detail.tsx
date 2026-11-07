@@ -1,4 +1,5 @@
 import { useContext, useState } from "react";
+import { ReservationPayments } from "./Payments";
 import { Link, useParams } from "react-router-dom";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { DraftContext, useWorkspace } from "../../app/context";
@@ -207,6 +208,7 @@ function ReservationDetailPage() {
         </section>
       )}
       {valid && record && <ReservationPricePanel reservation={record} />}
+      {valid && record && <ReservationPayments id={id} />}
       {valid && (
         <section className="panel">
           <h2>Reservation history</h2>
