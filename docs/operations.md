@@ -64,7 +64,18 @@ The payload never includes raw errors, URLs, guest or financial data. Redirects 
 rejected. A 2xx means the receiver accepted the event; a timeout, 5xx or transport
 failure remains unconfirmed. The receiver must deduplicate by the stable ID.
 
-Unchanged accepted states stay quiet; a changed/recovered state creates a new event.
+Unchanged accepted states stay quiet. Pending envelopes are persisted before delivery
+and stay at the front until the receiver accepts them, even if the condition clears.
+Later state changes queue behind them. The monitor sends at most one event per poll.
+Its queue is bounded at 32 events: during a prolonged outage, unsent transitions are
+coalesced by failure category, followed by the latest state. The attempted front
+envelope is never changed. Coalesced alerts add `"coalesced":true`; they summarize
+failures observed while delivery was unavailable. Current health, pending count and
+delivery progress remain separate. An unreadable pending queue fails closed and
+preserves its file for private repair.
+Run one monitor writer per status volume. Stop watch mode before running a manual
+one-off probe against that same volume.
+
 Failed/unconfigured delivery remains pending. A service that needs another message
 format requires an explicit adapter. Do not assume this generic envelope works with
 an arbitrary email, chat or paging API. The only exercised destination is an owned
