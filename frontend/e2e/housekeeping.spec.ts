@@ -184,3 +184,39 @@ test("a lost readiness response remains recoverable from an archived room withou
   const events = await (await page.request.get(`${target}/events`)).json();
   expect(events.items).toHaveLength(1);
 });
+
+test("empty daily lists retain accessible headings on desktop and phone", async ({
+  page,
+}) => {
+  await signIn(page);
+  for (const [path, field] of [
+    ["front-desk", "items"],
+    ["housekeeping", "rooms"],
+  ]) {
+    await page.route(`**/api/v1/${path}?*`, async (route) => {
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      const data = await response.json();
+      await route.fulfill({
+        response,
+        json: { ...data, [field]: [], nextCursor: null },
+      });
+    });
+    await page.goto(`/${path}`);
+    await expect(
+      page.getByRole("heading", {
+        level: 2,
+        name: path === "front-desk" ? "No matching stays" : "No rooms match",
+      }),
+    ).toBeVisible();
+    for (const width of [1440, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
+  }
+});

@@ -7,11 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import {
-  QueryClient,
-  QueryClientProvider,
-  useQuery,
-} from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { buildApis } from "../../api/client";
@@ -25,6 +21,7 @@ import {
 } from "../../api/generated";
 import { getSessionEpoch } from "../../api/session";
 import { DraftContext, WorkspaceContext } from "../../app/context";
+import { useReservation } from "./queries";
 import { StayOperationsPanel } from "./StayOperations";
 const actor = "00000000-0000-0000-0000-000000000001",
   quote = "11111111-1111-4111-8111-111111111111";
@@ -75,10 +72,7 @@ function mount() {
     },
   };
   function Panel() {
-    const query = useQuery({
-      queryKey: ["reservations", 42],
-      queryFn: () => reservationApi.getReservation({ reservationId: 42 }),
-    });
+    const query = useReservation(42);
     return query.data ? <StayOperationsPanel reservation={query.data} /> : null;
   }
   return render(

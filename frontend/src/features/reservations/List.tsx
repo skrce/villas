@@ -159,7 +159,7 @@ export function Reservations() {
         ) : query.isError ? (
           <QueryError retry={() => void query.refetch()} />
         ) : !query.data.items.length ? (
-          <Empty title="No stays in this period">
+          <Empty headingLevel={2} title="No stays in this period">
             Change the dates or add a reservation.
           </Empty>
         ) : (

@@ -164,14 +164,17 @@ export function Notice({
 export function Empty({
   title,
   children,
+  headingLevel = 3,
 }: {
   title: string;
   children?: ReactNode;
+  headingLevel?: 2 | 3;
 }) {
+  const Heading = headingLevel === 2 ? "h2" : "h3";
   return (
     <div className="empty">
       <span aria-hidden="true">◇</span>
-      <h3>{title}</h3>
+      <Heading>{title}</Heading>
       <p>{children}</p>
     </div>
   );

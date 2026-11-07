@@ -11,6 +11,7 @@ import {
 } from "../../shared/format";
 import { phaseLabel } from "../../shared/operations";
 import { useOnline } from "../../shared/useOnline";
+import { useReservation } from "./queries";
 import { useRooms } from "../rooms/queries";
 import { EditReservation } from "./Edit";
 import { ReservationPricePanel } from "./PricePanel";
@@ -48,12 +49,7 @@ function ReservationDetailPage() {
   }>();
   const [busy, setBusy] = useState(false),
     [saved, setSaved] = useState(false);
-  const query = useQuery({
-    queryKey: ["reservations", id],
-    queryFn: ({ signal }) =>
-      apis.reservationApi.getReservation({ reservationId: id }, { signal }),
-    enabled: valid,
-  });
+  const query = useReservation(id, valid);
   const history = useInfiniteQuery({
     queryKey: ["reservation-history", id],
     initialPageParam: undefined as string | undefined,
