@@ -426,13 +426,13 @@ td .subline {
   border-color: #ddd5cd;
 }
 .status-confirmed,
-.status-in_progress {
+.readiness-in_progress {
   color: var(--blue-ink);
   background: var(--blue-soft);
   border-color: var(--blue-border);
 }
 .status-checked_in,
-.status-clean {
+.readiness-clean {
   color: var(--green-ink);
   background: var(--green-soft);
   border-color: var(--green-border);
@@ -442,8 +442,8 @@ td .subline {
   background: #edf2f6;
   border-color: #cddae3;
 }
-.status-dirty,
-.status-inspection,
+.readiness-dirty,
+.readiness-inspection,
 .status-no_show,
 .status-pending {
   color: #785914;
