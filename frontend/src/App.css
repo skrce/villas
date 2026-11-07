@@ -1394,3 +1394,33 @@ footer {
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+
+.housekeeping-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 20px;
+}
+.housekeeping-card {
+  margin-bottom: 0;
+}
+.housekeeping-card h2 {
+  overflow-wrap: anywhere;
+}
+.occupancy-note {
+  font-size: 13px;
+  font-weight: 600;
+}
+.room-maintenance {
+  margin: 18px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.room-maintenance h3 {
+  margin-top: 0;
+}
+.room-maintenance p {
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}

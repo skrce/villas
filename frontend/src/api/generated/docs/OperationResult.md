@@ -11,6 +11,7 @@ Name | Type
 `ledgerEntry` | [LedgerEntryInfo](LedgerEntryInfo.md)
 `maintenance` | [MaintenanceBlock](MaintenanceBlock.md)
 `readiness` | [ReadinessView](ReadinessView.md)
+`readinessEvent` | [ReadinessEventInfo](ReadinessEventInfo.md)
 `reservation` | [ReservationInfo](ReservationInfo.md)
 `resourceId` | number
 
@@ -26,6 +27,7 @@ const example = {
   "ledgerEntry": null,
   "maintenance": null,
   "readiness": null,
+  "readinessEvent": null,
   "reservation": null,
   "resourceId": null,
 } satisfies OperationResult

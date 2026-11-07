@@ -29,5 +29,5 @@ UTC instants, independent of the JVM and database session timezone.
 
 This slice supplies read lists. Check-in, checkout, no-show, room/date changes during
 a stay and terminal corrections remain separate lifecycle work. Arrival/departure
-timing and readiness-override policy are still pending Owner confirmation. This read
+timing and the clean-room requirement without an override are confirmed in D13. This read
 API enables no new transition or override and does not complete Milestone 8.

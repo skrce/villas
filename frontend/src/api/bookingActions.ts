@@ -5,6 +5,7 @@ import {
   ApartmentApi,
   QuotesApi,
   type PaymentsApi,
+  type OperationsApi,
   ResponseError,
   type CreateReservationRequest,
   type OperationResult,
@@ -13,6 +14,7 @@ import {
 import { validDate, validVersion } from '../shared/format';
 import { UUID_SHAPE } from '../shared/ids';
 import { buildLedgerActions } from './ledgerActions';
+import { buildReadinessActions } from './readinessActions';
 
 export class OperationRecoveryError extends Error {}
 export class MaintenanceRecoveryError extends OperationRecoveryError {}
@@ -50,6 +52,7 @@ const DEFINITIVE_ERRORS = new Set([
   'INVALID_REFERENCE', 'UNSUPPORTED_CURRENCY', 'AMOUNT_TOO_LARGE', 'REFUND_EXCEEDS_RECEIVED',
   'PAYMENT_UNAVAILABLE', 'PAYMENT_HAS_REFUNDS', 'ENTRY_ALREADY_REVERSED', 'AGREED_PRICE_REQUIRED',
   'VERSION_LIMIT', 'REASON_REQUIRED',
+  'ROOM_OCCUPIED', 'INVALID_READINESS_TRANSITION',
 ]);
 type Intent = { key: string; expectedVersion?: number; quoteId?: string };
 export type OperationRunner = <T>(kind: GetOperationKindEnum, input: unknown,
@@ -81,7 +84,7 @@ const read = (storage: Storage = localStorage, key = STORAGE_KEY): Intents => {
 };
 
 export const buildBookingActions = (api: ReservationApi, scope: string, generation = scope, maintenance?: MaintenanceApi, apartments?: ApartmentApi, quotes?: QuotesApi,
-  extras: {payments?: PaymentsApi; actorId?: string} = {}) => {
+  extras: {payments?: PaymentsApi; operations?: OperationsApi; actorId?: string} = {}) => {
   const ownStorage = sessionStorage;
   const remember = (identity: string, intent: Intent) => ownStorage.setItem(OWN_STORAGE_KEY, JSON.stringify({ ...read(ownStorage, OWN_STORAGE_KEY), [identity]: intent }));
   const execute = async <T>(
@@ -99,9 +102,10 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
       return saved;
     });
     const financial = [GetOperationKindEnum.RecordPayment, GetOperationKindEnum.RecordRefund, GetOperationKindEnum.ReverseEntry].includes(kind as 'RECORD_PAYMENT' | 'RECORD_REFUND' | 'REVERSE_ENTRY');
+    const readiness = kind === GetOperationKindEnum.SetReadiness;
     let existing = !!intent;
     if (!intent) {
-      if (recoveryOnly) throw new PendingIntentMissingError(kind === GetOperationKindEnum.Block ? 'No pending maintenance request matches these details in this browser. Re-enter the original dates and reason to check it.' : financial ? 'No previous financial save matches these details in this browser. Re-enter the original record details to check it.' : 'No previous booking save matches these details in this browser. Review a price before confirming a new request.');
+      if (recoveryOnly) throw new PendingIntentMissingError(kind === GetOperationKindEnum.Block ? 'No pending maintenance request matches these details in this browser. Re-enter the original dates and reason to check it.' : readiness ? 'No previous readiness save matches these details in this browser. Enter the original state and reason to check it.' : financial ? 'No previous financial save matches these details in this browser. Re-enter the original record details to check it.' : 'No previous booking save matches these details in this browser. Review a price before confirming a new request.');
       const expectedVersion = await prepare();
       if (expectedVersion !== undefined && !validVersion(expectedVersion)) throw new Error('The reviewed reservation version is invalid. Reload before saving.');
       if (quoteId !== undefined && !UUID_SHAPE.test(quoteId)) throw new OperationRecoveryError('Review a valid saved quote before confirming.');
@@ -145,7 +149,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
         if (!(error instanceof ResponseError) || error.response.status !== 404) throw error;
         const body = await error.response.clone().json().catch(() => null);
         if (body?.code !== 'OPERATION_NOT_COMMITTED') throw error;
-        if (recoveryOnly) throw new OperationRecoveryError(kind === GetOperationKindEnum.Block ? 'No committed result was found for this request. Restore the room before saving new maintenance.' : financial ? 'No committed financial result was found yet. Keep the original details and check again before recording anything new.' : 'No confirmed booking result was found yet. Keep the original details and check again, or review the saved reservations.');
+        if (recoveryOnly) throw new OperationRecoveryError(kind === GetOperationKindEnum.Block ? 'No committed result was found for this request. Restore the room before saving new maintenance.' : readiness ? 'No committed readiness result was found yet. Keep the original state and reason and check again before recording a new change.' : financial ? 'No committed financial result was found yet. Keep the original details and check again before recording anything new.' : 'No confirmed booking result was found yet. Keep the original details and check again, or review the saved reservations.');
       }
     }
     try {
@@ -214,6 +218,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
 
   return {
     ...buildLedgerActions(run, extras.payments, extras.actorId),
+    ...buildReadinessActions(run, extras.operations, extras.actorId),
     block: (roomId: number, startDate: string, endDate: string, reason: string, options: {recoveryOnly?: boolean} = {}) => run(
       GetOperationKindEnum.Block, {roomId, startDate, endDate, reason: reason.trim()}, async () => undefined,
       (intent) => {
