@@ -107,6 +107,7 @@ export default function Workspace() {
         apis.maintenanceApi,
         apis.apartmentApi,
         apis.quotesApi,
+        { payments: apis.paymentsApi, actorId: ownerId },
       ),
     };
   }, [ownerId, epoch]);

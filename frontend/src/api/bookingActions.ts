@@ -4,6 +4,7 @@ import {
   MaintenanceApi,
   ApartmentApi,
   QuotesApi,
+  type PaymentsApi,
   ResponseError,
   type CreateReservationRequest,
   type OperationResult,
@@ -11,6 +12,7 @@ import {
 } from './generated';
 import { validDate, validVersion } from '../shared/format';
 import { UUID_SHAPE } from '../shared/ids';
+import { buildLedgerActions } from './ledgerActions';
 
 export class OperationRecoveryError extends Error {}
 export class MaintenanceRecoveryError extends OperationRecoveryError {}
@@ -44,8 +46,15 @@ const DEFINITIVE_ERRORS = new Set([
   'INVALID_GUEST_COUNT', 'CAPACITY_EXCEEDED', 'NOT_FOUND', 'STALE_VERSION',
   'RESERVATION_CHANGED', 'RESERVATION_CANCELLED', 'ROOM_INACTIVE',
   'INVENTORY_CONFLICT', 'DATA_CONFLICT', 'GUEST_ARCHIVED', 'INVALID_REASON', 'INVALID_QUOTE', 'HTTP_400', 'QUOTE_CHANGED', 'QUOTE_MISMATCH', 'QUOTE_ALREADY_ACCEPTED', 'QUOTE_REQUIRED', 'PRICE_REVIEW_REQUIRED',
+  'INVALID_AMOUNT', 'INVALID_METHOD', 'INVALID_ENTRY', 'INVALID_DATE', 'FUTURE_PAYMENT',
+  'INVALID_REFERENCE', 'UNSUPPORTED_CURRENCY', 'AMOUNT_TOO_LARGE', 'REFUND_EXCEEDS_RECEIVED',
+  'PAYMENT_UNAVAILABLE', 'PAYMENT_HAS_REFUNDS', 'ENTRY_ALREADY_REVERSED', 'AGREED_PRICE_REQUIRED',
+  'VERSION_LIMIT', 'REASON_REQUIRED',
 ]);
 type Intent = { key: string; expectedVersion?: number; quoteId?: string };
+export type OperationRunner = <T>(kind: GetOperationKindEnum, input: unknown,
+  prepare: () => Promise<number | undefined>, send: (intent: Intent) => Promise<unknown>,
+  recovered: (result: OperationResult, intent: Intent) => T | Promise<T>, recoveryOnly?: boolean, quoteId?: string) => Promise<T>;
 type Intents = Record<string, Intent>;
 const pending = new Map<string, Promise<unknown>>();
 
@@ -71,7 +80,8 @@ const read = (storage: Storage = localStorage, key = STORAGE_KEY): Intents => {
   }
 };
 
-export const buildBookingActions = (api: ReservationApi, scope: string, generation = scope, maintenance?: MaintenanceApi, apartments?: ApartmentApi, quotes?: QuotesApi) => {
+export const buildBookingActions = (api: ReservationApi, scope: string, generation = scope, maintenance?: MaintenanceApi, apartments?: ApartmentApi, quotes?: QuotesApi,
+  extras: {payments?: PaymentsApi; actorId?: string} = {}) => {
   const ownStorage = sessionStorage;
   const remember = (identity: string, intent: Intent) => ownStorage.setItem(OWN_STORAGE_KEY, JSON.stringify({ ...read(ownStorage, OWN_STORAGE_KEY), [identity]: intent }));
   const execute = async <T>(
@@ -88,9 +98,10 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
       if (saved) remember(identity, saved);
       return saved;
     });
+    const financial = [GetOperationKindEnum.RecordPayment, GetOperationKindEnum.RecordRefund, GetOperationKindEnum.ReverseEntry].includes(kind as 'RECORD_PAYMENT' | 'RECORD_REFUND' | 'REVERSE_ENTRY');
     let existing = !!intent;
     if (!intent) {
-      if (recoveryOnly) throw new PendingIntentMissingError(kind === GetOperationKindEnum.Block ? 'No pending maintenance request matches these details in this browser. Re-enter the original dates and reason to check it.' : 'No previous booking save matches these details in this browser. Review a price before confirming a new request.');
+      if (recoveryOnly) throw new PendingIntentMissingError(kind === GetOperationKindEnum.Block ? 'No pending maintenance request matches these details in this browser. Re-enter the original dates and reason to check it.' : financial ? 'No previous financial save matches these details in this browser. Re-enter the original record details to check it.' : 'No previous booking save matches these details in this browser. Review a price before confirming a new request.');
       const expectedVersion = await prepare();
       if (expectedVersion !== undefined && !validVersion(expectedVersion)) throw new Error('The reviewed reservation version is invalid. Reload before saving.');
       if (quoteId !== undefined && !UUID_SHAPE.test(quoteId)) throw new OperationRecoveryError('Review a valid saved quote before confirming.');
@@ -134,7 +145,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
         if (!(error instanceof ResponseError) || error.response.status !== 404) throw error;
         const body = await error.response.clone().json().catch(() => null);
         if (body?.code !== 'OPERATION_NOT_COMMITTED') throw error;
-        if (recoveryOnly) throw new OperationRecoveryError(kind === GetOperationKindEnum.Block ? 'No committed result was found for this request. Restore the room before saving new maintenance.' : 'No confirmed booking result was found yet. Keep the original details and check again, or review the saved reservations.');
+        if (recoveryOnly) throw new OperationRecoveryError(kind === GetOperationKindEnum.Block ? 'No committed result was found for this request. Restore the room before saving new maintenance.' : financial ? 'No committed financial result was found yet. Keep the original details and check again before recording anything new.' : 'No confirmed booking result was found yet. Keep the original details and check again, or review the saved reservations.');
       }
     }
     try {
@@ -202,6 +213,7 @@ export const buildBookingActions = (api: ReservationApi, scope: string, generati
   };
 
   return {
+    ...buildLedgerActions(run, extras.payments, extras.actorId),
     block: (roomId: number, startDate: string, endDate: string, reason: string, options: {recoveryOnly?: boolean} = {}) => run(
       GetOperationKindEnum.Block, {roomId, startDate, endDate, reason: reason.trim()}, async () => undefined,
       (intent) => {

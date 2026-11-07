@@ -105,9 +105,9 @@ export function ReservationPricePanel({
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
   return (
-    <section className="panel">
+    <section className="panel" aria-labelledby={`agreed-price-${id}`}>
       <div className="section-heading">
-        <h2>Agreed accommodation price</h2>
+        <h2 id={`agreed-price-${id}`}>Agreed accommodation price</h2>
         <button
           className="button quiet"
           aria-expanded={showHistory}

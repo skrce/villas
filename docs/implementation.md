@@ -440,6 +440,6 @@ The manual-ledger API adds externally completed EUR receipts, allocated refunds 
 reasoned reversals. Balances use immutable accepted prices and the complete effective
 ledger. The confirmed cancellation/no-show policy sets accommodation owed to zero
 while retaining agreements and payments as visible credit until manually refunded.
-See [the payment contract](contracts/payments.md). Its financial interface and complete
-stay workflow are subsequent slices. Arrival/departure timing and readiness-override
+See [the payment contract](contracts/payments.md). The financial interface is implemented with explicit review and read-only recovery.
+The complete stay and housekeeping workflow remains in progress. Arrival/departure timing and readiness-override
 policy remain pending. Milestone 8 is not complete.
