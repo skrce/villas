@@ -80,7 +80,7 @@ jobs:
       - run: npm run lint
       - run: npm run test:coverage
       - run: npm run build
-      - run: node --test scripts/e2e.test.mjs scripts/demo.test.mjs scripts/release-artifacts.test.mjs scripts/operations.test.mjs scripts/backup-process.test.mjs
+      - run: node --test scripts/e2e.test.mjs scripts/demo.test.mjs scripts/release-artifacts.test.mjs scripts/operations.test.mjs scripts/backup-process.test.mjs scripts/recovery-policy.test.mjs
         working-directory: .
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run test:e2e

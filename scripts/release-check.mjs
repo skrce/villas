@@ -215,7 +215,7 @@ try {
   config.services.backup = {
     image: build.backupId, profiles: ['operations'], read_only: true,
     tmpfs: ['/tmp:rw,noexec,nosuid,size=128m'], cap_drop: ['ALL'], security_opt: ['no-new-privileges:true'], mem_limit: '512m', pids_limit: 128,
-    environment: { VILLAS_BACKUP_DB_HOST: 'db', VILLAS_BACKUP_DB_PASSWORD_FILE: '/run/secrets/db_backup', VILLAS_BACKUP_REPOSITORY_FILE: '/run/secrets/backup_repository', VILLAS_BACKUP_PASSWORD_FILE: '/run/secrets/backup_password', VILLAS_BACKUP_LOCAL_REHEARSAL: '1', VILLAS_LOCAL_INSTANCE: instance, VILLAS_BACKUP_HOST: `villas-rehearsal-${instance}`, VILLAS_KEEP_HOURLY: '2', VILLAS_KEEP_DAILY: '2', VILLAS_BACKUP_STATUS_FILE: '/status/backup.json' },
+    environment: { VILLAS_BACKUP_DB_HOST: 'db', VILLAS_BACKUP_DB_PASSWORD_FILE: '/run/secrets/db_backup', VILLAS_BACKUP_REPOSITORY_FILE: '/run/secrets/backup_repository', VILLAS_BACKUP_PASSWORD_FILE: '/run/secrets/backup_password', VILLAS_BACKUP_LOCAL_REHEARSAL: '1', VILLAS_LOCAL_INSTANCE: instance, VILLAS_BACKUP_HOST: `villas-rehearsal-${instance}`, VILLAS_KEEP_HOURLY: '0', VILLAS_KEEP_DAILY: '2', VILLAS_BACKUP_STATUS_FILE: '/status/backup.json' },
     secrets: [{ source: 'db_backup' }, { source: 'backup_repository' }, { source: 'backup_password' }],
     volumes: [{ type: 'volume', source: 'repository', target: '/repo' }, { type: 'volume', source: 'backup_status', target: '/status' }], logging: config.services.api.logging,
   };

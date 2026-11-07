@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { maximumBackupAge } from './recovery-policy.mjs';
 
 const metrics = ['villas_auth_failures_total', 'villas_booking_write_failures_total', 'villas_database_failures_total', 'villas_service_failures_total'];
 const conditions = new Set(['service_unavailable', 'readiness_failed', 'monitoring_unavailable', 'authentication_failures', 'booking_write_failures', 'database_errors', 'service_errors', 'backup_failed', 'backup_stale']);
@@ -75,8 +76,7 @@ const atomicJson = (path, value) => {
 export async function check() {
   const env = process.env.VILLAS_DEPLOY_ENVIRONMENT;
   if (!['production', 'staging', 'rehearsal'].includes(env)) throw new Error('Choose an explicit monitoring environment.');
-  const maximumAge = Number(process.env.VILLAS_BACKUP_MAX_AGE_SECONDS);
-  if (!Number.isSafeInteger(maximumAge) || maximumAge < 60 || maximumAge > 604800) throw new Error('Configure the approved maximum backup age.');
+  const maximumAge = maximumBackupAge();
   let before = {}; let backup;
   try { before = privateJson(process.env.VILLAS_MONITOR_STATUS_FILE); }
   catch (error) { if (error.code !== 'ENOENT') throw new Error('Cannot read pending monitoring events. Preserve the private status for recovery.'); }

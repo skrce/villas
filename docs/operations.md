@@ -40,8 +40,9 @@ internal checks do not extend staff sessions.
 ## Monitor and delivery
 
 `deploy/backup.compose.yaml` provides the `monitor` service under profile `monitoring`.
-It requires `VILLAS_DEPLOY_ENVIRONMENT` (staging/production) and the approved
-`VILLAS_BACKUP_MAX_AGE_SECONDS`. It reads the private backup status volume and its own
+It requires `VILLAS_DEPLOY_ENVIRONMENT` (staging/production). Maximum protected-data
+age defaults to the approved 24 hours; `VILLAS_BACKUP_MAX_AGE_SECONDS` can explicitly
+override it after a policy change. It reads the private backup status volume and its own
 persistent baseline. Start/recreate it with the app when the namespace changes.
 
 Each minute it checks liveness, readiness, required counter availability, backup

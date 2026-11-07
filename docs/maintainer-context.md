@@ -37,18 +37,21 @@ and [PR #37](https://github.com/skrce/villas/pull/37).
 Milestone 10 is active for portable deployment packaging, backups/recovery, deployed
 checks and the staff pilot. Read [deployment](deployment.md), [recovery](recovery.md)
 the [operations guide](operations.md) and [release checklist](release-checklist.md)
-before release work. Packaging is merged in [PR #38](https://github.com/skrce/villas/pull/38).
+before release work. Packaging and recovery are merged in
+[PR #38](https://github.com/skrce/villas/pull/38) and [PR #39](https://github.com/skrce/villas/pull/39).
 Recovery/monitoring use isolated local qualification; selected-host/off-server/real
 Google/pilot acceptance remains open in #11 and #4.
 
 Milestone 3's real Google setup and live-provider acceptance were explicitly deferred
 by the Owner. [Issue #4](https://github.com/skrce/villas/issues/4) remains open for
-those checks. Local synthetic OIDC success does not satisfy them. Hosting, domain,
-secret storage and recovery targets remain open under D04. No cloud deployment or
+those checks. Local synthetic OIDC success does not satisfy them. The Owner deferred
+hosting/domain selection and confirmed daily backups with 24-hour loss/recovery
+targets (D15). Retention, storage, cost and monitoring ownership remain open. No cloud deployment or
 production/pilot acceptance is implied by the local demo.
 
 For the next release session, inspect #11 and the current PR/CI heads first. Resolve
-D04 before provisioning or choosing paid services; set up the Villas-specific Google
+D04 before provisioning or choosing paid services. Continue local preparation until
+the Owner resumes hosting/domain selection; set up the Villas-specific Google
 client under #4 when the Owner is ready. Configure separate staging/production
 secrets and off-server protection, qualify external availability/alert delivery,
 then perform deployed Google/recovery checks and the Owner pilot. Production starts

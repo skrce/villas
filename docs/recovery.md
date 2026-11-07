@@ -1,9 +1,10 @@
 # Backups and recovery
 
-The tools and isolated local rehearsal are implemented. Off-server credentials,
-retention, backup frequency, recovery point/time targets and operational ownership
-remain open under D04. No personal hosting or off-server recovery acceptance has
-occurred. See [deployment](deployment.md), [operations](operations.md) and the
+The Owner confirmed daily encrypted backups, at most 24 hours of lost data and a
+24-hour recovery-time target in D15. Hosting/domain selection is explicitly deferred;
+continue local preparation. Off-server credentials, retention duration and operational
+ownership remain open under D04. No personal hosting or off-server recovery acceptance
+has occurred. See [deployment](deployment.md), [operations](operations.md) and the
 [release checklist](release-checklist.md). A Docker volume or retained demo is not a
 backup.
 
@@ -48,9 +49,10 @@ failure domain. Runtime/migration users do not receive backup repository credent
 
 Add `deploy/backup.compose.yaml` to the selected environment's Compose files. Set an
 immutable `VILLAS_BACKUP_IMAGE`, unique `VILLAS_BACKUP_HOST` such as
-`villas-production-main`, and approved `VILLAS_KEEP_HOURLY`, `VILLAS_KEEP_DAILY` and
-`VILLAS_BACKUP_INTERVAL_SECONDS`. There is no production retention/frequency default.
-One retention count may be zero; both cannot be zero. The scheduler profile is
+`villas-production-main`, and a confirmed `VILLAS_KEEP_DAILY` count. No retention
+duration is assumed; the template still refuses to start without that choice.
+Hourly retention defaults to zero. Daily recovery defaults are centralized in
+`deploy/recovery-policy.mjs`. The scheduler profile is
 `backups`, and the one-off command profile is `operations`.
 
 In the private secrets directory, add `backup_repository`, `backup_password` and
@@ -73,9 +75,13 @@ With explicit personal Docker context, project and private env file on every com
    actual alert delivery. Enable storage retention/cost monitoring for the chosen
    provider. Do not claim this is configured before exercising it.
 
-The scheduler waits the configured interval after each completed/failed attempt.
-RPO depends on successful completion time, job duration and outages, not only the
-interval setting. Status records both completion and conservative `protectedAt`
+The scheduler waits 23 hours after each completed/failed attempt, reserving up to
+30 minutes for each of the current and next jobs inside the 24-hour loss target.
+A full 24-hour delay would exceed that target once job runtime is included. Explicit
+interval/job/age overrides are checked together before scheduling; an incompatible
+combination fails closed. RPO still depends on successful runs and outages. The
+24-hour recovery-time target includes operator response, restore, reconciliation and
+safe reopening; local timings do not prove it. Status records completion and `protectedAt`
 (before the database snapshot starts). The monitor uses `protectedAt` for age, so
 a slow dump/upload does not make old data appear fresh. Missing snapshot-point
 metadata is unhealthy until a new successful backup. Changing
