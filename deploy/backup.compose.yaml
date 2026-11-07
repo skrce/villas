@@ -13,9 +13,11 @@ x-backup: &backup
     VILLAS_BACKUP_PASSWORD_FILE: /run/secrets/backup_password
     VILLAS_BACKUP_CREDENTIALS_FILE: /run/secrets/backup_credentials
     VILLAS_BACKUP_HOST: ${VILLAS_BACKUP_HOST:?Set a separate environment backup identity}
-    VILLAS_KEEP_HOURLY: ${VILLAS_KEEP_HOURLY:?Approve retention first}
+    VILLAS_KEEP_HOURLY: "${VILLAS_KEEP_HOURLY:-0}"
     VILLAS_KEEP_DAILY: ${VILLAS_KEEP_DAILY:?Approve retention first}
-    VILLAS_BACKUP_INTERVAL_SECONDS: ${VILLAS_BACKUP_INTERVAL_SECONDS:?Approve the backup interval first}
+    VILLAS_BACKUP_INTERVAL_SECONDS: "${VILLAS_BACKUP_INTERVAL_SECONDS:-}"
+    VILLAS_BACKUP_MAX_JOB_SECONDS: "${VILLAS_BACKUP_MAX_JOB_SECONDS:-}"
+    VILLAS_BACKUP_MAX_AGE_SECONDS: "${VILLAS_BACKUP_MAX_AGE_SECONDS:-}"
     VILLAS_BACKUP_STATUS_FILE: /status/backup.json
   secrets: [db_backup, backup_repository, backup_password, backup_credentials]
   volumes: [backup_status:/status]
@@ -48,7 +50,7 @@ services:
     pids_limit: 64
     environment:
       VILLAS_DEPLOY_ENVIRONMENT: ${VILLAS_DEPLOY_ENVIRONMENT:?Choose staging or production}
-      VILLAS_BACKUP_MAX_AGE_SECONDS: ${VILLAS_BACKUP_MAX_AGE_SECONDS:?Approve the maximum backup age first}
+      VILLAS_BACKUP_MAX_AGE_SECONDS: "${VILLAS_BACKUP_MAX_AGE_SECONDS:-}"
       VILLAS_BACKUP_STATUS_FILE: /status/backup.json
       VILLAS_MONITOR_STATUS_FILE: /status/monitor.json
       VILLAS_ALERT_URL_FILE: /run/secrets/alert_url

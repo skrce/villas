@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { backupDelay, maximumBackupJob } from './recovery-policy.mjs';
 
 const stageError = stage => new Error(`Villas backup operation failed at ${stage}. Inspect the private environment and repository; the target must remain quarantined after a restore failure.`);
 const privateLine = name => {
@@ -117,7 +118,7 @@ const status = (ok, stage, protectedAt) => {
   writeFileSync(`${path}.tmp`, `${JSON.stringify(result)}\n`, { mode: 0o600 });
   renameSync(`${path}.tmp`, path);
 };
-const jobSeconds = () => process.env.VILLAS_BACKUP_MAX_JOB_SECONDS === undefined ? 1800 : boundedInteger('VILLAS_BACKUP_MAX_JOB_SECONDS', 60, 3600);
+const jobSeconds = () => maximumBackupJob();
 const pendingPattern = /^villas-pending-([0-9]{13})-([0-9]{13})-[a-f0-9]{24}$/;
 const discardPending = async tag => {
   let snapshots;
@@ -140,7 +141,7 @@ const discardPending = async tag => {
   if (ids.length) await restic(['forget', ...ids, '--prune'], 'pending-cleanup');
 };
 const backup = async () => {
-  const hourly = boundedInteger('VILLAS_KEEP_HOURLY', 0, 8760);
+  const hourly = process.env.VILLAS_KEEP_HOURLY ? boundedInteger('VILLAS_KEEP_HOURLY', 0, 8760) : 0;
   const daily = boundedInteger('VILLAS_KEEP_DAILY', 0, 3650);
   if (hourly + daily === 0) throw stageError('retention');
   await discardPending();
@@ -189,7 +190,7 @@ try {
   else if (command === 'restore' && process.argv.length === 4) await restore(process.argv[3]);
   else if (command === 'backup') await runBackup();
   else if (command === 'schedule') {
-    const interval = boundedInteger('VILLAS_BACKUP_INTERVAL_SECONDS', 60, 86400) * 1000;
+    const interval = backupDelay() * 1000;
     while (!stopped) {
       try { await runBackup(); } catch { status(false, 'backup-failed'); console.error('villas_backup_failed'); }
       if (!stopped) await new Promise(resolve => {

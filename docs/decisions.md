@@ -7,11 +7,12 @@ Confirmed with the owner on November 5, 2026.
 | D01: Staff identity | Confirmed | Invited staff use Google OIDC and server-side sessions. No production staff passwords, public signup, or fallback password administrator. Milestone 3 owns implementation and real-provider verification. |
 | D02: Region and property settings | Confirmed | Start in North Macedonia. EUR in exact integer cents for new money contracts. Property calendar dates use `Europe/Skopje`, including daylight saving. Audit/event timestamps use UTC. |
 | D03: Initial business data | Confirmed | Start production with a new empty database. Staff add real rooms, rates, and bookings through the app. No historical booking import or price conversion is required. Demo fixtures are explicit local/test/staging data only. |
-| D04: Hosting | Open | Choose a personal hosting target, domain, secret storage, backups, recovery targets, monitoring and cost assumptions before provisioning. Milestone 10 local packaging/rehearsal is authorized and requires no cloud credentials. Retain MariaDB unless a separate decision changes it. |
+| D04: Hosting | Deferred by the Owner on November 7, 2026 | Prepare locally; choose personal hosting and domain later. Budget, availability, secret storage, backup retention/destination and monitoring ownership remain open before provisioning. Recovery targets are confirmed in D15. Retain MariaDB unless a separate decision changes it. |
 | D09: Initial staff roles | Confirmed | Owner is the only available role initially. Every invitation grants Owner access. Other roles require a later explicit decision and implementation. |
 | D10: Staff session lifetime | Confirmed | Sessions last at most seven days and expire after three days of inactivity. Logout and account/session revocation invalidate access immediately. |
 | D11: Initial accommodation pricing | Confirmed on November 6, 2026 | A base EUR nightly price per room with dated seasonal replacements. The price covers any party within capacity. Owners enter the final accommodation price. Villas adds no taxes, fees, discounts or minimum-stay rules. |
 | D14: Reporting occupancy | Confirmed on November 7, 2026 | Booked room nights use saved dated assignments, excluding cancellations and no-shows. Disclose that capacity uses the current active room roster because historical room availability was not tracked. Collections and current balances have separate definitions in the reporting contract. |
+| D15: Recovery targets | Confirmed on November 7, 2026 | Daily encrypted backups, targeting at most 24 hours of lost data and recovery within 24 hours. The scheduler reserves job runtime within the data-loss window. Backup retention duration remains undecided. Actual off-server protection and recovery performance require qualification after hosting is chosen. |
 
 The first release serves staff at one property through a responsive online app.
 Public booking and guest accounts are outside the ten-step plan. The existing
@@ -19,8 +20,8 @@ Kotlin/Spring, Java 21, React/TypeScript/Vite, and MariaDB stack remains in use.
 
 ## Business policy gates
 
-The business policies below are confirmed. Hosting and operational recovery targets
-remain open under D04 and must be settled before the production milestone.
+The business policies below and D15 recovery targets are confirmed. Hosting is
+explicitly deferred. The remaining D04 inputs must be settled before provisioning.
 
 | Gate | Current behavior or proposal | Required before |
 | --- | --- | --- |
