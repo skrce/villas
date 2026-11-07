@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS room_readiness (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT IGNORE INTO room_readiness (room_id,property_id,state,version,changed_at)
-    SELECT id,property_id,'DIRTY',0,CURRENT_TIMESTAMP(6) FROM apartments;
+    SELECT id,property_id,'DIRTY',0,UTC_TIMESTAMP(6) FROM apartments;
 
 CREATE TABLE IF NOT EXISTS readiness_events (
     id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,

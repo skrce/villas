@@ -1,7 +1,11 @@
 package com.villarosa
 
 import java.sql.DriverManager
+import java.time.Instant
+import java.util.Calendar
+import java.util.TimeZone
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.testcontainers.junit.jupiter.Container
@@ -93,6 +97,31 @@ class StayOperationsMigrationIT {
                         "UPDATE room_readiness SET version=-1 WHERE room_id=1",
                     )) org.junit.jupiter.api.assertThrows<java.sql.SQLException> {
                     sql.executeUpdate(query)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun readinessBackfillStoresUtcWithANonUtcDatabaseSession() {
+        DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "11")
+            .migrate()
+        DriverManager.getConnection(database.jdbcUrl, database.username, database.password).use {
+            connection ->
+            connection.createStatement().use { sql ->
+                sql.execute("SET time_zone='+03:00'")
+                sql.executeUpdate(
+                    "INSERT INTO apartments(id,capacity,name,reference) VALUES (1,4,'Synthetic UTC room','UTC-1')"
+                )
+                val before = Instant.now().minusSeconds(1)
+                statements().forEach { sql.execute(it) }
+                sql.executeQuery("SELECT changed_at FROM room_readiness WHERE room_id=1").use { row
+                    ->
+                    assertThat(row.next()).isTrue()
+                    val actual =
+                        row.getTimestamp(1, Calendar.getInstance(TimeZone.getTimeZone("UTC")))
+                            .toInstant()
+                    assertThat(actual).isBetween(before, Instant.now().plusSeconds(1))
                 }
             }
         }

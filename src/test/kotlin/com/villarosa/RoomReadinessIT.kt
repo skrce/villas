@@ -7,6 +7,8 @@ import com.villarosa.security.StaffAuthentication
 import com.villarosa.service.ApartmentService
 import com.villarosa.service.CustomerService
 import com.villarosa.service.ReadinessService
+import java.time.Instant
+import java.util.TimeZone
 import java.util.UUID
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
@@ -134,6 +136,24 @@ constructor(
                 assertThrows<DomainException> { apartmentService.status(room.id!!, 0, false) }.code
             )
             .isEqualTo("ROOM_HAS_BOOKINGS")
+    }
+
+    @Test
+    fun initialNoopReadinessStoresAndReplaysUtcWithANonUtcJvm() {
+        val original = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"))
+            val before = Instant.now().minusSeconds(1)
+            val stable = key()
+            val result = service.change(room.id!!, ReadinessState.DIRTY, 0, stable, null)
+            val after = Instant.now().plusSeconds(1)
+            assertThat(result.readiness!!.changedAt).isBetween(before, after)
+            assertThat(service.read(room.id!!).changedAt).isEqualTo(result.readiness.changedAt)
+            assertThat(service.change(room.id!!, ReadinessState.DIRTY, 0, stable, null))
+                .isEqualTo(result)
+        } finally {
+            TimeZone.setDefault(original)
+        }
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.villarosa.repository.model.*
 import com.villarosa.security.BusinessAudit
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
+import java.time.ZoneOffset
 import org.springframework.data.domain.PageRequest
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
@@ -104,7 +105,7 @@ class ReadinessService(
             "INSERT IGNORE INTO room_readiness (room_id,property_id,state,version,changed_at) VALUES (?,?,'DIRTY',0,?)",
             room.id!!,
             PropertyScope.ID,
-            java.sql.Timestamp.from(time.now()),
+            time.now().atOffset(ZoneOffset.UTC).toLocalDateTime(),
         )
         return readiness.locked(PropertyScope.ID, room.id!!)
             ?: missing("Room readiness does not exist.")
