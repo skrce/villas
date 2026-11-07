@@ -295,3 +295,167 @@ it("disables financial writes when the server summary is inconsistent", async ()
   expect(screen.getByRole("button", { name: "Record payment" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Record refund" })).toBeDisabled();
 });
+
+it("does not replace a newer financial balance with a held older Load latest response", async () => {
+  mount();
+  const form = await openPayment();
+  await userEvent.type(form.getByLabelText("Amount in EUR"), "25.01");
+  const older = structuredClone(summary);
+  let release!: (value: Response) => void;
+  api.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        release = resolve;
+      }),
+  );
+  await userEvent.click(
+    form.getByRole("button", { name: "Load latest balance" }),
+  );
+  await waitFor(() => expect(release).toBeTypeOf("function"));
+  const newer = {
+    ...summary,
+    reservation: { ...summary.reservation, version: 2 },
+    totals: { paymentsCents: 5000, refundsCents: 0, receivedCents: 5000 },
+    outstandingCents: 5002,
+  };
+  summary = newer;
+  act(() => cache.setQueryData(["ledger", 42], newer));
+  await act(async () => release(json(older)));
+  await waitFor(() =>
+    expect(
+      form.getByRole("button", { name: "Load latest balance" }),
+    ).toBeEnabled(),
+  );
+  expect(
+    cache.getQueryData<{ reservation: { version: number } }>(["ledger", 42])
+      ?.reservation.version,
+  ).toBe(2);
+  expect(form.getByRole("button", { name: "Review record" })).toBeDisabled();
+});
+
+it("keeps a previous-reversal recovery entry point after a lost response and refreshed correction history", async () => {
+  write.mockRejectedValueOnce(
+    new TypeError("Synthetic lost reversal response"),
+  );
+  mount();
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Correct record" }),
+  );
+  const form = within(screen.getByRole("dialog"));
+  await userEvent.type(
+    form.getByLabelText("Reason"),
+    "Synthetic duplicate receipt",
+  );
+  await userEvent.click(form.getByRole("button", { name: "Review record" }));
+  await userEvent.click(
+    form.getByRole("button", { name: "Confirm reversal record" }),
+  );
+  await waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+  await waitFor(() =>
+    expect(form.getByRole("button", { name: "Close dialog" })).toBeEnabled(),
+  );
+  await userEvent.click(form.getByRole("button", { name: "Close dialog" }));
+  entries = [
+    {
+      ...receipt,
+      id: "9007199254741002",
+      kind: "REVERSAL",
+      method: null,
+      reversesId: receipt.id,
+      reason: "Synthetic duplicate receipt",
+      reference: null,
+      reservationVersion: 2,
+    } as unknown as typeof receipt,
+    receipt,
+  ];
+  summary = {
+    ...summary,
+    reservation: { ...summary.reservation, version: 2 },
+    totals: { paymentsCents: 0, refundsCents: 0, receivedCents: 0 },
+    outstandingCents: 10002,
+  };
+  await act(async () => {
+    await cache.invalidateQueries();
+  });
+  await screen.findByText("Reversed by a linked correction.");
+  const original = screen
+    .getByText("Reversed by a linked correction.")
+    .closest("li")!;
+  expect(
+    within(original).getByRole("button", {
+      name: /Correct record|Check previous correction|Check previous reversal/,
+    }),
+  ).toBeEnabled();
+  await userEvent.click(
+    within(original).getByRole("button", { name: "Check previous correction" }),
+  );
+  const recovery = within(screen.getByRole("dialog"));
+  expect(
+    recovery.queryByRole("button", { name: "Review record" }),
+  ).not.toBeInTheDocument();
+  expect(recovery.getByLabelText("Reason")).toHaveValue(
+    "Synthetic duplicate receipt",
+  );
+  await userEvent.click(
+    recovery.getByRole("button", { name: "Check previous save" }),
+  );
+  await waitFor(() =>
+    expect(write).toHaveBeenLastCalledWith(
+      42,
+      {
+        kind: "REVERSAL",
+        entryId: receipt.id,
+        amountCents: 2501,
+        reason: "Synthetic duplicate receipt",
+      },
+      1,
+      true,
+    ),
+  );
+});
+
+it("keeps a newer manually loaded balance when an older background read completes", async () => {
+  mount();
+  const form = await openPayment();
+  await userEvent.type(form.getByLabelText("Amount in EUR"), "25.01");
+  const older = structuredClone(summary);
+  let release!: (value: Response) => void;
+  api.mockImplementationOnce(
+    () =>
+      new Promise<Response>((resolve) => {
+        release = resolve;
+      }),
+  );
+  let background!: Promise<void>;
+  act(() => {
+    background = cache.refetchQueries({
+      queryKey: ["ledger", 42],
+      exact: true,
+    });
+  });
+  await waitFor(() => expect(release).toBeTypeOf("function"));
+  summary = {
+    ...summary,
+    reservation: { ...summary.reservation, version: 2 },
+    totals: { paymentsCents: 5000, refundsCents: 0, receivedCents: 5000 },
+    outstandingCents: 5002,
+  };
+  await userEvent.click(
+    form.getByRole("button", { name: "Load latest balance" }),
+  );
+  await waitFor(() =>
+    expect(
+      cache.getQueryData<{ reservation: { version: number } }>(["ledger", 42])
+        ?.reservation.version,
+    ).toBe(2),
+  );
+  await act(async () => {
+    release(json(older));
+    await background;
+  });
+  expect(
+    cache.getQueryData<{ reservation: { version: number } }>(["ledger", 42])
+      ?.reservation.version,
+  ).toBe(2);
+  expect(form.getByRole("button", { name: "Review record" })).toBeEnabled();
+});

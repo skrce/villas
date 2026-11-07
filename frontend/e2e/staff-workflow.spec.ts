@@ -1279,7 +1279,11 @@ test("saved quotes require explicit acceptance, retain exact seasonal prices and
   await expect(
     page.getByRole("heading", { name: "Agreed accommodation price" }),
   ).toBeVisible();
-  await expect(page.getByText("€210.03", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Agreed accommodation price" })
+      .getByText("€210.03", { exact: true }),
+  ).toBeVisible();
   expect(
     await (await page.request.get(`/api/v1/reservations/${id}/price`)).json(),
   ).toEqual(accepted);
