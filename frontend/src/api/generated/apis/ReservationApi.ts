@@ -614,6 +614,9 @@ export const GetOperationKindEnum = {
     CheckOut: 'CHECK_OUT',
     NoShow: 'NO_SHOW',
     CorrectStay: 'CORRECT_STAY',
-    SetReadiness: 'SET_READINESS'
+    SetReadiness: 'SET_READINESS',
+    RecordPayment: 'RECORD_PAYMENT',
+    RecordRefund: 'RECORD_REFUND',
+    ReverseEntry: 'REVERSE_ENTRY'
 } as const;
 export type GetOperationKindEnum = typeof GetOperationKindEnum[keyof typeof GetOperationKindEnum];

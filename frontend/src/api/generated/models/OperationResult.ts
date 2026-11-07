@@ -13,6 +13,13 @@
  */
 
 import { mapValues } from '../runtime';
+import type { LedgerEntryInfo } from './LedgerEntryInfo';
+import {
+    LedgerEntryInfoFromJSON,
+    LedgerEntryInfoFromJSONTyped,
+    LedgerEntryInfoToJSON,
+    LedgerEntryInfoToJSONTyped,
+} from './LedgerEntryInfo';
 import type { ReservationInfo } from './ReservationInfo';
 import {
     ReservationInfoFromJSON,
@@ -55,6 +62,12 @@ export interface OperationResult {
     kind: OperationResultKindEnum;
     /**
      * 
+     * @type {LedgerEntryInfo}
+     * @memberof OperationResult
+     */
+    ledgerEntry?: LedgerEntryInfo | null;
+    /**
+     * 
      * @type {MaintenanceBlock}
      * @memberof OperationResult
      */
@@ -94,7 +107,10 @@ export const OperationResultKindEnum = {
     CheckOut: 'CHECK_OUT',
     NoShow: 'NO_SHOW',
     CorrectStay: 'CORRECT_STAY',
-    SetReadiness: 'SET_READINESS'
+    SetReadiness: 'SET_READINESS',
+    RecordPayment: 'RECORD_PAYMENT',
+    RecordRefund: 'RECORD_REFUND',
+    ReverseEntry: 'REVERSE_ENTRY'
 } as const;
 export type OperationResultKindEnum = typeof OperationResultKindEnum[keyof typeof OperationResultKindEnum];
 
@@ -121,6 +137,7 @@ export function OperationResultFromJSONTyped(json: any, ignoreDiscriminator: boo
         
         'key': json['key'],
         'kind': json['kind'],
+        'ledgerEntry': json['ledgerEntry'] == null ? undefined : LedgerEntryInfoFromJSON(json['ledgerEntry']),
         'maintenance': json['maintenance'] == null ? undefined : MaintenanceBlockFromJSON(json['maintenance']),
         'readiness': json['readiness'] == null ? undefined : ReadinessViewFromJSON(json['readiness']),
         'reservation': json['reservation'] == null ? undefined : ReservationInfoFromJSON(json['reservation']),
@@ -141,6 +158,7 @@ export function OperationResultToJSONTyped(value?: OperationResult | null, ignor
         
         'key': value['key'],
         'kind': value['kind'],
+        'ledgerEntry': LedgerEntryInfoToJSON(value['ledgerEntry']),
         'maintenance': MaintenanceBlockToJSON(value['maintenance']),
         'readiness': ReadinessViewToJSON(value['readiness']),
         'reservation': ReservationInfoToJSON(value['reservation']),

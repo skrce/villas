@@ -439,7 +439,7 @@ async function example() {
   const body = {
     // string
     operationKey: operationKey_example,
-    // 'CREATE' | 'MOVE' | 'CHANGE' | 'CANCEL' | 'BLOCK' | 'UNBLOCK' | 'CHECK_IN' | 'CHECK_OUT' | 'NO_SHOW' | 'CORRECT_STAY' | 'SET_READINESS'
+    // 'CREATE' | 'MOVE' | 'CHANGE' | 'CANCEL' | 'BLOCK' | 'UNBLOCK' | 'CHECK_IN' | 'CHECK_OUT' | 'NO_SHOW' | 'CORRECT_STAY' | 'SET_READINESS' | 'RECORD_PAYMENT' | 'RECORD_REFUND' | 'REVERSE_ENTRY'
     kind: kind_example,
   } satisfies GetOperationRequest;
 
@@ -461,7 +461,7 @@ example().catch(console.error);
 | Name | Type | Description  | Notes |
 |------------- | ------------- | ------------- | -------------|
 | **operationKey** | `string` |  | [Defaults to `undefined`] |
-| **kind** | `CREATE`, `MOVE`, `CHANGE`, `CANCEL`, `BLOCK`, `UNBLOCK`, `CHECK_IN`, `CHECK_OUT`, `NO_SHOW`, `CORRECT_STAY`, `SET_READINESS` |  | [Defaults to `undefined`] [Enum: CREATE, MOVE, CHANGE, CANCEL, BLOCK, UNBLOCK, CHECK_IN, CHECK_OUT, NO_SHOW, CORRECT_STAY, SET_READINESS] |
+| **kind** | `CREATE`, `MOVE`, `CHANGE`, `CANCEL`, `BLOCK`, `UNBLOCK`, `CHECK_IN`, `CHECK_OUT`, `NO_SHOW`, `CORRECT_STAY`, `SET_READINESS`, `RECORD_PAYMENT`, `RECORD_REFUND`, `REVERSE_ENTRY` |  | [Defaults to `undefined`] [Enum: CREATE, MOVE, CHANGE, CANCEL, BLOCK, UNBLOCK, CHECK_IN, CHECK_OUT, NO_SHOW, CORRECT_STAY, SET_READINESS, RECORD_PAYMENT, RECORD_REFUND, REVERSE_ENTRY] |
 
 ### Return type
 

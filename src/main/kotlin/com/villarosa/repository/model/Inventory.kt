@@ -97,6 +97,9 @@ enum class OperationKind {
     NO_SHOW,
     CORRECT_STAY,
     SET_READINESS,
+    RECORD_PAYMENT,
+    RECORD_REFUND,
+    REVERSE_ENTRY,
 }
 
 data class OperationResult(
@@ -106,4 +109,5 @@ data class OperationResult(
     val reservation: ReservationInfo? = null,
     val maintenance: MaintenanceBlock? = null,
     val readiness: ReadinessView? = null,
+    val ledgerEntry: LedgerEntryInfo? = null,
 )

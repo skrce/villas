@@ -617,6 +617,143 @@
         ],
         "type": "object"
       },
+      "LedgerEntryInfo": {
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "amountCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "effectiveDate": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "PAYMENT",
+              "REFUND",
+              "REVERSAL"
+            ],
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "CASH",
+              "CARD",
+              "BANK_TRANSFER"
+            ],
+            "nullable": true,
+            "type": "string"
+          },
+          "operationKey": {
+            "type": "string"
+          },
+          "paymentId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "recordedAt": {
+            "type": "string"
+          },
+          "reference": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reservationId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "reservationVersion": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "reversesId": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LedgerHistory": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntryInfo"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LedgerSummary": {
+        "properties": {
+          "accommodationCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "agreedCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "creditCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "outstandingCents": {
+            "format": "int64",
+            "nullable": true,
+            "type": "integer"
+          },
+          "propertyDate": {
+            "type": "string"
+          },
+          "reservation": {
+            "$ref": "#/components/schemas/ReservationInfo"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/LedgerTotals"
+          }
+        },
+        "type": "object"
+      },
+      "LedgerTotals": {
+        "properties": {
+          "paymentsCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "receivedCents": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "refundsCents": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "MaintenanceBlock": {
         "properties": {
           "endDate": {
@@ -689,9 +826,20 @@
               "CHECK_OUT",
               "NO_SHOW",
               "CORRECT_STAY",
-              "SET_READINESS"
+              "SET_READINESS",
+              "RECORD_PAYMENT",
+              "RECORD_REFUND",
+              "REVERSE_ENTRY"
             ],
             "type": "string"
+          },
+          "ledgerEntry": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LedgerEntryInfo"
+              }
+            ],
+            "nullable": true
           },
           "maintenance": {
             "allOf": [
@@ -726,6 +874,53 @@
           "key",
           "kind",
           "resourceId"
+        ],
+        "type": "object"
+      },
+      "PaymentRequest": {
+        "properties": {
+          "amountCents": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "effectiveDate": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "method": {
+            "enum": [
+              "CASH",
+              "CARD",
+              "BANK_TRANSFER"
+            ],
+            "minLength": 1,
+            "type": "string"
+          },
+          "reference": {
+            "maxLength": 100,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "amountCents",
+          "effectiveDate",
+          "expectedVersion",
+          "method"
         ],
         "type": "object"
       },
@@ -1105,6 +1300,91 @@
         ],
         "type": "object"
       },
+      "RefundRequest": {
+        "properties": {
+          "amountCents": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "nullable": true,
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "effectiveDate": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "method": {
+            "enum": [
+              "CASH",
+              "CARD",
+              "BANK_TRANSFER"
+            ],
+            "minLength": 1,
+            "type": "string"
+          },
+          "paymentId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          },
+          "reference": {
+            "maxLength": 100,
+            "minLength": 0,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "amountCents",
+          "effectiveDate",
+          "expectedVersion",
+          "method",
+          "paymentId",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "RefundablePayment": {
+        "properties": {
+          "entry": {
+            "$ref": "#/components/schemas/LedgerEntryInfo"
+          },
+          "refundableCents": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "RefundablePayments": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RefundablePayment"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ReservationInfo": {
         "properties": {
           "acceptedQuoteId": {
@@ -1207,6 +1487,27 @@
             "type": "boolean"
           }
         },
+        "type": "object"
+      },
+      "ReversalRequest": {
+        "properties": {
+          "expectedVersion": {
+            "format": "int64",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "required": [
+          "expectedVersion",
+          "reason"
+        ],
         "type": "object"
       },
       "RoomBlockRequest": {
@@ -3086,7 +3387,10 @@
                 "CHECK_OUT",
                 "NO_SHOW",
                 "CORRECT_STAY",
-                "SET_READINESS"
+                "SET_READINESS",
+                "RECORD_PAYMENT",
+                "RECORD_REFUND",
+                "REVERSE_ENTRY"
               ],
               "type": "string"
             }
@@ -3575,6 +3879,356 @@
         "summary": "Accept a saved quote and atomically create its priced reservation with a stable operation key",
         "tags": [
           "Quotes"
+        ]
+      }
+    },
+    "/reservations/{id}/ledger": {
+      "get": {
+        "operationId": "reservationLedger",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read agreed accommodation and externally received funds",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/reservations/{id}/ledger/entries": {
+      "get": {
+        "operationId": "reservationLedgerHistory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "beforeId",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerHistory"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read immutable payment, refund and correction history",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/reservations/{id}/ledger/entries/{entryId}/reversal": {
+      "post": {
+        "operationId": "reverseLedgerEntry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entryId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReversalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Retain and correct a mistaken payment or refund with a reason",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/reservations/{id}/ledger/payments": {
+      "get": {
+        "operationId": "refundablePayments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "beforeId",
+            "required": false,
+            "schema": {
+              "default": "0",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "format": "int32",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundablePayments"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read receipt allocations available for manual refund",
+        "tags": [
+          "Payments"
+        ]
+      },
+      "post": {
+        "operationId": "recordPayment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Record a payment already completed outside Villas",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/reservations/{id}/ledger/refunds": {
+      "post": {
+        "operationId": "recordRefund",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/OperationResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Record an externally completed refund against one receipt",
+        "tags": [
+          "Payments"
         ]
       }
     },
