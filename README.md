@@ -112,8 +112,9 @@ refuses to replace existing records. No guest or booking is seeded. New syntheti
 rooms have explicit EUR-cent nightly rates, separate from the retained legacy test
 price fields. Existing rooms are never repriced by rerunning fixtures. Owners configure
 their rates on the room page, then review and accept a saved price when booking.
-The signed-in landing page is the room calendar: choose a week and select free nights
-(or use the phone agenda) to prefill a booking. The form guides dates/party, named
+The signed-in landing page is Today, with daily queues, room readiness and balance
+attention. In the room calendar, choose a week and select free nights (or use the
+phone agenda) to prefill a booking. The form guides dates/party, named
 room and guest, then exact price review and explicit confirmation. Show all steps
 supports quick entry and previous-save recovery. Room/date/status filters and deep
 links remain available in the reservation list. Going offline pauses calendar selection
