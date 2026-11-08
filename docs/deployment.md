@@ -54,6 +54,37 @@ The rehearsal rejects changed inputs or retagged images before creating resource
 Dirty development builds require `--local-rehearsal`, use a local-only image name
 and are identified in the manifest. Use a clean committed revision for a release.
 
+## Releasing a later change
+
+The repository currently runs checks, builds images and rehearses them locally in
+CI. It does not publish images to a registry or deploy to staging/production. Add
+those jobs after D04 is resolved, with this delivery sequence:
+
+1. Merge a reviewed PR and require successful checks for the exact `master` commit.
+2. Publish the verified images for that commit and record immutable registry digests.
+   Promote the same images between environments; do not rebuild for production.
+3. Deploy to separate staging and verify the changed workflow with synthetic data,
+   real Google access and the applicable browser checks.
+4. Require an explicit production release. Close public writes, stop the app and
+   backup scheduler, and wait for every in-flight scheduled/manual backup to exit.
+   Take and verify a controlled off-server backup and record previous images/schema
+   as described in [controlled startup and upgrades](#controlled-startup-and-upgrades).
+5. Apply pending migrations and reviewed runtime grants, then start the selected
+   images against the retained production database. Owner bootstrap and empty
+   database initialization are first-install operations, not routine upgrade steps.
+6. Recreate the monitor with the replaced app as described in [operations](operations.md).
+   Verify readiness, actual HTTPS/login, protected access and operational signals.
+   Resume the backup scheduler and confirm protection before reopening writes.
+   Record results and image/schema versions. Follow the compatibility and recovery
+   rules below if verification fails.
+
+Use separate staging/production configuration, serialize releases per environment
+and give deployment jobs restricted, short-lived credentials where supported.
+GitHub's intended operator flow is to select a verified release for staging, inspect
+it, then explicitly promote it to production. Those release controls still need
+implementation. Until then, the reference below is an operator runbook, not a
+working GitHub deployment action.
+
 ## Reference environment
 
 `deploy/compose.yaml` is a Linux Docker Compose reference, not a hosting decision.
@@ -134,11 +165,16 @@ on every command. Review rendered configuration privately. In order:
 7. Initialize separate empty production. Configure rooms/rates and real bookings
    through the app later. Do not import staging fixtures.
 
-For upgrades, close public writes, verify an off-server backup, record old image
-digests/schema version, stop the app, then run the new image's one-off migration.
+For upgrades, close public writes and stop the app. Stop `backup-scheduler` and
+wait for every in-flight scheduled/manual backup to exit; stopping the app alone
+does not stop backups. Confirm there is no active dump, then take and verify a
+controlled off-server backup without concurrent DDL. Record old image digests/schema
+version, then run the new image's one-off migration.
 Apply reviewed grants for new tables before starting it. A failed migration may
 have committed partial MariaDB DDL. Inspect privately; never infer no change from
-an error. Do not start an app whose readiness or migrations fail.
+an error. Do not start an app whose readiness or migrations fail. After successful
+verification, recreate monitoring with the replaced app, resume the backup scheduler
+and confirm protection before reopening writes.
 
 There are no automatic down migrations, clean/baseline shortcuts or automatic
 schema rollback. An old image may run only after proving schema compatibility in

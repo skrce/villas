@@ -3,11 +3,20 @@
 This is the standalone Villas staff-management repository. Do not apply build tools,
 credentials, databases, or deployment assumptions from another project.
 
-## Scope and decisions
+## Start a new session
 
-Read `docs/maintainer-context.md`, `docs/implementation.md`, the active milestone issue, `docs/decisions.md`, and
-the relevant files under `docs/contracts/` before changing a workflow. Keep one
-milestone active unless the owner requests otherwise.
+Confirm that the Git remote identifies `skrce/villas` and inspect
+`git status --short --branch` before editing. A chat may start in another project's
+directory. Preserve existing work and identify the actual Villas checkout first.
+
+Read [the maintainer guide](docs/maintainer-context.md),
+[release decisions](docs/decisions.md), the top table in
+[the implementation tracker](docs/implementation.md), the active issue/current PRs
+and the relevant contract before changing a workflow. The guide maps code and tests;
+the tracker also contains historical checkpoints. Keep one milestone active unless
+the owner requests otherwise.
+
+## Scope and decisions
 
 The release is staff-only. Production authentication is invitation-only Google OIDC
 with server-side sessions. Never add production password login, public signup, or a
