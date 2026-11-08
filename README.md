@@ -9,8 +9,13 @@ includes guest/room management, rates and reviewed quotes, a reservation calenda
 front-desk stay operations, external payment records, housekeeping, a Today dashboard
 and reconciled occupancy, charge, collection and balance reports with private CSV downloads.
 
-New maintainers and LLM sessions should start with the
-[maintainer context guide](docs/maintainer-context.md) and [AGENTS.md](AGENTS.md).
+New maintainers and LLM sessions should start with:
+
+- [AGENTS.md](AGENTS.md) for working rules and the initial repository checks.
+- [Maintainer context](docs/maintainer-context.md) for current status, business rules,
+  code/test locations, retry pitfalls and the next release steps.
+- [Release decisions](docs/decisions.md) for confirmed policies and deferred choices.
+
 The [ten-step tracker](docs/implementation.md) and linked issues distinguish local
 implementation from the open real-Google, deployment and pilot gates.
 

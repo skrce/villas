@@ -54,6 +54,34 @@ The rehearsal rejects changed inputs or retagged images before creating resource
 Dirty development builds require `--local-rehearsal`, use a local-only image name
 and are identified in the manifest. Use a clean committed revision for a release.
 
+## Releasing a later change
+
+The repository currently runs checks, builds images and rehearses them locally in
+CI. It does not publish images to a registry or deploy to staging/production. Add
+those jobs after D04 is resolved, with this delivery sequence:
+
+1. Merge a reviewed PR and require successful checks for the exact `master` commit.
+2. Publish the verified images for that commit and record immutable registry digests.
+   Promote the same images between environments; do not rebuild for production.
+3. Deploy to separate staging and verify the changed workflow with synthetic data,
+   real Google access and the applicable browser checks.
+4. Require an explicit production release. Record previous images/schema, verify
+   the off-server backup, close public writes and stop the app as described in
+   [controlled startup and upgrades](#controlled-startup-and-upgrades).
+5. Apply pending migrations and reviewed runtime grants, then start the selected
+   images against the retained production database. Owner bootstrap and empty
+   database initialization are first-install operations, not routine upgrade steps.
+6. Verify readiness, actual HTTPS/login, protected access and operational signals
+   before reopening writes. Record results and image/schema versions. Follow the
+   compatibility and recovery rules below if verification fails.
+
+Use separate staging/production configuration, serialize releases per environment
+and give deployment jobs restricted, short-lived credentials where supported.
+GitHub's intended operator flow is to select a verified release for staging, inspect
+it, then explicitly promote it to production. Those release controls still need
+implementation. Until then, the reference below is an operator runbook, not a
+working GitHub deployment action.
+
 ## Reference environment
 
 `deploy/compose.yaml` is a Linux Docker Compose reference, not a hosting decision.

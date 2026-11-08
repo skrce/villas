@@ -6,13 +6,17 @@ Update this guide whenever behavior, setup or release status changes.
 
 ## Read in order
 
+First confirm that the remote is `skrce/villas` and inspect
+`git status --short --branch`. Identify existing work before creating a `codex/`
+branch. Then read:
+
 1. [AGENTS.md](../AGENTS.md): repository rules, checks and private-state safety.
 2. [Release decisions](decisions.md): confirmed business policies and open inputs.
 3. [Implementation tracker](implementation.md): ten milestones and recorded evidence.
    Check the linked issue and current PRs before starting work.
 4. The relevant [API](contracts/api.md), [reservations](contracts/reservations.md),
    [pricing](contracts/pricing.md), [payments](contracts/payments.md),
-   [front-desk](contracts/front-desk.md), [housekeeping](contracts/housekeeping.md)
+   [front-desk](contracts/front-desk.md), [housekeeping](contracts/housekeeping.md),
    [reporting](contracts/reporting.md) or [permissions](contracts/permissions.md) contract.
 5. [README](../README.md), [frontend guide](frontend.md) and
    [security setup](security.md) for the environment being changed.
@@ -20,6 +24,10 @@ Update this guide whenever behavior, setup or release status changes.
 This is the standalone `skrce/villas` repository. A Codex session can open here from
 another project. Do not apply another repository's build system, credentials, ports,
 database or deployment assumptions.
+
+The implementation tracker contains historical checkpoints. Use its top status
+table, the linked issue and current PR/CI evidence to determine what remains. Old
+test counts or an earlier "in progress" paragraph do not verify a new revision.
 
 ## Product and release status
 
@@ -39,6 +47,8 @@ checks and the staff pilot. Read [deployment](deployment.md), [recovery](recover
 the [operations guide](operations.md) and [release checklist](release-checklist.md)
 before release work. Packaging and recovery are merged in
 [PR #38](https://github.com/skrce/villas/pull/38) and [PR #39](https://github.com/skrce/villas/pull/39).
+[PR #40](https://github.com/skrce/villas/pull/40) applies the approved daily recovery
+policy with scheduler runtime headroom and a 24-hour protected-data age default.
 Recovery/monitoring use isolated local qualification; selected-host/off-server/real
 Google/pilot acceptance remains open in #11 and #4.
 
@@ -121,6 +131,23 @@ Backend paths in the table are relative to `src/main/kotlin/com/villarosa/` unle
 fully prefixed. Use `rg --files` to locate a renamed class rather than assuming this
 map proves the current filename.
 
+## Test map
+
+| Change | Regression starting points |
+| --- | --- |
+| Sessions, staff and revocation | [StaffAuthenticationIT](../src/test/kotlin/com/villarosa/StaffAuthenticationIT.kt), [StaffAuthorityIT](../src/test/kotlin/com/villarosa/StaffAuthorityIT.kt), [session tests](../frontend/src/api/session.test.ts) |
+| Inventory, calendar and pricing | [InventoryIT](../src/test/kotlin/com/villarosa/InventoryIT.kt), [BookingCalendarIT](../src/test/kotlin/com/villarosa/BookingCalendarIT.kt), [BookingQuotesIT](../src/test/kotlin/com/villarosa/BookingQuotesIT.kt), [staff browser workflows](../frontend/e2e/staff-workflow.spec.ts) |
+| Payments and financial recovery | [ManualLedgerIT](../src/test/kotlin/com/villarosa/ManualLedgerIT.kt), [payment interactions](../frontend/src/features/reservations/payments.test.tsx), [payment browser workflows](../frontend/e2e/payments.spec.ts) |
+| Stay operations and housekeeping | [StayOperationsIT](../src/test/kotlin/com/villarosa/StayOperationsIT.kt), [RoomAllocationsIT](../src/test/kotlin/com/villarosa/RoomAllocationsIT.kt), [RoomReadinessIT](../src/test/kotlin/com/villarosa/RoomReadinessIT.kt), [stay](../frontend/e2e/stay-operations.spec.ts) and [housekeeping](../frontend/e2e/housekeeping.spec.ts) browser workflows |
+| Reports and private downloads | [ReportingIT](../src/test/kotlin/com/villarosa/ReportingIT.kt), [report interactions](../frontend/src/features/reports/reports.test.tsx), [report browser workflows](../frontend/e2e/reporting.spec.ts) |
+| Schema and restore | [MigrationsIT](../src/test/kotlin/com/villarosa/MigrationsIT.kt), related `*MigrationIT.kt` files, [RecoveryMigrationIT](../src/test/kotlin/com/villarosa/RecoveryMigrationIT.kt), [container rehearsal](../scripts/release-check.mjs) |
+| Shared mutation handling and release tools | [useSave tests](../frontend/src/shared/useSave.test.tsx), [action adapters](../frontend/src/api/), [launcher/artifact/backup/monitor/policy tests](../scripts/) |
+
+Kotlin `*IT.kt` cases use native MariaDB; unit and HTTP tests are also under
+`src/test/kotlin/`. React tests sit beside their source. The full command below owns
+test ordering and generated-client verification. Add a regression for the changed
+behavior rather than treating the files in this table as exhaustive coverage.
+
 ## Transactions, stale data and retries
 
 Business mutations check current Owner membership and property scope inside the
@@ -188,9 +215,23 @@ before expecting merged backend changes to appear in a packaged demo.
 
 ## Delivery checklist
 
+For an ordinary app update, follow [the later-change release procedure](deployment.md#releasing-a-later-change).
+CI currently checks and rehearses images. Registry publication and staging/production
+deployment jobs still await the hosting decision. ABL's release controls may inform
+that implementation; its Cloud Run/Neon settings and PostgreSQL migrations are not
+Villas configuration. MariaDB remains the confirmed database.
+
 Use a `codex/` branch and small PRs linked to the active milestone. Keep an independent
 review on each PR, address material findings, run required checks and merge only after
 CI passes for the final head. Update this guide, the relevant contracts, implementation
 tracker and GitHub checklist with verified behavior. Cite exact revisions and commands
 in the PR/issue rather than repeating historical metrics here. Keep local automation,
 real Google, deployment/recovery and Owner acceptance as separate statuses.
+
+Keep each kind of context in its owning file. README explains setup and points here;
+AGENTS.md holds concise working rules; this guide holds current architecture/status
+and code/test maps. Record Owner decisions in `decisions.md`, behavior in the relevant
+contract, and exact-head validation/review evidence in the PR and milestone issue.
+Deployment, recovery and operations procedures have their own linked runbooks.
+When hosting or live acceptance changes, update those files and the release checklist
+in the same delivery. Never store private operator state or credentials in the handoff.
