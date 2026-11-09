@@ -100,3 +100,7 @@ exported. Source links lead to authenticated booking, ledger or room pages.
 Browser refresh/download failures remain visible. A failed refresh marks retained
 data as stale and disables downloading. A session change clears protected query data;
 an in-flight download must still belong to the same Owner/session before it is saved.
+
+CSV exports include `business_id` metadata and use a business-specific filename.
+The [business workspace](business-workspace.md) aborts/ignores pending downloads on
+switch or session change; an old export cannot create a file in the new workspace.

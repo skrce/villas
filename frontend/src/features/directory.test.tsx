@@ -1,3 +1,4 @@
+import { sessionFixture, scopedPath } from "../test/session";
 import {
   act,
   cleanup,
@@ -89,27 +90,28 @@ const calls = (path: string, method: string) =>
     ([input, init]) =>
       parsed(input).pathname === path && (init?.method ?? "GET") === method,
   );
-const session = () => ({
-  authenticated,
-  propertyId: "villa-rosa",
-  generation,
-  staff: {
-    id: "owner-five",
-    email: "owner@example.test",
-    role: "OWNER",
-    active: true,
-    version: 0,
-  },
-  csrfToken: "csrf-five",
-  expiresAt: "2099-01-01T00:00:00Z",
-  permissions: [
-    "staff:manage",
-    "guests:write",
-    "rooms:write",
-    "maintenance:write",
-  ],
-  provider: "synthetic",
-});
+const session = () =>
+  sessionFixture({
+    authenticated,
+    propertyId: "villa-rosa",
+    generation,
+    staff: {
+      id: "owner-five",
+      email: "owner@example.test",
+      role: "OWNER",
+      active: true,
+      version: 0,
+    },
+    csrfToken: "csrf-five",
+    expiresAt: "2099-01-01T00:00:00Z",
+    permissions: [
+      "staff:manage",
+      "guests:write",
+      "rooms:write",
+      "maintenance:write",
+    ],
+    provider: "synthetic",
+  });
 async function responses(
   input: RequestInfo | URL,
   init?: RequestInit,
@@ -313,7 +315,7 @@ beforeEach(async () => {
 });
 afterEach(() => vi.unstubAllGlobals());
 async function mount(path: string) {
-  window.history.replaceState({}, "", path);
+  window.history.replaceState({}, "", scopedPath(path));
   await act(async () => {
     render(<App />);
   });
@@ -334,7 +336,7 @@ async function enterName(dialog: HTMLElement, first: string, last: string) {
 }
 async function navigate(path: string) {
   await act(async () => {
-    window.history.pushState({}, "", path);
+    window.history.pushState({}, "", scopedPath(path));
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
   if (path.startsWith("/reservations/new")) {
@@ -622,7 +624,7 @@ describe("guest and room workflows", () => {
     );
     expect(
       screen.getByRole("link", { name: "View selected guest #7" }),
-    ).toHaveAttribute("href", "/guests/7");
+    ).toHaveAttribute("href", scopedPath("/guests/7"));
     expect(window.location.search).toBe("");
   });
   it("checks an interrupted maintenance save after archival and reload without restoring or writing again", async () => {
@@ -948,7 +950,7 @@ describe("guest and room workflows", () => {
     );
     expect(
       await within(dialog).findByRole("link", { name: "Reservation #42" }),
-    ).toHaveAttribute("href", "/reservations/42");
+    ).toHaveAttribute("href", scopedPath("/reservations/42"));
     expect(guests.get(5)!.active).toBe(true);
     expect(calls("/api/v1/customers/5/status", "POST")).toHaveLength(1);
   });
@@ -1002,7 +1004,7 @@ describe("guest and room workflows", () => {
     const body = bodyOf(calls("/api/v1/apartments", "POST")[0][1]);
     expect(body).not.toHaveProperty("regularPrice");
     expect(body).not.toHaveProperty("topSeasonPrice");
-    expect(window.location.pathname).toBe("/rooms/8");
+    expect(window.location.pathname).toBe(scopedPath("/rooms/8"));
   });
   it("recovers from a maintenance conflict, then cancels the retained block", async () => {
     let conflict = true;

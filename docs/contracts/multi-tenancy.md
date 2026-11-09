@@ -20,7 +20,7 @@ No shared deployment is qualified while the following steps remain open.
 | 1 | [#44](https://github.com/skrce/villas/issues/44) | Business registry, parent/actor relationships and deployment block | Implemented; review and qualification evidence in #44 |
 | 2 | [#45](https://github.com/skrce/villas/issues/45) | Shared Google identity, business memberships and controlled onboarding | Implemented; final review/qualification evidence in #45 |
 | 3 | [#46](https://github.com/skrce/villas/issues/46) | Authorized request context, scoped services and PostgreSQL row security | Implemented; final review/qualification evidence in #46 |
-| 4 | [#47](https://github.com/skrce/villas/issues/47) | Business switching, separate browser caches/drafts and safe recovery | Planned |
+| 4 | [#47](https://github.com/skrce/villas/issues/47) | Business switching, separate browser caches/drafts and safe recovery | Implemented; final review/qualification evidence in #47 |
 | 5 | [#48](https://github.com/skrce/villas/issues/48) | Shared hosting, all-business backup and selective business recovery | Planned |
 | 6 | [#49](https://github.com/skrce/villas/issues/49) | Complete isolation, burst checks, independent review and live pilot | Planned |
 
@@ -133,8 +133,9 @@ inventing another business. Preserve it for operator inspection.
 V17 provides shared Google sessions and explicitly scoped Owner membership management.
 V18 and [business data isolation](business-data-isolation.md) require explicit business
 selection for domain requests and add PostgreSQL row security. The configured
-compatibility summary remains only for the current console; it grants no data access.
-Business switching remains #47. Pre-V18 database binding is retained only for safe
+compatibility summary remains for older API clients and verified legacy receipt
+aliases; it grants no data access. [Business workspaces](business-workspace.md) implement
+#47 with explicit per-tab URLs and isolated state. Shared hosting/recovery remains #48. Pre-V18 database binding is retained only for safe
 legacy upgrades, and the shared schema no longer requires a deployment-wide business.
 
 `deploy/cloud/architecture.json` marks shared hosting as pending. The operator wrapper

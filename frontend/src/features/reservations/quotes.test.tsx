@@ -1,3 +1,4 @@
+import { sessionFixture, scopedPath } from "../../test/session";
 import {
   act,
   cleanup,
@@ -73,22 +74,24 @@ async function responses(
 ): Promise<Response> {
   const route = path(url);
   if (route === "/api/v1/auth/session")
-    return json({
-      authenticated: true,
-      propertyId: "villa-rosa",
-      generation,
-      staff: {
-        id: "quote-owner",
-        email: "owner@example.test",
-        role: "OWNER",
-        active: true,
-        version: 0,
-      },
-      csrfToken: "quote-csrf",
-      expiresAt: "2099-01-01T00:00:00Z",
-      permissions: ["staff:manage", "reservations:write"],
-      provider: "synthetic",
-    });
+    return json(
+      sessionFixture({
+        authenticated: true,
+        propertyId: "villa-rosa",
+        generation,
+        staff: {
+          id: "quote-owner",
+          email: "owner@example.test",
+          role: "OWNER",
+          active: true,
+          version: 0,
+        },
+        csrfToken: "quote-csrf",
+        expiresAt: "2099-01-01T00:00:00Z",
+        permissions: ["staff:manage", "reservations:write"],
+        provider: "synthetic",
+      }),
+    );
   if (route === "/api/v1/customers/5") return json(guest);
   if (route === "/api/v1/apartments") return json(allRooms);
   if (route === "/api/v1/reservations/available-apartments")
@@ -213,7 +216,7 @@ beforeEach(async () => {
 });
 afterEach(() => vi.unstubAllGlobals());
 async function enter(recover = false) {
-  window.history.replaceState({}, "", "/reservations/new?guest=5");
+  window.history.replaceState({}, "", scopedPath("/reservations/new?guest=5"));
   await act(async () => {
     render(<App />);
   });
@@ -245,7 +248,7 @@ async function review() {
 }
 
 async function wizard() {
-  window.history.replaceState({}, "", "/reservations/new?guest=5");
+  window.history.replaceState({}, "", scopedPath("/reservations/new?guest=5"));
   await act(async () => {
     render(<App />);
   });
@@ -357,7 +360,9 @@ describe("guided booking steps", () => {
     window.history.replaceState(
       {},
       "",
-      "/reservations/new?guest=5&room=7&from=2030-01-01&to=2030-01-03",
+      scopedPath(
+        "/reservations/new?guest=5&room=7&from=2030-01-01&to=2030-01-03",
+      ),
     );
     await act(async () => {
       render(<App />);
@@ -370,7 +375,9 @@ describe("guided booking steps", () => {
       window.history.pushState(
         {},
         "",
-        "/reservations/new?guest=5&room=8&from=2030-02-01&to=2030-02-03",
+        scopedPath(
+          "/reservations/new?guest=5&room=8&from=2030-02-01&to=2030-02-03",
+        ),
       );
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
@@ -397,7 +404,7 @@ describe("guided booking steps", () => {
     expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(0);
   });
   it("requires valid dates and capacity before moving to named room choices", async () => {
-    window.history.replaceState({}, "", "/reservations/new");
+    window.history.replaceState({}, "", scopedPath("/reservations/new"));
     await act(async () => {
       render(<App />);
     });
@@ -562,7 +569,7 @@ describe("reviewed quote booking workflow", () => {
       ).not.toBe("{}");
       saved = { ...saved, status: "CANCELLED", phase: "CANCELLED", version: 2 };
       cleanup();
-      window.history.replaceState({}, "", "/reservations/42");
+      window.history.replaceState({}, "", scopedPath("/reservations/42"));
       await act(async () => {
         render(<App />);
       });
@@ -806,7 +813,7 @@ describe("reviewed quote booking workflow", () => {
     await userEvent.click(await editQuote(stay));
     await within(stay).findByText(/The result could not be confirmed/);
     cleanup();
-    window.history.replaceState({}, "", "/reservations/42");
+    window.history.replaceState({}, "", scopedPath("/reservations/42"));
     await act(async () => {
       render(<App />);
     });
@@ -838,7 +845,7 @@ describe("reviewed quote booking workflow", () => {
     await userEvent.click(await editQuote(move));
     await within(move).findByText(/The result could not be confirmed/);
     cleanup();
-    window.history.replaceState({}, "", "/reservations/42");
+    window.history.replaceState({}, "", scopedPath("/reservations/42"));
     await act(async () => {
       render(<App />);
     });
@@ -939,7 +946,7 @@ describe("reviewed quote booking workflow", () => {
       await within(stay).findByRole("link", {
         name: "Configure this room's rates",
       }),
-    ).toHaveAttribute("href", "/rooms/7#rates");
+    ).toHaveAttribute("href", scopedPath("/rooms/7#rates"));
     expect(calls("/api/v1/reservations/42/change", "POST")).toHaveLength(0);
   });
 
@@ -997,7 +1004,7 @@ describe("reviewed quote booking workflow", () => {
       }
       return responses(url, init);
     });
-    window.history.replaceState({}, "", "/reservations/42");
+    window.history.replaceState({}, "", scopedPath("/reservations/42"));
     await act(async () => {
       render(<App />);
     });
@@ -1070,7 +1077,7 @@ describe("reviewed quote booking workflow", () => {
         ? Promise.resolve(json(value))
         : responses(url, init),
     );
-    window.history.replaceState({}, "", "/reservations/42");
+    window.history.replaceState({}, "", scopedPath("/reservations/42"));
     await act(async () => {
       render(<App />);
     });
@@ -1128,6 +1135,9 @@ describe("reviewed quote booking workflow", () => {
     });
     await enter();
     await userEvent.click(await review());
+    await waitFor(() =>
+      expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(1),
+    );
     generation = "quote-fresh-session";
     await act(async () => {
       await refreshSession({ explicit: true });
@@ -1219,7 +1229,7 @@ describe("reviewed quote booking workflow", () => {
     await userEvent.click(screen.getByRole("button", { name: "Review price" }));
     expect(
       await screen.findByRole("link", { name: "Configure this room's rates" }),
-    ).toHaveAttribute("href", "/rooms/7#rates");
+    ).toHaveAttribute("href", scopedPath("/rooms/7#rates"));
     expect(
       screen.queryByRole("button", { name: /Confirm reservation/ }),
     ).not.toBeInTheDocument();
@@ -1344,6 +1354,9 @@ describe("reviewed quote booking workflow", () => {
     expect(screen.getByLabelText("Check-in")).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "Guest" })).toBeDisabled();
     expect(screen.getByLabelText("Room")).toBeDisabled();
+    await waitFor(() =>
+      expect(calls("/api/v1/reservations/quoted", "POST")).toHaveLength(1),
+    );
     await act(async () => {
       finish(json({ code: "INVENTORY_CONFLICT" }, 409));
     });

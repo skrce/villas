@@ -153,7 +153,7 @@ export type OperationRunner = <T>(
 type Intents = Record<string, Intent>;
 const pending = new Map<string, Promise<unknown>>();
 
-const stored = <T>(action: () => T): Promise<T> => {
+const sharedMetadata = <T>(action: () => T): Promise<T> => {
   if (!navigator.locks)
     return Promise.reject(
       new Error(
@@ -213,17 +213,29 @@ export const buildBookingActions = (
     payments?: PaymentsApi;
     operations?: OperationsApi;
     actorId?: string;
+    assertCurrent?: () => void;
+    legacyScope?: string;
   } = {},
 ) => {
   const ownStorage = sessionStorage;
-  const remember = (identity: string, intent: Intent) =>
-    ownStorage.setItem(
-      OWN_STORAGE_KEY,
-      JSON.stringify({
-        ...read(ownStorage, OWN_STORAGE_KEY),
-        [identity]: intent,
-      }),
-    );
+  const assertCurrent = () => extras.assertCurrent?.();
+  const hash = async (value: unknown) => {
+    const fingerprint = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value)));
+    return Array.from(new Uint8Array(fingerprint), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  };
+  let scopeHash: Promise<string> | undefined;
+  const stored = async <T,>(action: () => T): Promise<T> => {
+    assertCurrent();
+    const namespace = await (scopeHash ??= hash(scope));
+    if (!navigator.locks) return sharedMetadata(action);
+    return navigator.locks.request(`villas.operations.${namespace}`, () => sharedMetadata(() => { assertCurrent(); return action(); }));
+  };
+  const remember = (identity: string, intent: Intent, legacy?: string) => {
+    const own = read(ownStorage, OWN_STORAGE_KEY);
+    own[identity] = intent;
+    if (legacy && !own[legacy]) own[legacy] = intent;
+    ownStorage.setItem(OWN_STORAGE_KEY, JSON.stringify(own));
+  };
   const execute = async <T>(
     kind: GetOperationKindEnum,
     identity: string,
@@ -233,11 +245,20 @@ export const buildBookingActions = (
     recoveryOnly: boolean,
     quoteId?: string,
     readinessVersion?: number,
+    legacyIdentity?: string,
   ): Promise<T> => {
+    const identities = [identity, ...(legacyIdentity ? [legacyIdentity] : [])];
     let intent = await stored(() => {
-      const saved =
-        read(ownStorage, OWN_STORAGE_KEY)[identity] ?? read()[identity];
-      if (saved) remember(identity, saved);
+      const own = read(ownStorage, OWN_STORAGE_KEY);
+      const current = read();
+      const saved = own[identity] ?? current[identity] ?? (legacyIdentity ? own[legacyIdentity] ?? current[legacyIdentity] : undefined);
+      if (saved) {
+        remember(identity, saved, legacyIdentity);
+        if (!current[identity]) {
+          current[identity] = saved;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+        }
+      }
       return saved;
     });
     const financial = [
@@ -259,6 +280,7 @@ export const buildBookingActions = (
                 : "No previous booking save matches these details in this browser. Review a price before confirming a new request.",
         );
       const expectedVersion = await prepare();
+      assertCurrent();
       if (expectedVersion !== undefined && !validVersion(expectedVersion))
         throw new Error(
           "The reviewed reservation version is invalid. Reload before saving.",
@@ -279,31 +301,30 @@ export const buildBookingActions = (
       };
       intent = await stored(() => {
         const current = read();
-        if (current[identity]) {
+        const retained = current[identity] ?? (legacyIdentity ? current[legacyIdentity] : undefined);
+        if (retained) {
           existing = true;
-          remember(identity, current[identity]);
-          return current[identity];
+          current[identity] = retained;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+          remember(identity, retained, legacyIdentity);
+          return retained;
         }
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({ ...current, [identity]: prepared }),
-        );
-        remember(identity, prepared);
+        for (const key of identities) current[key] = prepared;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+        remember(identity, prepared, legacyIdentity);
         return prepared;
       });
     }
     const clear = () =>
       stored(() => {
         const own = read(ownStorage, OWN_STORAGE_KEY);
-        if (own[identity]?.key === intent.key) {
-          delete own[identity];
-          ownStorage.setItem(OWN_STORAGE_KEY, JSON.stringify(own));
-        }
         const current = read();
-        if (current[identity]?.key === intent.key) {
-          delete current[identity];
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+        for (const key of identities) {
+          if (own[key]?.key === intent.key) delete own[key];
+          if (current[key]?.key === intent.key) delete current[key];
         }
+        ownStorage.setItem(OWN_STORAGE_KEY, JSON.stringify(own));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
       });
     const confirm = async () => {
       const result = await api.getOperation({ operationKey: intent.key, kind });
@@ -319,6 +340,7 @@ export const buildBookingActions = (
         );
       }
       const value = await recovered(result, intent);
+      assertCurrent();
       await clear();
       return value;
     };
@@ -346,7 +368,9 @@ export const buildBookingActions = (
       }
     }
     try {
+      assertCurrent();
       await send(intent);
+      assertCurrent();
     } catch (error) {
       if (
         error instanceof ResponseError &&
@@ -373,13 +397,10 @@ export const buildBookingActions = (
     quoteId?: string,
     readinessVersion?: number,
   ): Promise<T> => {
-    const fingerprint = await crypto.subtle.digest(
-      "SHA-256",
-      new TextEncoder().encode(JSON.stringify([scope, kind, input])),
-    );
-    const identity = Array.from(new Uint8Array(fingerprint), (byte) =>
-      byte.toString(16).padStart(2, "0"),
-    ).join("");
+    assertCurrent();
+    const identity = await hash([scope, kind, input]);
+    const legacyIdentity = extras.legacyScope ? await hash([extras.legacyScope, kind, input]) : undefined;
+    assertCurrent();
     const inFlightIdentity = JSON.stringify([
       generation,
       identity,
@@ -396,6 +417,7 @@ export const buildBookingActions = (
       recoveryOnly,
       quoteId,
       readinessVersion,
+      legacyIdentity,
     ).finally(() => pending.delete(inFlightIdentity));
     pending.set(inFlightIdentity, request);
     return request;

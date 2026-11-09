@@ -1,3 +1,4 @@
+import { sessionFixture, scopedPath } from "../../test/session";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,22 +46,24 @@ async function response(
 ): Promise<Response> {
   const path = pathOf(input);
   if (path === "/api/v1/auth/session")
-    return json({
-      authenticated,
-      propertyId: "villa-rosa",
-      generation,
-      staff: {
-        id: "rate-owner",
-        email: "owner@example.test",
-        role: "OWNER",
-        active: true,
-        version: 0,
-      },
-      csrfToken: "test-csrf",
-      expiresAt: "2099-01-01T00:00:00Z",
-      permissions: ["rates:read", "rates:write", "rooms:write"],
-      provider: "synthetic",
-    });
+    return json(
+      sessionFixture({
+        authenticated,
+        propertyId: "villa-rosa",
+        generation,
+        staff: {
+          id: "rate-owner",
+          email: "owner@example.test",
+          role: "OWNER",
+          active: true,
+          version: 0,
+        },
+        csrfToken: "test-csrf",
+        expiresAt: "2099-01-01T00:00:00Z",
+        permissions: ["rates:read", "rates:write", "rooms:write"],
+        provider: "synthetic",
+      }),
+    );
   if (path === "/api/v1/apartments/7/rates") {
     if ((init?.method ?? "GET") === "GET") return json(rates);
     const body = bodyOf(init);
@@ -97,7 +100,7 @@ beforeEach(async () => {
   api.mockImplementation(response);
   vi.stubGlobal("fetch", api);
   await refreshSession({ explicit: true });
-  window.history.replaceState({}, "", "/rooms/7");
+  window.history.replaceState({}, "", scopedPath("/rooms/7"));
   await act(async () => {
     render(<App />);
   });

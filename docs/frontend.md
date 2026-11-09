@@ -9,10 +9,14 @@ owned by runtime OpenAPI and the pinned generator.
 
 `App.tsx` installs session events and chooses the authentication return or workspace.
 `app/Workspace.tsx` owns the session boundary, layout, navigation, query provider and
-route focus. Feature pages load as separate chunks under `features/`.
+route focus. It mounts a router with the selected business basename. Feature pages load as separate chunks under `features/`.
 Changing a record path or a guest/room/date booking intent remounts the page's local
 forms and dialogs. The Owner's draft store stays above that boundary, keyed by its
 original record. Room date filters do not change the room's edit identity.
+
+All business routes below are relative to `/businesses/{businessId}`. Auth popup
+routes stay global. Unscoped addresses require an explicit business choice; selecting
+a business never retargets another tab. See [the browser isolation contract](contracts/business-workspace.md).
 
 | Route | Implemented behavior |
 | --- | --- |
@@ -40,11 +44,13 @@ reporting are implemented. Real Google and production/pilot acceptance remain se
 
 Each query/mutation has its own pending/error state. Query functions pass cancellation
 signals through the generated client. Keys contain the resource and its filters.
-A query client belongs to one login generation. Its provider subtree is keyed by
-that generation so observers remount with the new client; the old client is cancelled
+A query client belongs to one canonical identity, business, membership and login
+epoch. Query hashes include that immutable scope. Its provider subtree remounts
+with the new client on a switch or reauthentication; the old client is cancelled
 and cleared. Protected API records and form drafts have no browser persistence
-or service-worker cache. Drafts remain in memory for the same Owner across navigation
-and session recovery. Logout/account changes clear them. A fresh login never submits
+or service-worker cache. Draft maps are separate per business and membership under the canonical identity.
+They remain in memory across navigation, switching and same-identity session recovery.
+Logout/account changes clear every map. A fresh login never submits
 an old form automatically. Unmounted pages do not redirect after a late write result.
 
 Booking confirmations capture the version the Owner reviewed. A 409 reloads current
@@ -228,7 +234,8 @@ and desktop contrast/axe checks when adjusting these tokens.
 
 ## Today and reports
 
-`/` and `/login` open `/today` after sign-in. Today reads one Owner-only snapshot,
+`/` and `/login` show the authorized business choices after sign-in. The root
+inside an explicitly selected business opens that business's `/today`. Today reads one Owner-only snapshot,
 refreshes each minute while visible and on window focus, and shows the property day
 and read time. Queue counts cover all matching records; each queue links up to five
 examples and its complete front-desk list. Room readiness and tonight's maintenance
@@ -246,7 +253,7 @@ without changing the complete totals. Room choices use explicit bounded pages.
 Downloads use the reviewed snapshot ID and current session. A server-side source
 change requires a fresh report. Failure is visible, retained stale data cannot be
 downloaded, and an in-flight result is discarded on unmount or session change.
-CSV includes metadata and all source rows, formula/precision text guards, exact EUR
+CSV includes the business ID in its metadata and filename, all source rows, formula/precision text guards, exact EUR
 cents and no guest contacts. Import columns as text to preserve their exact format.
 Downloads are private files, not persistent browser caches or shareable public links.
 
@@ -256,17 +263,22 @@ report validation checks phase/agreement rules, ledger effects, accepted quote
 references, date quantities, applied room filters and period capacity before totals
 can appear or a download can be enabled. Invalid source payloads are explicit errors.
 
-## Shared identity compatibility
+## Shared business workspace
 
-The current console uses its configured compatibility summary until #47. The workspace Owner
-key is the membership's `staff.id`, not the canonical identity ID. The new server
-session can hold independent business grants, but the console does not select the
-first available business or mix business state. Without the configured grant it
-hides protected views, shows a workspace-access message and allows sign-out.
-A restricted session retains a draft key only for the same canonical identity;
-a different identity changes the workspace key and invalidates old continuations.
-The [shared-identity contract](contracts/shared-identity.md) and [business isolation](contracts/business-data-isolation.md) record the API boundary. Every domain fetch supplies X-Villas-Business and rejects a missing ID; denied membership refreshes identity state without global logout. Captured requests are invalidated if that ID changes;
-#47 supplies explicit business URLs, switching and browser namespaces.
+The [business workspace contract](contracts/business-workspace.md) owns URL selection,
+per-membership capabilities, request epochs, isolated query hashes/caches, memory
+maps, scoped Web Locks and interrupted operation metadata. The canonical identity
+owns the draft registry; immutable financial actors remain business membership IDs.
+No first-membership or configured-business fallback exists. An unavailable grant
+hides its protected views and leaves other authorized businesses usable. Global
+logout still affects every tab.
+
+The compatibility summary remains for older clients and adoption of pre-switcher
+receipts only when it matches the explicitly selected authorized membership. It is
+never browser selection authority. A late read, save callback or CSV cannot affect
+a later business or a fresh return to the original one. Returning restores that
+business's last page and entered memory draft without submitting it.
+
 
 API generation uses the pinned CLI plus `openapi-client-config.json` and the project
 README template. It exports the pinned API-doc template, supplies stable operation

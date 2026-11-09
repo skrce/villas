@@ -111,7 +111,7 @@ constructor(
             "UPDATE staff_accounts SET active=FALSE WHERE id=?",
             TestData.ownerIdentity().id,
         )
-        assertThat(failure { rates.get(id) }).isEqualTo("SESSION_REVOKED")
+        assertThat(failure { rates.get(id) }).isEqualTo("BUSINESS_ACCESS_DENIED")
     }
 
     @Test

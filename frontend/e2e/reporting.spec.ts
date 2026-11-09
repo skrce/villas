@@ -1,9 +1,10 @@
+import { businessUrl, businessRequest } from "./business";
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { addDays, propertyToday } from "../src/shared/format";
 async function signIn(page: Page) {
-  await page.goto("/");
+  await page.goto(businessUrl("/"));
   const opened = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Sign in to local demo" }).click();
   await (
@@ -16,13 +17,15 @@ async function signIn(page: Page) {
   ).toBeVisible();
 }
 async function setup(page: Page) {
-  const session = await (await page.request.get("/api/v1/auth/session")).json();
+  const session = await (
+    await businessRequest(page).get("/api/v1/auth/session")
+  ).json();
   const headers = {
     "X-CSRF-TOKEN": session.csrfToken,
     Origin: "http://127.0.0.1:15073",
   };
   const uid = crypto.randomUUID().slice(0, 8);
-  const created = await page.request.post("/api/v1/apartments", {
+  const created = await businessRequest(page).post("/api/v1/apartments", {
     headers,
     data: {
       name: `Synthetic report room ${uid}`,
@@ -34,7 +37,7 @@ async function setup(page: Page) {
   const room = await created.json();
   expect(
     (
-      await page.request.put(`/api/v1/apartments/${room.id}/rates`, {
+      await businessRequest(page).put(`/api/v1/apartments/${room.id}/rates`, {
         headers,
         data: {
           expectedVersion: 0,
@@ -52,13 +55,16 @@ async function setup(page: Page) {
   ].entries())
     expect(
       (
-        await page.request.post(`/api/v1/apartments/${room.id}/readiness`, {
-          headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
-          data: { state, expectedVersion: version },
-        })
+        await businessRequest(page).post(
+          `/api/v1/apartments/${room.id}/readiness`,
+          {
+            headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
+            data: { state, expectedVersion: version },
+          },
+        )
       ).ok(),
     ).toBe(true);
-  const guest = await page.request.post("/api/v1/customers", {
+  const guest = await businessRequest(page).post("/api/v1/customers", {
     headers,
     data: {
       firstName: "Синтетички",
@@ -76,19 +82,22 @@ async function setup(page: Page) {
     endDate: to,
     guestCount: 2,
   };
-  const quote = await page.request.post("/api/v1/booking-quotes", {
+  const quote = await businessRequest(page).post("/api/v1/booking-quotes", {
     headers,
     data: request,
   });
   expect(quote.ok()).toBe(true);
-  const booked = await page.request.post("/api/v1/reservations/quoted", {
-    headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
-    data: {
-      ...request,
-      customerId: await guest.json(),
-      quoteId: (await quote.json()).id,
+  const booked = await businessRequest(page).post(
+    "/api/v1/reservations/quoted",
+    {
+      headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
+      data: {
+        ...request,
+        customerId: await guest.json(),
+        quoteId: (await quote.json()).id,
+      },
     },
-  });
+  );
   expect(booked.ok()).toBe(true);
   return { id: (await booked.json()) as number, room, headers, from, to };
 }
@@ -109,7 +118,7 @@ test("Today leads to a real check-in, deposit, reconciled reports and a private 
 }, info) => {
   await signIn(page);
   const { id, room, from, to } = await setup(page);
-  await page.goto(`/reservations/${id}`);
+  await page.goto(businessUrl(`/reservations/${id}`));
   await page
     .locator("#stay-operations")
     .getByRole("button", { name: "Check in guest", exact: true })
@@ -124,7 +133,7 @@ test("Today leads to a real check-in, deposit, reconciled reports and a private 
     .click();
   await expect(form).not.toBeVisible();
   await pay(page, "25.01", "=SUM(1,2)");
-  await page.goto("/today");
+  await page.goto(businessUrl("/today"));
   await expect(
     page
       .getByRole("region", { name: "In-house stays" })
@@ -145,7 +154,7 @@ test("Today leads to a real check-in, deposit, reconciled reports and a private 
   }
   const path = (kind: string) =>
     `/reports?kind=${kind}&from=${from}&to=${to}&room=${room.id}`;
-  await page.goto(path("OCCUPANCY"));
+  await page.goto(businessUrl(path("OCCUPANCY")));
   await expect(page.getByText("100.0%", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Room", { exact: true })).toHaveValue(
     String(room.id),
@@ -158,11 +167,11 @@ test("Today leads to a real check-in, deposit, reconciled reports and a private 
   await expect(
     page.getByRole("region", { name: "Booked charge sources" }),
   ).toContainText("€50.01");
-  await page.goto(path("BALANCES"));
+  await page.goto(businessUrl(path("BALANCES")));
   await expect(
     page.getByRole("region", { name: "Current booking balances" }),
   ).toContainText("€25.00");
-  await page.goto(path("COLLECTIONS"));
+  await page.goto(businessUrl(path("COLLECTIONS")));
   await expect(
     page.getByRole("region", { name: "Collection ledger sources" }),
   ).toContainText("€25.01");
@@ -170,10 +179,11 @@ test("Today leads to a real check-in, deposit, reconciled reports and a private 
   await page.getByRole("button", { name: "Download complete CSV" }).click();
   const download = await downloaded;
   expect(download.suggestedFilename()).toBe(
-    `villas-collections-${from}-${to}.csv`,
+    `villas-${process.env.VILLAS_PROPERTY_ID}-collections-${from}-${to}.csv`,
   );
   const csv = readFileSync((await download.path())!, "utf8");
   expect(csv).toContain('"METADATA"');
+  expect(csv).toContain(`"${process.env.VILLAS_PROPERTY_ID}"`);
   expect(csv).toContain('"DATA"');
   expect(csv).toContain("Синтетички");
   expect(csv).toContain('"\'=SUM(1,2)"');
@@ -206,7 +216,7 @@ test("Today leads to a real check-in, deposit, reconciled reports and a private 
     `Reservation #${id}`,
   );
   const ledger = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/ledger`)
   ).json();
   expect(ledger.outstandingCents).toBe(2500);
   expect(ledger.totals.receivedCents).toBe(2501);
@@ -217,10 +227,10 @@ test("changed source records block stale CSV and a failed refresh retains a visi
   await signIn(page);
   const { id, room, headers, from, to } = await setup(page);
   await page.goto(
-    `/reports?kind=BALANCES&from=${from}&to=${to}&room=${room.id}`,
+    businessUrl(`/reports?kind=BALANCES&from=${from}&to=${to}&room=${room.id}`),
   );
   await expect(page.getByText("Complete outstanding")).toBeVisible();
-  const saved = await page.request.post(
+  const saved = await businessRequest(page).post(
     `/api/v1/reservations/${id}/ledger/payments`,
     {
       headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },

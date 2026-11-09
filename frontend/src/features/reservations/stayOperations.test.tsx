@@ -58,6 +58,8 @@ function mount() {
     operationsApi = new OperationsApi(config),
     paymentsApi = new PaymentsApi(config);
   const context = {
+    businessId: "villa-rosa",
+    businessName: "Synthetic business",
     ownerId: actor,
     epoch,
     apis: {

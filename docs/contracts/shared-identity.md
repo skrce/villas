@@ -2,7 +2,7 @@
 
 [#45](https://github.com/skrce/villas/issues/45) implements one Google identity and
 server session across independent Owner memberships. The [shared data context and PostgreSQL row security](business-data-isolation.md)
-implement #46. Business switching and shared hosting remain #47-#49. The
+implement #46. [Business workspaces](business-workspace.md) implement #47; shared hosting/release qualification remain #48/#49. The
 [tenancy contract](multi-tenancy.md) owns that rollout. Live deployment stays blocked.
 Real Google setup and provider acceptance remain deferred in #4.
 
@@ -70,12 +70,12 @@ unrelated and revoked businesses even when their IDs are known.
 Domain and legacy staff adapters now require an explicit `X-Villas-Business`
 selector under [business data isolation](business-data-isolation.md). There is no
 configured or first-business fallback. Staff paths select by path; an optional
-header must agree. #47 completes browser state separation and switching.
+header must agree. #47 supplies explicit browser business URLs and isolated state.
 
-The current console continues to use the configured business. An identity without
-that grant sees a workspace-access message and can sign out, while its authorized
-staff APIs remain usable. Protected console data is hidden. The routed multi-business
-console and independent drafts/caches remain #47.
+The console selects the membership named by its tab URL, using that membership's
+server-provided capabilities. An unavailable grant hides protected data and retains
+links to other authorized businesses. Unscoped addresses require an explicit choice;
+there is no configured-business or first-membership fallback.
 
 ## Transactions and permissions
 

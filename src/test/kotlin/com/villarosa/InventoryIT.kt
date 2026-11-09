@@ -752,7 +752,7 @@ constructor(
                     TestData.ownerIdentity().id,
                 )
             }
-            assertThat(future.get(15, TimeUnit.SECONDS)).isEqualTo("SESSION_REVOKED")
+            assertThat(future.get(15, TimeUnit.SECONDS)).isEqualTo("BUSINESS_ACCESS_DENIED")
             assertThat(reservations.count()).isZero()
             assertThat(events.count()).isZero()
             assertThat(

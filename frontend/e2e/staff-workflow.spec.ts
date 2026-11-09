@@ -1,3 +1,4 @@
+import { businessUrl, businessRequest } from "./business";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -6,7 +7,7 @@ test("calendar selection creates a quoted stay that persists on the desktop grid
 }, testInfo) => {
   await signIn(page);
   const deployment = await (
-    await page.request.get("/api/v1/auth/session")
+    await businessRequest(page).get("/api/v1/auth/session")
   ).json();
   expect(deployment.propertyId).toBe(
     process.env.VILLAS_PROPERTY_ID ?? "villa-rosa",
@@ -15,23 +16,26 @@ test("calendar selection creates a quoted stay that persists on the desktop grid
     process.env.VILLAS_PROPERTY_NAME ?? "Villa Rosa",
   );
   const headers = await headersFor(page);
-  const created = await page.request.post("/api/v1/apartments", {
+  const created = await businessRequest(page).post("/api/v1/apartments", {
     headers,
     data: { name: "Calendar terrace", reference: "CAL-TERRACE", capacity: 4 },
   });
   expect(created.ok()).toBe(true);
   const room = await created.json();
-  const rated = await page.request.put(`/api/v1/apartments/${room.id}/rates`, {
-    headers,
-    data: {
-      expectedVersion: 0,
-      currency: "EUR",
-      baseNightlyCents: 6500,
-      seasons: [],
+  const rated = await businessRequest(page).put(
+    `/api/v1/apartments/${room.id}/rates`,
+    {
+      headers,
+      data: {
+        expectedVersion: 0,
+        currency: "EUR",
+        baseNightlyCents: 6500,
+        seasons: [],
+      },
     },
-  });
+  );
   expect(rated.ok()).toBe(true);
-  const block = await page.request.post(
+  const block = await businessRequest(page).post(
     `/api/v1/apartments/${room.id}/maintenance`,
     {
       headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
@@ -44,7 +48,7 @@ test("calendar selection creates a quoted stay that persists on the desktop grid
   );
   expect(block.ok()).toBe(true);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/calendar?from=2037-04-01");
+  await page.goto(businessUrl("/calendar?from=2037-04-01"));
   await page
     .getByRole("button", {
       name: "Select Calendar terrace, night of 2 Apr 2037",
@@ -103,7 +107,7 @@ test("calendar selection creates a quoted stay that persists on the desktop grid
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     /^Reservation #\d+$/,
   );
-  await page.goto("/calendar?from=2037-04-01");
+  await page.goto(businessUrl("/calendar?from=2037-04-01"));
   await page.reload();
   const desktop = page.locator(".calendar-desktop");
   await expect(
@@ -142,7 +146,7 @@ test("calendar selection creates a quoted stay that persists on the desktop grid
       .locator("strong")
       .filter({ hasText: /^Synthetic inspection$/ }),
   ).toBeVisible();
-  await page.goto("/calendar?from=2037-04-01");
+  await page.goto(businessUrl("/calendar?from=2037-04-01"));
   await page
     .getByLabel("Room agenda")
     .getByRole("link", { name: /Calendar Synthetic Guest/ })
@@ -162,11 +166,11 @@ async function signInHere(page: Page, identity = "Synthetic Owner") {
 async function signIn(page: Page, identity = "Synthetic Owner") {
   if (!process.env.VILLAS_LOCAL_INSTANCE?.startsWith("e2e-"))
     throw new Error("Use npm run test:e2e for a disposable database.");
-  await page.goto("/");
+  await page.goto(businessUrl("/"));
   await signInHere(page, identity);
 }
 async function headersFor(page: Page) {
-  const response = await page.request.get("/api/v1/auth/session");
+  const response = await businessRequest(page).get("/api/v1/auth/session");
   return {
     "X-CSRF-TOKEN": (await response.json()).csrfToken,
     Origin: "http://127.0.0.1:15073",
@@ -179,7 +183,7 @@ async function fillBooking(
   end = "2026-11-14",
   recover = false,
 ) {
-  await page.goto(`/reservations/new?guest=${guestId}`);
+  await page.goto(businessUrl(`/reservations/new?guest=${guestId}`));
   await page
     .getByRole("button", { name: "Show all steps", exact: true })
     .click();
@@ -258,7 +262,9 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
   await move.getByRole("button", { name: "Review price", exact: true }).click();
   await move.getByRole("button", { name: /^Confirm changes ·/ }).click();
   await expect(move).not.toBeVisible();
-  const saved = await page.request.get(`/api/v1/reservations/${reservationId}`);
+  const saved = await businessRequest(page).get(
+    `/api/v1/reservations/${reservationId}`,
+  );
   expect(await saved.json()).toMatchObject({
     customerId: guestId,
     endDate: "2026-11-10",
@@ -283,15 +289,17 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
   ).toBeVisible();
   expect(
     await (
-      await page.request.get(`/api/v1/reservations/${reservationId}`)
+      await businessRequest(page).get(`/api/v1/reservations/${reservationId}`)
     ).json(),
   ).toMatchObject({ status: "CANCELLED", version: 3 });
-  const history = await page.request.get(
+  const history = await businessRequest(page).get(
     `/api/v1/reservations/${reservationId}/events`,
   );
   expect((await history.json()).items).toHaveLength(4);
   const agreements = await (
-    await page.request.get(`/api/v1/reservations/${reservationId}/prices`)
+    await businessRequest(page).get(
+      `/api/v1/reservations/${reservationId}/prices`,
+    )
   ).json();
   expect(
     agreements.items.map(
@@ -306,7 +314,9 @@ test("an Owner creates a guest and booking, edits the stay, moves the room and c
     [0, 15003],
   ]);
   const accepted = await (
-    await page.request.get(`/api/v1/reservations/${reservationId}/price`)
+    await businessRequest(page).get(
+      `/api/v1/reservations/${reservationId}/price`,
+    )
   ).json();
   expect(accepted).toMatchObject({
     recorded: true,
@@ -323,7 +333,7 @@ test("separate tabs reconcile a lost booking response with the same durable key"
 }) => {
   await signIn(page);
   const headers = await headersFor(page);
-  const guest = await page.request.post("/api/v1/customers", {
+  const guest = await businessRequest(page).post("/api/v1/customers", {
     headers,
     data: {
       firstName: "TabTest",
@@ -378,9 +388,12 @@ test("separate tabs reconcile a lost booking response with the same durable key"
     ).toBeVisible();
     expect(keys).toHaveLength(2);
     expect(new Set(keys).size).toBe(1);
-    const rows = await page.request.get("/api/v1/reservations/customer", {
-      params: { customerId: id },
-    });
+    const rows = await businessRequest(page).get(
+      "/api/v1/reservations/customer",
+      {
+        params: { customerId: id },
+      },
+    );
     expect(await rows.json()).toEqual([
       expect.objectContaining({ guestCount: 2, nights: 2 }),
     ]);
@@ -410,7 +423,7 @@ test("logout removes legacy credentials and clears another tab", async ({
   );
   await signIn(page);
   const other = await context.newPage();
-  await other.goto("/rooms");
+  await other.goto(businessUrl("/rooms"));
   await expect(
     other.getByRole("heading", { name: "Rooms", exact: true }),
   ).toBeVisible();
@@ -424,7 +437,9 @@ test("logout removes legacy credentials and clears another tab", async ({
   await expect(
     other.getByRole("button", { name: "Sign in to local demo" }),
   ).toBeVisible();
-  expect((await page.request.get("/api/v1/apartments")).status()).toBe(401);
+  expect((await businessRequest(page).get("/api/v1/apartments")).status()).toBe(
+    401,
+  );
 });
 
 test("deep links, keyboard dialogs and accessible layouts work at desktop and 320 pixels", async ({
@@ -432,7 +447,7 @@ test("deep links, keyboard dialogs and accessible layouts work at desktop and 32
 }, testInfo) => {
   await signIn(page);
   const headers = await headersFor(page);
-  const roomResponse = await page.request.post("/api/v1/apartments", {
+  const roomResponse = await businessRequest(page).post("/api/v1/apartments", {
     headers,
     data: {
       name: "Synthetic accessibility room",
@@ -444,7 +459,7 @@ test("deep links, keyboard dialogs and accessible layouts work at desktop and 32
   const room = await roomResponse.json();
   expect(
     (
-      await page.request.put(`/api/v1/apartments/${room.id}/rates`, {
+      await businessRequest(page).put(`/api/v1/apartments/${room.id}/rates`, {
         headers,
         data: {
           expectedVersion: 0,
@@ -455,7 +470,7 @@ test("deep links, keyboard dialogs and accessible layouts work at desktop and 32
       })
     ).ok(),
   ).toBeTruthy();
-  const guestResponse = await page.request.post("/api/v1/customers", {
+  const guestResponse = await businessRequest(page).post("/api/v1/customers", {
     headers,
     data: { firstName: "Synthetic", lastName: "Accessibility" },
   });
@@ -467,28 +482,31 @@ test("deep links, keyboard dialogs and accessible layouts work at desktop and 32
     endDate: "2026-11-22",
     guestCount: 1,
   };
-  const offered = await page.request.post("/api/v1/booking-quotes", {
+  const offered = await businessRequest(page).post("/api/v1/booking-quotes", {
     headers,
     data: stay,
   });
   expect(offered.ok()).toBeTruthy();
   const quote = await offered.json();
-  const confirmed = await page.request.post("/api/v1/reservations/quoted", {
-    headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
-    data: { ...stay, customerId, quoteId: quote.id },
-  });
+  const confirmed = await businessRequest(page).post(
+    "/api/v1/reservations/quoted",
+    {
+      headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
+      data: { ...stay, customerId, quoteId: quote.id },
+    },
+  );
   expect(confirmed.ok()).toBeTruthy();
   const id = await confirmed.json();
   expect(
     (
-      await page.request.delete(
+      await businessRequest(page).delete(
         `/api/v1/reservations?reservationId=${id}&expectedVersion=0`,
         { headers: { ...headers, "Idempotency-Key": crypto.randomUUID() } },
       )
     ).ok(),
   ).toBeTruthy();
   await page.goto(
-    "/reservations?from=2026-11-01&to=2026-12-01&status=CANCELLED",
+    businessUrl("/reservations?from=2026-11-01&to=2026-12-01&status=CANCELLED"),
   );
   await expect(page.getByLabel("From", { exact: true })).toHaveValue(
     "2026-11-01",
@@ -533,7 +551,7 @@ test("deep links, keyboard dialogs and accessible layouts work at desktop and 32
     contentType: "image/png",
   });
   await page.goto(
-    "/reservations?from=2026-11-01&to=2026-12-01&status=CANCELLED",
+    businessUrl("/reservations?from=2026-11-01&to=2026-12-01&status=CANCELLED"),
   );
   const view = page.getByRole("link", { name: /View reservation/ }).first();
   await expect(view).toBeVisible();
@@ -573,7 +591,7 @@ test("Owner invitations support another synthetic identity and self session revo
   await page.getByRole("button", { name: "Sign out" }).click();
   await signInHere(page, "Second synthetic Owner");
   const identityId = (
-    await (await page.request.get("/api/v1/auth/session")).json()
+    await (await businessRequest(page).get("/api/v1/auth/session")).json()
   ).identity.id;
   await expect(
     page
@@ -593,31 +611,40 @@ test("Owner invitations support another synthetic identity and self session revo
   await expect(
     page.getByRole("button", { name: "Sign in to local demo" }),
   ).toBeVisible();
-  const denied = await page.request.get("/api/v1/apartments");
+  const denied = await businessRequest(page).get("/api/v1/apartments");
   expect(denied.status()).toBe(403);
   expect(await denied.json()).toMatchObject({ code: "BUSINESS_ACCESS_DENIED" });
-  const session = await (await page.request.get("/api/v1/auth/session")).json();
+  const session = await (
+    await businessRequest(page).get("/api/v1/auth/session")
+  ).json();
   expect(session).toMatchObject({
     authenticated: true,
     identity: { id: identityId },
     staff: null,
-    memberships: [],
   });
+  expect(
+    session.memberships.some(
+      (membership: { businessId: string }) =>
+        membership.businessId === process.env.VILLAS_PROPERTY_ID,
+    ),
+  ).toBe(false);
 });
 
 test("session revocation preserves entered booking details and never resubmits after sign-in", async ({
   page,
 }) => {
   await signIn(page);
-  await page.goto("/reservations/new");
+  await page.goto(businessUrl("/reservations/new"));
   await page
     .getByRole("button", { name: "Show all steps", exact: true })
     .click();
   await page
     .getByRole("combobox", { name: "Guest", exact: true })
     .fill("Retained input");
-  const session = await (await page.request.get("/api/v1/auth/session")).json();
-  const revoke = await page.request.post(
+  const session = await (
+    await businessRequest(page).get("/api/v1/auth/session")
+  ).json();
+  const revoke = await businessRequest(page).post(
     `/api/v1/staff/${session.staff.id}/revoke-sessions`,
     {
       headers: await headersFor(page),
@@ -663,7 +690,7 @@ test("Owner guest and room management protects stays and retains maintenance/his
     "Synthetic courtyard studio",
   );
   const roomId = Number(new URL(page.url()).pathname.split("/").pop());
-  const configured = await page.request.put(
+  const configured = await businessRequest(page).put(
     `/api/v1/apartments/${roomId}/rates`,
     {
       headers: await headersFor(page),
@@ -680,21 +707,24 @@ test("Owner guest and room management protects stays and retains maintenance/his
   const editRoom = page.getByRole("dialog", { name: "Edit room" });
   await editRoom.getByLabel("Amenities").fill("Synthetic terrace, Wi-Fi");
   const previousRoom = await (
-    await page.request.get(`/api/v1/apartments/${roomId}`)
+    await businessRequest(page).get(`/api/v1/apartments/${roomId}`)
   ).json();
-  const concurrent = await page.request.put(`/api/v1/apartments/${roomId}`, {
-    headers: await headersFor(page),
-    data: {
-      details: {
-        name: previousRoom.name,
-        reference: previousRoom.reference,
-        capacity: previousRoom.capacity,
-        bedConfiguration: previousRoom.bedConfiguration,
-        features: "Synthetic concurrent edit",
+  const concurrent = await businessRequest(page).put(
+    `/api/v1/apartments/${roomId}`,
+    {
+      headers: await headersFor(page),
+      data: {
+        details: {
+          name: previousRoom.name,
+          reference: previousRoom.reference,
+          capacity: previousRoom.capacity,
+          bedConfiguration: previousRoom.bedConfiguration,
+          features: "Synthetic concurrent edit",
+        },
+        expectedVersion: previousRoom.version,
       },
-      expectedVersion: previousRoom.version,
     },
-  });
+  );
   expect(concurrent.ok()).toBeTruthy();
   await editRoom.getByRole("button", { name: "Save changes" }).click();
   await expect(editRoom.getByRole("alert")).toContainText(
@@ -757,7 +787,7 @@ test("Owner guest and room management protects stays and retains maintenance/his
   await editGuest.getByRole("button", { name: "Save changes" }).click();
   await expect(editGuest).not.toBeVisible();
   const savedGuest = await (
-    await page.request.get(`/api/v1/customers/${guestId}`)
+    await businessRequest(page).get(`/api/v1/customers/${guestId}`)
   ).json();
   expect(savedGuest).toMatchObject({
     lastName: "Проверка",
@@ -776,7 +806,9 @@ test("Owner guest and room management protects stays and retains maintenance/his
     archiveGuest.getByRole("link", { name: `Reservation #${reservationId}` }),
   ).toBeVisible();
   await archiveGuest.getByRole("button", { name: "Keep active" }).click();
-  await page.goto(`/rooms/${roomId}?from=2031-03-01&to=2031-03-10`);
+  await page.goto(
+    businessUrl(`/rooms/${roomId}?from=2031-03-01&to=2031-03-10`),
+  );
   await page.getByRole("button", { name: "Edit room", exact: true }).click();
   const capacity = page.getByRole("dialog", { name: "Edit room" });
   await capacity.getByLabel("Capacity", { exact: true }).fill("2");
@@ -785,8 +817,11 @@ test("Owner guest and room management protects stays and retains maintenance/his
     capacity.getByRole("link", { name: `Reservation #${reservationId}` }),
   ).toBeVisible();
   expect(
-    (await (await page.request.get(`/api/v1/apartments/${roomId}`)).json())
-      .capacity,
+    (
+      await (
+        await businessRequest(page).get(`/api/v1/apartments/${roomId}`)
+      ).json()
+    ).capacity,
   ).toBe(4);
   await capacity.getByRole("button", { name: "Close dialog" }).click();
   await page
@@ -829,7 +864,7 @@ test("Owner guest and room management protects stays and retains maintenance/his
   await expect(
     page.getByText("Cancelled", { exact: true }).first(),
   ).toBeVisible();
-  await page.goto(`/reservations/${reservationId}`);
+  await page.goto(businessUrl(`/reservations/${reservationId}`));
   await page
     .getByRole("button", { name: "Cancel reservation", exact: true })
     .click();
@@ -893,7 +928,9 @@ test("Owner guest and room management protects stays and retains maintenance/his
     path: guestImage,
     contentType: "image/png",
   });
-  await page.goto(`/rooms/${roomId}?from=2031-03-01&to=2031-03-10&history=1`);
+  await page.goto(
+    businessUrl(`/rooms/${roomId}?from=2031-03-01&to=2031-03-10&history=1`),
+  );
   await page.getByRole("button", { name: "Archive room", exact: true }).click();
   await page
     .getByRole("dialog", { name: "Archive room?" })
@@ -937,7 +974,7 @@ test("guest duplicate review keeps family contacts separate and the directory pa
 }) => {
   await signIn(page);
   const createFamily = async (first: string, separate = false) => {
-    await page.goto("/guests");
+    await page.goto(businessUrl("/guests"));
     await page.getByRole("button", { name: "Add guest", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Add guest" });
     await dialog.getByLabel("First name").fill(first);
@@ -965,13 +1002,13 @@ test("guest duplicate review keeps family contacts separate and the directory pa
   expect(new Set([first, second, distinct]).size).toBe(3);
   const headers = await headersFor(page);
   for (let index = 0; index < 51; index++) {
-    const response = await page.request.post("/api/v1/customers", {
+    const response = await businessRequest(page).post("/api/v1/customers", {
       headers,
       data: { firstName: `SyntheticPage${index}`, lastName: "Pagination" },
     });
     expect(response.ok()).toBeTruthy();
   }
-  await page.goto("/guests");
+  await page.goto(businessUrl("/guests"));
   await page.getByLabel("Name", { exact: true }).fill("SyntheticPage");
   await page
     .getByRole("button", { name: "Search guests", exact: true })
@@ -990,7 +1027,7 @@ test("Owner configures exact nightly and seasonal rates and explicitly reloads a
   page,
 }, testInfo) => {
   await signIn(page);
-  const created = await page.request.post("/api/v1/apartments", {
+  const created = await businessRequest(page).post("/api/v1/apartments", {
     headers: await headersFor(page),
     data: {
       name: "Synthetic seasonal studio",
@@ -1001,7 +1038,7 @@ test("Owner configures exact nightly and seasonal rates and explicitly reloads a
   expect(created.ok()).toBeTruthy();
   const room = await created.json();
   const target = `/api/v1/apartments/${room.id}/rates`;
-  await page.goto(`/rooms/${room.id}`);
+  await page.goto(businessUrl(`/rooms/${room.id}`));
   await expect(
     page.getByText("Rates need configuration", { exact: true }),
   ).toBeVisible();
@@ -1021,7 +1058,7 @@ test("Owner configures exact nightly and seasonal rates and explicitly reloads a
   await expect(
     page.getByText("Synthetic leap-day season", { exact: true }),
   ).toBeVisible();
-  const preview = await page.request.post(`${target}/preview`, {
+  const preview = await businessRequest(page).post(`${target}/preview`, {
     headers: await headersFor(page),
     data: {
       startDate: "2028-02-28",
@@ -1038,8 +1075,8 @@ test("Owner configures exact nightly and seasonal rates and explicitly reloads a
   });
   await page.getByRole("button", { name: "Edit rates", exact: true }).click();
   await edit.getByLabel("Base price (EUR per night)").fill("60.01");
-  const saved = await (await page.request.get(target)).json();
-  const concurrent = await page.request.put(target, {
+  const saved = await (await businessRequest(page).get(target)).json();
+  const concurrent = await businessRequest(page).put(target, {
     headers: await headersFor(page),
     data: {
       expectedVersion: saved.version,
@@ -1098,7 +1135,7 @@ test("maintenance recovery survives another tab's confirmation, room archival an
   context,
 }) => {
   await signIn(page);
-  const response = await page.request.post("/api/v1/apartments", {
+  const response = await businessRequest(page).post("/api/v1/apartments", {
     headers: await headersFor(page),
     data: {
       name: "Synthetic recovery room",
@@ -1109,7 +1146,7 @@ test("maintenance recovery survives another tab's confirmation, room archival an
   expect(response.ok()).toBeTruthy();
   const room = await response.json();
   const target = `/api/v1/apartments/${room.id}/maintenance`;
-  const url = `/rooms/${room.id}?from=2032-01-01&to=2032-01-03`;
+  const url = businessUrl(`/rooms/${room.id}?from=2032-01-01&to=2032-01-03`);
   let posts = 0;
   context.on("request", (request) => {
     if (
@@ -1141,7 +1178,7 @@ test("maintenance recovery survives another tab's confirmation, room archival an
   const confirmation = await enter(second);
   await confirmation.getByRole("button", { name: "Save maintenance" }).click();
   await expect(confirmation).not.toBeVisible();
-  const archived = await second.request.post(
+  const archived = await businessRequest(second).post(
     `/api/v1/apartments/${room.id}/status`,
     {
       headers: await headersFor(second),
@@ -1167,7 +1204,7 @@ test("maintenance recovery survives another tab's confirmation, room archival an
   ).toBeVisible();
   expect(posts).toBe(1);
   const blocks = await (
-    await page.request.get(
+    await businessRequest(page).get(
       `/api/v1/maintenance-blocks?startDate=2032-01-01&endDate=2032-01-03&roomId=${room.id}`,
     )
   ).json();
@@ -1188,19 +1225,19 @@ test("saved quotes require explicit acceptance, retain exact seasonal prices and
 }, testInfo) => {
   await signIn(page);
   const headers = await headersFor(page);
-  const created = await page.request.post("/api/v1/apartments", {
+  const created = await businessRequest(page).post("/api/v1/apartments", {
     headers,
     data: { name: "Synthetic quote studio", reference: "QUOTE-6", capacity: 4 },
   });
   expect(created.ok()).toBeTruthy();
   const room = await created.json();
-  const guestResponse = await page.request.post("/api/v1/customers", {
+  const guestResponse = await businessRequest(page).post("/api/v1/customers", {
     headers,
     data: { firstName: "Synthetic", lastName: "QuoteGuest" },
   });
   expect(guestResponse.ok()).toBeTruthy();
   const guestId = await guestResponse.json();
-  await page.goto(`/reservations/new?guest=${guestId}`);
+  await page.goto(businessUrl(`/reservations/new?guest=${guestId}`));
   await page
     .getByRole("button", { name: "Show all steps", exact: true })
     .click();
@@ -1229,7 +1266,7 @@ test("saved quotes require explicit acceptance, retain exact seasonal prices and
   ];
   expect(
     (
-      await page.request.put(ratesPath, {
+      await businessRequest(page).put(ratesPath, {
         headers,
         data: {
           expectedVersion: 0,
@@ -1258,7 +1295,7 @@ test("saved quotes require explicit acceptance, retain exact seasonal prices and
   expect(confirmations).toBe(0);
   expect(
     (
-      await page.request.put(ratesPath, {
+      await businessRequest(page).put(ratesPath, {
         headers,
         data: {
           expectedVersion: 1,
@@ -1302,7 +1339,7 @@ test("saved quotes require explicit acceptance, retain exact seasonal prices and
   expect(confirmations).toBe(2);
   const id = Number(new URL(page.url()).pathname.split("/").pop());
   const accepted = await (
-    await page.request.get(`/api/v1/reservations/${id}/price`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/price`)
   ).json();
   expect(accepted).toMatchObject({
     recorded: true,
@@ -1313,7 +1350,7 @@ test("saved quotes require explicit acceptance, retain exact seasonal prices and
   });
   expect(
     (
-      await page.request.put(ratesPath, {
+      await businessRequest(page).put(ratesPath, {
         headers,
         data: {
           expectedVersion: 2,
@@ -1334,7 +1371,9 @@ test("saved quotes require explicit acceptance, retain exact seasonal prices and
       .getByText("€210.03", { exact: true }),
   ).toBeVisible();
   expect(
-    await (await page.request.get(`/api/v1/reservations/${id}/price`)).json(),
+    await (
+      await businessRequest(page).get(`/api/v1/reservations/${id}/price`)
+    ).json(),
   ).toEqual(accepted);
   await page
     .getByRole("button", { name: "Price history", exact: true })
@@ -1355,7 +1394,7 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
 }, testInfo) => {
   await signIn(page);
   const headers = await headersFor(page);
-  const createdRoom = await page.request.post("/api/v1/apartments", {
+  const createdRoom = await businessRequest(page).post("/api/v1/apartments", {
     headers,
     data: { name: "Synthetic edit studio", reference: "EDIT-6", capacity: 4 },
   });
@@ -1364,7 +1403,7 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
   const ratesPath = `/api/v1/apartments/${room.id}/rates`;
   expect(
     (
-      await page.request.put(ratesPath, {
+      await businessRequest(page).put(ratesPath, {
         headers,
         data: {
           expectedVersion: 0,
@@ -1375,13 +1414,13 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
       })
     ).ok(),
   ).toBeTruthy();
-  const guest = await page.request.post("/api/v1/customers", {
+  const guest = await businessRequest(page).post("/api/v1/customers", {
     headers,
     data: { firstName: "Synthetic", lastName: "PriceEdit" },
   });
   expect(guest.ok()).toBeTruthy();
   const customerId = await guest.json();
-  await page.goto(`/reservations/new?guest=${customerId}`);
+  await page.goto(businessUrl(`/reservations/new?guest=${customerId}`));
   await page
     .getByRole("button", { name: "Show all steps", exact: true })
     .click();
@@ -1424,7 +1463,7 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
   ).toBeVisible();
   expect(
     (
-      await page.request.put(ratesPath, {
+      await businessRequest(page).put(ratesPath, {
         headers,
         data: {
           expectedVersion: 1,
@@ -1449,8 +1488,11 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
   );
   expect(editWrites).toBe(1);
   expect(
-    (await (await page.request.get(`/api/v1/reservations/${id}`)).json())
-      .version,
+    (
+      await (
+        await businessRequest(page).get(`/api/v1/reservations/${id}`)
+      ).json()
+    ).version,
   ).toBe(0);
   await page.route(`**${target}`, async (route) => {
     if (route.request().method() !== "POST") return route.continue();
@@ -1468,7 +1510,7 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
   expect(new Set(keys).size).toBe(2);
   expect(
     (
-      await page.request.put(ratesPath, {
+      await businessRequest(page).put(ratesPath, {
         headers,
         data: {
           expectedVersion: 2,
@@ -1479,7 +1521,7 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
       })
     ).ok(),
   ).toBeTruthy();
-  const cancelled = await page.request.delete(
+  const cancelled = await businessRequest(page).delete(
     `/api/v1/reservations?reservationId=${id}&expectedVersion=1`,
     { headers: { ...headers, "Idempotency-Key": crypto.randomUUID() } },
   );
@@ -1508,10 +1550,12 @@ test("an Owner accepts a refreshed edit price and recovers a lost confirmation a
   expect(editWrites).toBe(2);
   expect(quoteWrites).toBe(quoteCount);
   expect(
-    await (await page.request.get(`/api/v1/reservations/${id}`)).json(),
+    await (
+      await businessRequest(page).get(`/api/v1/reservations/${id}`)
+    ).json(),
   ).toMatchObject({ status: "CANCELLED", version: 2 });
   const accepted = await (
-    await page.request.get(`/api/v1/reservations/${id}/price`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/price`)
   ).json();
   expect(accepted).toMatchObject({
     recorded: true,
@@ -1548,10 +1592,13 @@ test("two independent Owners race for one calendar stay, retain the losing draft
   test.setTimeout(90_000);
   await signIn(page);
   const headers = await headersFor(page);
-  const invitation = await page.request.post("/api/v1/staff/invitations", {
-    headers,
-    data: { email: "second-owner@example.test" },
-  });
+  const invitation = await businessRequest(page).post(
+    "/api/v1/staff/invitations",
+    {
+      headers,
+      data: { email: "second-owner@example.test" },
+    },
+  );
   if (!invitation.ok())
     expect(await invitation.json()).toMatchObject({
       code: "STAFF_ALREADY_ACTIVE",
@@ -1564,10 +1611,10 @@ test("two independent Owners race for one calendar stay, retain the losing draft
     const second = await secondContext.newPage();
     await signIn(second, "Second synthetic Owner");
     const ownerA = await (
-      await page.request.get("/api/v1/auth/session")
+      await businessRequest(page).get("/api/v1/auth/session")
     ).json();
     const ownerB = await (
-      await second.request.get("/api/v1/auth/session")
+      await businessRequest(second).get("/api/v1/auth/session")
     ).json();
     expect(ownerA.staff.id).not.toBe(ownerB.staff.id);
     const roomIds: number[] = [];
@@ -1575,7 +1622,7 @@ test("two independent Owners race for one calendar stay, retain the losing draft
       ["Race terrace", "RACE-7"],
       ["Race garden", "RACE-ALT-7"],
     ]) {
-      const created = await page.request.post("/api/v1/apartments", {
+      const created = await businessRequest(page).post("/api/v1/apartments", {
         headers,
         data: { name, reference, capacity: 2 },
       });
@@ -1584,22 +1631,25 @@ test("two independent Owners race for one calendar stay, retain the losing draft
       roomIds.push(room.id);
       expect(
         (
-          await page.request.put(`/api/v1/apartments/${room.id}/rates`, {
-            headers,
-            data: {
-              expectedVersion: 0,
-              currency: "EUR",
-              baseNightlyCents: 5001,
-              seasons: [],
+          await businessRequest(page).put(
+            `/api/v1/apartments/${room.id}/rates`,
+            {
+              headers,
+              data: {
+                expectedVersion: 0,
+                currency: "EUR",
+                baseNightlyCents: 5001,
+                seasons: [],
+              },
             },
-          })
+          )
         ).ok(),
       ).toBe(true);
     }
     for (const firstName of ["RaceAlpha", "RaceBeta"])
       expect(
         (
-          await page.request.post("/api/v1/customers", {
+          await businessRequest(page).post("/api/v1/customers", {
             headers,
             data: { firstName, lastName: "Synthetic" },
           })
@@ -1610,7 +1660,7 @@ test("two independent Owners race for one calendar stay, retain the losing draft
       [second, "RaceBeta"],
     ] as const) {
       await client.setViewportSize({ width: 1440, height: 1000 });
-      await client.goto("/calendar?from=2038-05-01");
+      await client.goto(businessUrl("/calendar?from=2038-05-01"));
       await client
         .getByRole("button", {
           name: "Select Race terrace, night of 2 May 2038",
@@ -1688,12 +1738,12 @@ test("two independent Owners race for one calendar stay, retain the losing draft
       loser.getByRole("button", { name: /^Confirm reservation ·/ }),
     ).toHaveCount(0);
     const onlyOne = await (
-      await winner.request.get(
+      await businessRequest(winner).get(
         `/api/v1/reservations?startDate=2038-05-01&endDate=2038-05-08&roomId=${roomIds[0]}&status=ACTIVE`,
       )
     ).json();
     expect(onlyOne.items).toHaveLength(1);
-    await winner.goto("/calendar?from=2038-05-01");
+    await winner.goto(businessUrl("/calendar?from=2038-05-01"));
     await expect(
       winner
         .locator(".calendar-desktop")
@@ -1719,7 +1769,7 @@ test("two independent Owners race for one calendar stay, retain the losing draft
         .getByRole("link", { name: new RegExp(`${losingName} Synthetic`) }),
     ).toBeVisible();
     const final = await (
-      await winner.request.get(
+      await businessRequest(winner).get(
         "/api/v1/reservations?startDate=2038-05-01&endDate=2038-05-08&status=ACTIVE",
       )
     ).json();
@@ -1727,7 +1777,9 @@ test("two independent Owners race for one calendar stay, retain the losing draft
       final.items.filter((r: { roomId: number }) => roomIds.includes(r.roomId)),
     ).toHaveLength(2);
     await loser.setViewportSize({ width: 320, height: 760 });
-    await loser.goto(`/reservations/new?guest=${onlyOne.items[0].customerId}`);
+    await loser.goto(
+      businessUrl(`/reservations/new?guest=${onlyOne.items[0].customerId}`),
+    );
     await loser
       .getByRole("button", { name: "Continue to room & guest", exact: true })
       .click();

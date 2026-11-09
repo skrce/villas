@@ -19,7 +19,7 @@ class StaffAccess(
         database.business(businessId, identity)
         val person = people.locked(identity.personId ?: revoked()) ?: revoked()
         validatePerson(person, identity.personVersion)
-        if (!lockBusiness(businessId)) revoked()
+        if (!lockBusiness(businessId)) denied()
         return validate(staff.locked(businessId, identity.id), identity, businessId, person).also {
             database.admitLockedWrite()
         }
@@ -83,6 +83,7 @@ class StaffAccess(
                     business.id,
                     business.name,
                     (staff.findByPropertyIdAndId(businessId, identity.id) ?: denied()).view(),
+                    OwnerPermissions.ALL,
                 )
             } catch (_: DomainException) {
                 null
@@ -108,7 +109,7 @@ class StaffAccess(
                 (person != null &&
                     (account.issuer != person.issuer || account.subject != person.subject))
         )
-            revoked()
+            denied()
         return account
     }
 

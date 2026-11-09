@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `businessId` | string
 `businessName` | string
+`permissions` | Array&lt;string&gt;
 `staff` | [StaffView](StaffView.md)
 
 ## Example
@@ -19,6 +20,7 @@ import type { BusinessMembershipView } from ''
 const example = {
   "businessId": null,
   "businessName": null,
+  "permissions": null,
   "staff": null,
 } satisfies BusinessMembershipView
 

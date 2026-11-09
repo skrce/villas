@@ -408,6 +408,11 @@ constructor(
         assertThat(memberships.body())
             .contains("Authorized synthetic lake", "villa-rosa")
             .doesNotContain("Unrelated private label", unrelated)
+        val grants = json.readTree(memberships.body())
+        assertThat((0 until grants.size()).map { grants.get(it).get("permissions").toString() })
+            .hasSize(2)
+            .allMatch { it.contains("\"staff:manage\"") }
+
         assertThat(request("/api/v1/businesses/$business/staff").statusCode()).isEqualTo(200)
         assertThat(request("/api/v1/businesses/villa-rosa/staff").statusCode()).isEqualTo(200)
         assertThat(request("/api/v1/businesses/$unrelated/staff").statusCode()).isEqualTo(403)

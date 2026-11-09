@@ -1,10 +1,11 @@
+import { businessUrl, businessRequest } from "./business";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
 async function signIn(page: Page) {
   if (!process.env.VILLAS_LOCAL_INSTANCE?.startsWith("e2e-"))
     throw new Error("Use the disposable browser runner.");
-  await page.goto("/");
+  await page.goto(businessUrl("/"));
   const opened = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Sign in to local demo" }).click();
   const popup = await opened;
@@ -14,12 +15,14 @@ async function signIn(page: Page) {
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 }
 async function createStay(page: Page) {
-  const session = await (await page.request.get("/api/v1/auth/session")).json();
+  const session = await (
+    await businessRequest(page).get("/api/v1/auth/session")
+  ).json();
   const headers = {
     "X-CSRF-TOKEN": session.csrfToken,
     Origin: "http://127.0.0.1:15073",
   };
-  const createdRoom = await page.request.post("/api/v1/apartments", {
+  const createdRoom = await businessRequest(page).post("/api/v1/apartments", {
     headers,
     data: {
       name: "Synthetic payment room",
@@ -29,17 +32,20 @@ async function createStay(page: Page) {
   });
   expect(createdRoom.ok()).toBe(true);
   const room = await createdRoom.json();
-  const rated = await page.request.put(`/api/v1/apartments/${room.id}/rates`, {
-    headers,
-    data: {
-      expectedVersion: 0,
-      currency: "EUR",
-      baseNightlyCents: 5001,
-      seasons: [],
+  const rated = await businessRequest(page).put(
+    `/api/v1/apartments/${room.id}/rates`,
+    {
+      headers,
+      data: {
+        expectedVersion: 0,
+        currency: "EUR",
+        baseNightlyCents: 5001,
+        seasons: [],
+      },
     },
-  });
+  );
   expect(rated.ok()).toBe(true);
-  const createdGuest = await page.request.post("/api/v1/customers", {
+  const createdGuest = await businessRequest(page).post("/api/v1/customers", {
     headers,
     data: {
       firstName: "Synthetic",
@@ -49,7 +55,7 @@ async function createStay(page: Page) {
   expect(createdGuest.ok()).toBe(true);
   const guestId = await createdGuest.json();
   expect(Number.isInteger(guestId)).toBe(true);
-  const quoted = await page.request.post("/api/v1/booking-quotes", {
+  const quoted = await businessRequest(page).post("/api/v1/booking-quotes", {
     headers,
     data: {
       roomId: room.id,
@@ -61,17 +67,20 @@ async function createStay(page: Page) {
   });
   expect(quoted.ok()).toBe(true);
   const quote = await quoted.json();
-  const confirmed = await page.request.post("/api/v1/reservations/quoted", {
-    headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
-    data: {
-      customerId: guestId,
-      quoteId: quote.id,
-      roomId: room.id,
-      startDate: quote.startDate,
-      endDate: quote.endDate,
-      guestCount: 2,
+  const confirmed = await businessRequest(page).post(
+    "/api/v1/reservations/quoted",
+    {
+      headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
+      data: {
+        customerId: guestId,
+        quoteId: quote.id,
+        roomId: room.id,
+        startDate: quote.startDate,
+        endDate: quote.endDate,
+        guestCount: 2,
+      },
     },
-  });
+  );
   expect(confirmed.ok()).toBe(true);
   return { id: (await confirmed.json()) as number, headers };
 }
@@ -99,7 +108,7 @@ test("Owners record deposits, settlement, credit, reversals and separate cancell
 }, testInfo) => {
   await signIn(page);
   const { id, headers } = await createStay(page);
-  await page.goto(`/reservations/${id}`);
+  await page.goto(businessUrl(`/reservations/${id}`));
   await expect(figure(page, "Outstanding")).toHaveText("€100.02");
   await payment(page, "25.01", "Synthetic deposit");
   await expect(figure(page, "Outstanding")).toHaveText("€75.01");
@@ -132,9 +141,9 @@ test("Owners record deposits, settlement, credit, reversals and separate cancell
     mistaken.getByText("Reversed by a linked correction."),
   ).toBeVisible();
   const current = await (
-    await page.request.get(`/api/v1/reservations/${id}`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}`)
   ).json();
-  const cancelled = await page.request.delete(
+  const cancelled = await businessRequest(page).delete(
     `/api/v1/reservations?reservationId=${id}&expectedVersion=${current.version}`,
     { headers: { ...headers, "Idempotency-Key": crypto.randomUUID() } },
   );
@@ -151,7 +160,9 @@ test("Owners record deposits, settlement, credit, reversals and separate cancell
     .click();
   dialog = page.getByRole("dialog", { name: "Record external refund" });
   const finances = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger/payments`)
+    await businessRequest(page).get(
+      `/api/v1/reservations/${id}/ledger/payments`,
+    )
   ).json();
   const deposit = finances.items.find(
     (item: { entry: { reference: string } }) =>
@@ -169,7 +180,7 @@ test("Owners record deposits, settlement, credit, reversals and separate cancell
   await expect(dialog).not.toBeVisible();
   await expect(figure(page, "Credit")).toHaveText("€75.01");
   const history = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger/entries`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/ledger/entries`)
   ).json();
   expect(history.items).toHaveLength(5);
   expect(
@@ -217,7 +228,7 @@ test("a lost payment response survives cancellation and both tabs reconcile the 
     expect(response.ok()).toBe(true);
     await route.abort("failed");
   });
-  await page.goto(`/reservations/${id}`);
+  await page.goto(businessUrl(`/reservations/${id}`));
   await page
     .locator("#payments")
     .getByRole("button", { name: "Record payment", exact: true })
@@ -234,11 +245,11 @@ test("a lost payment response survives cancellation and both tabs reconcile the 
     "could not be confirmed",
   );
   const held = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/ledger`)
   ).json();
   expect(held.totals.receivedCents).toBe(2501);
   expect(held.reservation.version).toBe(1);
-  const cancelled = await page.request.delete(
+  const cancelled = await businessRequest(page).delete(
     `/api/v1/reservations?reservationId=${id}&expectedVersion=1`,
     { headers: { ...headers, "Idempotency-Key": crypto.randomUUID() } },
   );
@@ -253,7 +264,7 @@ test("a lost payment response survives cancellation and both tabs reconcile the 
   });
   try {
     for (const tab of [second, page]) {
-      await tab.goto(`/reservations/${id}`);
+      await tab.goto(businessUrl(`/reservations/${id}`));
       await expect(figure(tab, "Credit")).toHaveText("€25.01");
       await tab
         .locator("#payments")
@@ -272,12 +283,12 @@ test("a lost payment response survives cancellation and both tabs reconcile the 
   }
   expect(posts).toBe(1);
   const history = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger/entries`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/ledger/entries`)
   ).json();
   expect(history.items).toHaveLength(1);
   expect(history.items[0].operationKey).toBe(original);
   const record = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/ledger`)
   ).json();
   expect(record.creditCents).toBe(2501);
   expect(record.reservation.version).toBe(2);
@@ -288,10 +299,10 @@ test("a lost reversal response remains recoverable from its reversed original af
 }) => {
   await signIn(page);
   const { id } = await createStay(page);
-  await page.goto(`/reservations/${id}`);
+  await page.goto(businessUrl(`/reservations/${id}`));
   await payment(page, "10.00", "Synthetic reversal recovery");
   const entries = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger/entries`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/ledger/entries`)
   ).json();
   const receiptId = entries.items[0].id;
   const target = `/api/v1/reservations/${id}/ledger/entries/${receiptId}/reversal`;
@@ -337,7 +348,7 @@ test("a lost reversal response remains recoverable from its reversed original af
   await expect(dialog).not.toBeVisible();
   expect(posts).toBe(1);
   const final = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger/entries`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/ledger/entries`)
   ).json();
   expect(final.items).toHaveLength(2);
   expect(final.items[0].reversesId).toBe(receiptId);

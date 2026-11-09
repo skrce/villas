@@ -12,7 +12,7 @@ export function Download({
   report: Report;
   enabled: boolean;
 }) {
-  const { apis, epoch } = useWorkspace();
+  const { apis, epoch, businessId } = useWorkspace();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
@@ -61,7 +61,7 @@ export function Download({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `villas-${report.kind.toLowerCase()}-${report.startDate}-${report.endDate}.csv`;
+      link.download = `villas-${businessId}-${report.kind.toLowerCase()}-${report.startDate}-${report.endDate}.csv`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
       setMessage(

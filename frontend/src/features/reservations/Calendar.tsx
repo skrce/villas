@@ -119,7 +119,7 @@ export function BookingCalendar() {
           </Link>
         }
       >
-        A week at Villa Rosa. Property dates follow Europe/Skopje.
+        A week of room availability. Property dates follow Europe/Skopje.
       </PageHead>
       <section className="panel calendar-controls">
         <form

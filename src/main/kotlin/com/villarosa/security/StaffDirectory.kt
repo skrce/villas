@@ -98,7 +98,7 @@ class StaffDirectory(
         businessId: String = BusinessScope.id(),
     ): InvitationView {
         database.business(businessId, actor)
-        propertyLock(businessId)
+        propertyLock(businessId, actor)
         val owner = access.lockOwner(actor, businessId)
         val email = email(suppliedEmail)
         if (staff.findByPropertyIdAndEmail(businessId, email)?.active == true)
@@ -115,7 +115,7 @@ class StaffDirectory(
         businessId: String = BusinessScope.id(),
     ): InvitationView {
         database.business(businessId, actor)
-        propertyLock(businessId)
+        propertyLock(businessId, actor)
         access.lockOwner(actor, businessId)
         val invite =
             invitations.findByPropertyIdAndId(businessId, id)
@@ -142,7 +142,7 @@ class StaffDirectory(
         businessId: String = BusinessScope.id(),
     ): StaffView {
         database.business(businessId, actor)
-        propertyLock(businessId)
+        propertyLock(businessId, actor)
         access.lockOwner(actor, businessId)
         val target = staff.locked(businessId, id) ?: missing("Staff account does not exist.")
         version(target.version, expected)
@@ -164,7 +164,7 @@ class StaffDirectory(
         businessId: String = BusinessScope.id(),
     ): StaffView {
         database.business(businessId, actor)
-        propertyLock(businessId)
+        propertyLock(businessId, actor)
         access.lockOwner(actor, businessId)
         val target = staff.locked(businessId, id) ?: missing("Staff account does not exist.")
         version(target.version, expected)
@@ -245,10 +245,16 @@ class StaffDirectory(
         )
     }
 
-    private fun propertyLock(businessId: String) {
+    private fun propertyLock(businessId: String, actor: StaffIdentity? = null) {
         BusinessIds.requireValid(businessId)
-        checkNotNull(locks.locked(businessId)) {
-            "Staff metadata requires an explicit schema migration."
+        if (locks.locked(businessId) == null) {
+            // Revocation can hide this row before the ordinary identity/member lock checks.
+            if (actor != null) access.current(actor, businessId)
+            throw DomainException(
+                "BUSINESS_ACCESS_DENIED",
+                HttpStatus.FORBIDDEN,
+                "This business is unavailable for your account.",
+            )
         }
     }
 

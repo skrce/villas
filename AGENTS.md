@@ -28,11 +28,13 @@ explicit local/test data. Do not infer a migration requirement from the old exam
 data, and do not convert legacy test price integers into real rates.
 
 The approved target is one shared Villas app and PostgreSQL database per environment.
-Read `docs/contracts/multi-tenancy.md`, `docs/contracts/shared-identity.md`, `docs/contracts/business-data-isolation.md` and
+Read `docs/contracts/multi-tenancy.md`, `docs/contracts/shared-identity.md`, `docs/contracts/business-data-isolation.md`, `docs/contracts/business-workspace.md` and
 #44-#49 before tenancy work. Staging, production and ABL remain separate. Canonical
 Google identity, explicit business data access and PostgreSQL row security are
 implemented. Domain requests require X-Villas-Business and transaction-local verified
-claims. The console switcher and complete browser separation remain #47. Preserve membership
+claims. Business pages use explicit per-tab URLs and isolated caches, drafts and
+recovery keys. Shared hosting/recovery and release qualification remain #48/#49.
+Preserve membership
 IDs in immutable history, independent revocation and per-request staff scope. Do not
 restore deployment-default tenant authority or deploy a shared service before the remaining gates.
 The earlier per-business cloud layout is superseded and live

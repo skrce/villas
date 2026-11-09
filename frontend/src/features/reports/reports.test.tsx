@@ -61,6 +61,8 @@ function mount(
             reportsApi,
             apartmentApi: apis.apartmentApi,
           },
+          businessId: "villa-rosa",
+          businessName: "Synthetic business",
           ownerId: "synthetic",
           epoch,
           booking: buildBookingActions(apis.reservationApi, "report-tests"),

@@ -234,6 +234,12 @@
           "businessName": {
             "type": "string"
           },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "staff": {
             "$ref": "#/components/schemas/StaffView"
           }

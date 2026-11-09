@@ -41,6 +41,12 @@ export interface BusinessMembershipView {
     businessName?: string;
     /**
      * 
+     * @type {Array<string>}
+     * @memberof BusinessMembershipView
+     */
+    permissions?: Array<string>;
+    /**
+     * 
      * @type {StaffView}
      * @memberof BusinessMembershipView
      */
@@ -66,6 +72,7 @@ export function BusinessMembershipViewFromJSONTyped(json: any, ignoreDiscriminat
         
         'businessId': json['businessId'] == null ? undefined : json['businessId'],
         'businessName': json['businessName'] == null ? undefined : json['businessName'],
+        'permissions': json['permissions'] == null ? undefined : json['permissions'],
         'staff': json['staff'] == null ? undefined : StaffViewFromJSON(json['staff']),
     };
 }
@@ -83,6 +90,7 @@ export function BusinessMembershipViewToJSONTyped(value?: BusinessMembershipView
         
         'businessId': value['businessId'],
         'businessName': value['businessName'],
+        'permissions': value['permissions'],
         'staff': StaffViewToJSON(value['staff']),
     };
 }

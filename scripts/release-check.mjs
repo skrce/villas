@@ -204,12 +204,15 @@ try {
   saveConfig();
   await sql(readFileSync(join(root, 'dev/fixtures.sql'), 'utf8').replaceAll('__VILLAS_FIXTURE_BUSINESS__', 'rehearsal-garden'));
   await compose(['run', '--rm', 'owner']);
+  config.services.onboard = { ...config.services.owner, command: ['onboard-business'], environment: { ...config.services.owner.environment, VILLAS_NEW_BUSINESS_ID: 'rehearsal-garden-lake', VILLAS_NEW_BUSINESS_NAME: 'Lake business · Синтетички апартмани' } };
+  saveConfig();
+  await compose(['run', '--rm', 'onboard']);
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy', 'identity']);
   await run(process.execPath, ['frontend/node_modules/@playwright/test/cli.js', 'test', '--config', 'frontend/playwright.release.config.ts', '--max-failures=1'], { env: { ...cleanEnvironment, ...synthetic, VILLAS_PROPERTY_ID: 'rehearsal-garden', VILLAS_PROPERTY_NAME: 'Rehearsal Garden', VILLAS_BROWSER_CLOCK_FILE: join(clock, 'instant.txt') }, timeout: 600_000 });
   const signedIn = await chromium.launch({ headless: true });
   let savedCookies;
   try {
-    const page = await signedIn.newPage(); await page.goto(publicUrl);
+    const page = await signedIn.newPage(); await page.goto(`${publicUrl}/businesses/rehearsal-garden/today`);
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Sign in to local demo' }).click();
     const popup = await popupPromise; await popup.getByRole('button', { name: 'Synthetic Owner', exact: true }).click();
@@ -219,7 +222,7 @@ try {
   await compose(['stop', 'proxy', 'identity', 'api']);
   const unsupported = await sql("SELECT (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='public')+(SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='public' AND routine_name NOT IN ('villas_has_business','villas_identity_matches','villas_identity_business','villas_admission_business'))+(SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type<>'BASE TABLE'); ");
   assert.equal(unsupported.output, '0', 'Logical backup permits only the bundled row-security helpers and base tables.');
-  await sql("INSERT INTO businesses(id,name) VALUES('backup-lake','Synthetic backup lake'); INSERT INTO customers(property_id,first_name,last_name) VALUES('backup-lake','Second business','Synthetic');");
+  await sql("INSERT INTO customers(property_id,first_name,last_name) VALUES('rehearsal-garden-lake','Second business','Synthetic');");
   assert.equal((await sql("SELECT COUNT(DISTINCT property_id) FROM customers;", 'villas_backup')).output, '2', 'Backup authority must read both businesses.');
   await sql(`INSERT INTO recovery_events(id,property_id,snapshot_id,invalidated_sessions,changed_staff,occurred_at) VALUES(gen_random_uuid()::text,'rehearsal-garden','${'f'.repeat(64)}',0,0,CURRENT_TIMESTAMP(6));`);
   const fingerprint = async (service, excludeSnapshot) => {
@@ -237,7 +240,7 @@ try {
   };
   await sql("CREATE TABLE restore_stream_probe(id INT PRIMARY KEY,payload BYTEA NOT NULL); INSERT INTO restore_stream_probe SELECT i,decode(string_agg(md5(random()::text),''),'hex') FROM generate_series(1,128) i CROSS JOIN generate_series(1,512) j GROUP BY i;", 'villas_migration');
   const original = await fingerprint('db');
-  const generations = (await sql('SELECT id,security_version FROM staff_accounts ORDER BY id;')).output;
+  const generations = (await sql('SELECT id,property_id,security_version FROM staff_accounts ORDER BY id;')).output;
   const sessions = Number((await sql('SELECT COUNT(*) FROM SPRING_SESSION;')).output);
   assert(sessions > 0, 'Backup must contain a formerly valid session for the revocation proof.');
   file(join(secrets, 'backup_repository'), '/repo', 0o444);
@@ -282,9 +285,9 @@ try {
   await compose(restoreArguments);
   assert.equal((await sql("SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname='public';", 'root', false, 'restored-db')).output, 'villas_root');
   assert.deepEqual(await fingerprint('restored-db', snapshot), original, 'Restore must preserve every business/configuration/operation/history row byte-for-byte.');
-  const restoredGenerations = (await sql('SELECT id,security_version FROM staff_accounts ORDER BY id;', 'root', false, 'restored-db')).output;
-  const expectedGenerations = generations.split('\n').map(row => { const [id, version] = row.split('\t'); return `${id}\t${BigInt(version) + 1n}`; }).join('\n');
-  assert.equal(restoredGenerations, expectedGenerations);
+  const restoredGenerations = (await sql('SELECT id,property_id,security_version FROM staff_accounts ORDER BY id;', 'root', false, 'restored-db')).output;
+  const expectedGenerations = generations.split('\n').map(row => { const [id, business, version] = row.split('\t'); return `${id}\t${business}\t${BigInt(version) + (business === 'rehearsal-garden' ? 1n : 0n)}`; }).join('\n');
+  assert.equal(restoredGenerations, expectedGenerations, 'The portable compatibility quarantine advances its target membership generations; shared all-business quarantine remains #48.');
   const quarantine = (await sql(`SELECT (SELECT COUNT(*) FROM SPRING_SESSION),(SELECT COUNT(*) FROM SPRING_SESSION_ATTRIBUTES),snapshot_id,invalidated_sessions FROM recovery_events WHERE snapshot_id='${snapshot}';`, 'root', false, 'restored-db')).output;
   assert.equal(quarantine, `0\t0\t${snapshot}\t${sessions}`);
   assert.notEqual((await compose(restoreArguments, { capture: true, allowFailure: true })).code, 0, 'Restore must refuse an already populated target.');
@@ -297,15 +300,17 @@ try {
   try {
     const context = await restoredBrowser.newContext({ extraHTTPHeaders: { 'X-Villas-Business': 'rehearsal-garden' } }); await context.addCookies(savedCookies);
     assert.equal((await context.request.get(`${publicUrl}/api/v1/apartments`)).status(), 401, 'A formerly valid restored cookie must fail before new sign-in.');
-    const page = await context.newPage(); await page.goto(publicUrl);
+    assert.equal((await context.request.get(`${publicUrl}/api/v1/apartments`, { headers: { 'X-Villas-Business': 'rehearsal-garden-lake' } })).status(), 401, 'Global session quarantine must also reject the former cookie in the second business.');
+    const page = await context.newPage(); await page.goto(`${publicUrl}/businesses/rehearsal-garden/today`);
     const popupPromise = page.waitForEvent('popup'); await page.getByRole('button', { name: 'Sign in to local demo' }).click();
     const popup = await popupPromise; await popup.getByRole('button', { name: 'Synthetic Owner', exact: true }).click();
     await page.getByRole('button', { name: 'Sign out' }).waitFor();
     assert.equal((await context.request.get(`${publicUrl}/api/v1/apartments`)).status(), 200);
+    assert.equal((await context.request.get(`${publicUrl}/api/v1/apartments`, { headers: { 'X-Villas-Business': 'rehearsal-garden-lake' } })).status(), 200);
   } finally { await restoredBrowser.close(); }
   await compose(['run', '--rm', '--no-deps', 'monitor-check']);
   console.log(`Isolated encrypted restore and reconciliation passed in ${((Date.now() - startedAt) / 1000).toFixed(1)} seconds. This is local rehearsal evidence, not an off-server RPO/RTO guarantee.`);
-  console.log('Release container checks passed: empty initialization, restricted runtime, TLS/Google authorization setup, outage readiness, 24 synthetic staff browser workflows, encrypted restore/reconciliation and stale-session rejection. Live Google and deployed acceptance remain open.');
+  console.log('Release container checks passed: empty initialization, restricted runtime, TLS/Google authorization setup, outage readiness, synthetic staff browser workflows, encrypted restore/reconciliation and stale-session rejection. Live Google and deployed acceptance remain open.');
   passed = true;
 } catch (error) {
   if (config) {

@@ -76,6 +76,8 @@ it("preserves clean destination proof when an in-house move receives a replaceme
       operationsApi: new OperationsApi(config),
       quotesApi: new QuotesApi(config),
     },
+    businessId: "villa-rosa",
+    businessName: "Synthetic business",
     ownerId: actor,
     epoch,
     booking: {

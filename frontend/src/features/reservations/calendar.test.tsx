@@ -1,3 +1,4 @@
+import { sessionFixture, scopedPath } from "../../test/session";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -22,22 +23,24 @@ let failed = false;
 const response = async (url: RequestInfo | URL) => {
   const u = new URL(String(url), "http://localhost");
   if (u.pathname === "/api/v1/auth/session")
-    return json({
-      authenticated: true,
-      propertyId: "villa-rosa",
-      generation: "calendar-test-login",
-      staff: {
-        id: "calendar-owner",
-        email: "owner@example.test",
-        role: "OWNER",
-        active: true,
-        version: 0,
-      },
-      csrfToken: "test-csrf",
-      expiresAt: "2099-01-01T00:00:00Z",
-      permissions: ["staff:manage", "reservations:write"],
-      provider: "synthetic",
-    });
+    return json(
+      sessionFixture({
+        authenticated: true,
+        propertyId: "villa-rosa",
+        generation: "calendar-test-login",
+        staff: {
+          id: "calendar-owner",
+          email: "owner@example.test",
+          role: "OWNER",
+          active: true,
+          version: 0,
+        },
+        csrfToken: "test-csrf",
+        expiresAt: "2099-01-01T00:00:00Z",
+        permissions: ["staff:manage", "reservations:write"],
+        provider: "synthetic",
+      }),
+    );
   if (u.pathname === "/api/v1/calendar") {
     if (failed) return json({ code: "FAILED" }, 503);
     return json({
@@ -74,7 +77,7 @@ beforeEach(async () => {
 });
 afterEach(() => vi.unstubAllGlobals());
 async function open(url = "/calendar?from=2030-01-01") {
-  window.history.replaceState({}, "", url);
+  window.history.replaceState({}, "", scopedPath(url));
   await act(async () => {
     render(<App />);
   });
@@ -267,7 +270,9 @@ it("opens a maintenance block in its selected historical period with a real anch
   for (const link of links)
     expect(link).toHaveAttribute(
       "href",
-      "/rooms/7?from=2030-01-01&to=2030-01-08&history=1#maintenance",
+      scopedPath(
+        "/rooms/7?from=2030-01-01&to=2030-01-08&history=1#maintenance",
+      ),
     );
   await userEvent.click(links[0]);
   await screen.findByRole("heading", { name: "Availability & maintenance" });

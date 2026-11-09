@@ -423,3 +423,49 @@ describe('maintenance operation reconciliation', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('business operation recovery', () => {
+  const scoped = (scope: string, assertCurrent: () => void = () => {}, legacyScope?: string) => buildBookingActions(
+    new ReservationApi(new Configuration({basePath:'/api/v1'})), scope, `${scope}:login`, undefined, undefined,
+    new QuotesApi(new Configuration({basePath:'/api/v1'})), {assertCurrent,legacyScope},
+  );
+  it('retains a confirmed but ignored business-A receipt while business B uses an independent intent', async () => {
+    let active='A';
+    let finish!: (value:Response)=>void;
+    const business=(id:string)=>scoped(JSON.stringify(['canonical',id,`member-${id}`]),()=>{if(active!==id)throw new Error('Business changed');});
+    fetchMock.mockResolvedValueOnce(json(42)).mockImplementationOnce(()=>new Promise<Response>(resolve=>{finish=resolve;}));
+    const first=business('A').create(input);
+    const rejected=expect(first).rejects.toThrow('Business changed');
+    await vi.waitFor(()=>expect(finish).toBeTypeOf('function'));
+    const original=key(0);
+    active='B'; finish(json(operation(original))); await rejected;
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toContain(original);
+    fetchMock.mockResolvedValueOnce(json(42)); confirm(2);
+    await expect(business('B').create(input)).resolves.toBe(42);
+    expect(key(2)).not.toBe(original);
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).toContain(original);
+    active='A'; fetchMock.mockResolvedValueOnce(json(operation(original)));
+    await expect(business('A').recoverCreate({...input,quoteId:undefined})).resolves.toBe(42);
+    expect(fetchMock.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(2);
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).not.toContain(original);
+  });
+  it('keeps a legacy compatibility receipt key and quote when adopting its verified business namespace', async () => {
+    const legacy=JSON.stringify(['/api/v1','member-A']);
+    fetchMock.mockRejectedValueOnce(new TypeError('Lost response'));
+    await expect(actions(legacy).create(input)).rejects.toThrow('The request failed');
+    const original=key(0);
+    fetchMock.mockResolvedValueOnce(json(operation(original)));
+    await expect(scoped(JSON.stringify(['canonical','A','member-A']),()=>{},legacy).recoverCreate({...input,quoteId:undefined})).resolves.toBe(42);
+    expect(fetchMock.mock.calls[1][0]).toContain(original);
+    expect(fetchMock.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(1);
+    expect(localStorage.getItem('villarosa.pendingOperations.v2')).not.toContain(original);
+    expect(sessionStorage.getItem('villarosa.ownPendingOperations.v2')).not.toContain(original);
+  });
+  it('uses business-and-actor locks alongside the short shared metadata update lock', async () => {
+    const names:string[]=[];
+    vi.spyOn(navigator,'locks','get').mockReturnValue({request:async(name:string,callback:()=>unknown)=>{names.push(name);return callback();}} as unknown as LockManager);
+    for(const business of ['A','B']) await expect(scoped(JSON.stringify(['canonical',business,`member-${business}`])).recoverCreate(input)).rejects.toThrow('No previous booking');
+    expect(new Set(names.filter(name=>name.startsWith('villas.operations.'))).size).toBe(2);
+    expect(names).toContain('villarosa.pendingOperations.v2');
+  });
+});

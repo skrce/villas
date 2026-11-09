@@ -295,7 +295,7 @@ constructor(
                     }
                 awaitBlocked("staff_accounts")
             }
-            assertThat(result.get(15, TimeUnit.SECONDS)).isEqualTo("SESSION_REVOKED")
+            assertThat(result.get(15, TimeUnit.SECONDS)).isEqualTo("BUSINESS_ACCESS_DENIED")
             assertThat(
                     count(
                         "SELECT COUNT(*) FROM staff_invitations WHERE property_id=? AND email='new@example.test'",
@@ -464,7 +464,7 @@ constructor(
                     }
                 awaitBlocked("businesses")
             }
-            assertThat(result.get(15, TimeUnit.SECONDS)).isEqualTo("SESSION_REVOKED")
+            assertThat(result.get(15, TimeUnit.SECONDS)).isEqualTo("BUSINESS_ACCESS_DENIED")
             assertThat(
                     count(
                         "SELECT COUNT(*) FROM staff_invitations WHERE property_id=? AND email='blocked@example.test'",

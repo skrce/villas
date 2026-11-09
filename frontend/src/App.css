@@ -1568,3 +1568,68 @@ footer {
     grid-column: 1 / -1;
   }
 }
+
+.business-context {
+  min-width: 0;
+  max-width: 28rem;
+  color: var(--ink);
+}
+.business-context label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.business-context select {
+  width: 100%;
+  max-width: 26rem;
+  min-width: 0;
+  background: var(--blue-soft);
+  color: inherit;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  font-size: 0.95rem;
+}
+.business-context > span {
+  display: block;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+.business-home .card {
+  max-width: 42rem;
+  margin-inline: auto;
+}
+.business-choices,
+.business-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block: 1rem;
+}
+.business-choices a {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+@media (max-width: 640px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .business-context {
+    width: 100%;
+    max-width: 100%;
+  }
+  .business-context select {
+    max-width: 100%;
+  }
+}
+
+.brand,
+.brand > span:last-child {
+  min-width: 0;
+}
+.brand small {
+  overflow-wrap: anywhere;
+}

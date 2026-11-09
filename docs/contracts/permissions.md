@@ -4,7 +4,7 @@ Owners have independent memberships per business under [shared identity](shared-
 Canonical Google sessions do not carry a mutable active business. Staff routes name
 the business explicitly and resolve its current membership. Business-data routes
 require explicit authorized business selection under [data isolation](business-data-isolation.md); switching/browser
-separation remains #47. [Shared tenancy](multi-tenancy.md) owns the complete rollout.
+separation is implemented under [#47](business-workspace.md). [Shared tenancy](multi-tenancy.md) owns the complete rollout.
 
 The owner confirmed an Owner-only initial release. Every invitation grants Owner
 access. Front desk and housekeeping roles are not available. Adding them later

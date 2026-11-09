@@ -336,7 +336,7 @@ constructor(
         assertThat(
                 assertThrows<DomainException> { access.current(TestData.identity(jdbc, two)) }.code
             )
-            .isEqualTo("SESSION_REVOKED")
+            .isEqualTo("BUSINESS_ACCESS_DENIED")
         assertThat(
                 assertThrows<DomainException> {
                         directory.accept(verified("second@example.test"), businessId = "villa-rosa")
@@ -406,7 +406,7 @@ constructor(
         assertThat(saved.active).isTrue()
         assertThat(saved.version).isEqualTo(1)
         assertThat(assertThrows<DomainException> { access.current(old) }.code)
-            .isEqualTo("SESSION_REVOKED")
+            .isEqualTo("BUSINESS_ACCESS_DENIED")
         assertThat(
                 directory
                     .accept(verified("owner@example.test"), businessId = "villa-rosa")
@@ -487,7 +487,7 @@ constructor(
                 assertThrows<DomainException> { access.current(TestData.identity(jdbc, other)) }
                     .code
             )
-            .isEqualTo("SESSION_REVOKED")
+            .isEqualTo("BUSINESS_ACCESS_DENIED")
         assertThat(
                 assertThrows<DomainException> {
                         directory.deactivate(

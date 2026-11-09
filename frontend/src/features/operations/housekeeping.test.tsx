@@ -59,6 +59,8 @@ function mount(path = "/housekeeping", panel = false) {
   const epoch = getSessionEpoch();
   const context = {
     apis: { ...buildApis(actor, epoch), reservationApi, operationsApi },
+    businessId: "villa-rosa",
+    businessName: "Synthetic business",
     ownerId: actor,
     epoch,
     booking: {

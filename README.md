@@ -27,7 +27,7 @@ per environment in Frankfurt, with independent accommodation businesses. The
 [shared-tenancy rollout](docs/contracts/multi-tenancy.md) is in progress under #44-#49.
 [Shared identity and staff memberships](docs/contracts/shared-identity.md) are implemented.
 [Business data isolation](docs/contracts/business-data-isolation.md) requires explicit
-request selection and PostgreSQL row security. The console switcher remains #47. Live deployment is blocked. [Cloud Run + Neon setup and updates](docs/cloud-run-neon.md)
+request selection and PostgreSQL row security. [Business workspaces](docs/contracts/business-workspace.md) use explicit per-tab URLs and isolated browser state. Shared hosting/recovery #48 and pilot #49 remain open. Live deployment is blocked. [Cloud Run + Neon setup and updates](docs/cloud-run-neon.md)
 contains the prepared Terraform, keyless image publication and operator rollout.
 See [the PostgreSQL transition](docs/postgresql-transition.md).
 

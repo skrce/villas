@@ -6,6 +6,8 @@ export type Workspace = {
   booking: ReturnType<typeof buildBookingActions>;
   epoch: number;
   ownerId: string;
+  businessId: string;
+  businessName: string;
 };
 export const WorkspaceContext = createContext<Workspace | null>(null);
 export const DraftContext = createContext<Map<string, unknown> | null>(null);

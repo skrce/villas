@@ -7,8 +7,8 @@ and a three-day inactivity limit. Staff identity is separate from guest records.
 V17 separates canonical Google identity from independent Owner memberships under
 [#45](https://github.com/skrce/villas/issues/45). V18 requires explicitly authorized
 business requests and PostgreSQL [data isolation](contracts/business-data-isolation.md).
-The current console uses its compatibility summary; switching remains #47 and shared
-hosting remains #48. Read [shared identity](contracts/shared-identity.md) and
+The [console](contracts/business-workspace.md) uses explicit per-tab business URLs,
+validated membership capabilities and isolated state. Shared hosting remains #48. Read [shared identity](contracts/shared-identity.md) and
 [the tenancy contract](contracts/multi-tenancy.md) before extending authentication.
 
 ## Account foundation
@@ -169,8 +169,9 @@ a clean new attempt. A public random login generation, separate from the cookie/
 ID, changes on every sign-in so same-Owner reauthentication also rejects old actions.
 Logout hides the current workspace immediately and pauses competing session refreshes
 until its server response/read-back completes. Pending booking promises are scoped to
-the login generation; durable recovery keys remain scoped to the membership Owner. #47 adds explicit
-business namespaces to browser state and recovery.
+the login/business epoch; durable recovery keys bind canonical identity, business
+and membership. #47 isolates caches, memory drafts and recovery aliases and rejects
+late completions after switching, including a return to the original business.
 
 ## Release runtime
 

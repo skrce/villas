@@ -40,6 +40,7 @@ object ReleasePaths : RequestMatcher {
             "/auth/complete",
         )
     private val detail = Regex("/(reservations|guests|rooms)/[0-9]+")
+    private val businessPage = Regex("/businesses/[a-z0-9][a-z0-9-]{0,63}((?:/.*)?)")
     private val asset = Regex("/assets/[A-Za-z0-9_.-]+\\.(js|css|svg|png|webp|woff2?)")
     val health =
         setOf("/health", "/internal/health/live", "/internal/health/ready", "/internal/metrics")
@@ -47,7 +48,18 @@ object ReleasePaths : RequestMatcher {
     override fun matches(request: HttpServletRequest): Boolean {
         if (request.method != "GET") return false
         val path = request.requestURI.removePrefix(request.contextPath)
-        return path in pages || detail.matches(path) || asset.matches(path) || path in health
+        val businessPath = businessPage.matchEntire(path)?.groupValues?.get(1)
+        val scopedPage =
+            businessPath != null &&
+                (businessPath.isEmpty() ||
+                    businessPath == "/" ||
+                    businessPath in pages.filterNot { it.startsWith("/auth/") } ||
+                    detail.matches(businessPath))
+        return path in pages ||
+            detail.matches(path) ||
+            scopedPage ||
+            asset.matches(path) ||
+            path in health
     }
 }
 
@@ -81,6 +93,22 @@ class FrontendFiles(environment: Environment) {
         "/reservations/{id:[0-9]+}",
         "/guests/{id:[0-9]+}",
         "/rooms/{id:[0-9]+}",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/login",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/today",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/calendar",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/front-desk",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/housekeeping",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/reports",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/reservations",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/reservations/new",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/guests",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/rooms",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/settings/staff",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/reservations/{id:[0-9]+}",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/guests/{id:[0-9]+}",
+        "/businesses/{businessId:[a-z0-9][a-z0-9-]{0,63}}/rooms/{id:[0-9]+}",
         produces = [MediaType.TEXT_HTML_VALUE],
     )
     fun index(): ResponseEntity<FileSystemResource> =

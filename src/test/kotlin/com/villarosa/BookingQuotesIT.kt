@@ -677,7 +677,7 @@ constructor(
             TestData.ownerIdentity(1).id,
         )
         assertThat(failure { quotes.currentPrice(booking.resourceId) }.code)
-            .isEqualTo("SESSION_REVOKED")
+            .isEqualTo("BUSINESS_ACCESS_DENIED")
     }
 
     @ParameterizedTest

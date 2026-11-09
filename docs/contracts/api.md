@@ -171,3 +171,8 @@ Global identity/session routes need no business selector. See [business request 
 database isolation](business-data-isolation.md) for errors, transaction claims and
 row-security/backup authority. The header is a selector checked against the current
 server session, never a credential or a mutable session-wide active business.
+
+The [business workspace](business-workspace.md) uses `/businesses/{businessId}/...`
+for browser pages; API paths remain under `/api/v1` with `X-Villas-Business`.
+Membership metadata now carries each Owner membership's capabilities. The retained
+compatibility summary never selects a new workspace or grants browser authority.
