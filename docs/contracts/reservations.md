@@ -232,9 +232,10 @@ addresses. Existing details provide accepted prices and permitted actions.
 
 The calendar is advisory: a displayed free interval is not an inventory hold.
 Creation still requires a valid reviewed quote and the existing atomic admission,
-operation reconciliation and locking rules. This milestone preserves Owner
-cancellation with retained history and no financial side effect under D12. Future
-cancellation deadlines, fees and refunds remain separate policy work.
+operation reconciliation and locking rules. Owner cancellation retains all history
+and removes accommodation owed under D06, with received money retained as credit
+until a separately recorded manual refund. It creates no automatic fee or refund.
+Cancellation deadlines and fee policy extensions remain future work.
 
 ## Staff controls and recovery
 

@@ -46,9 +46,11 @@ See [restic retention](https://restic.readthedocs.io/en/stable/060_forget.html).
 
 ## Reference configuration
 
-`deploy/backup.compose.yaml` supplies local/reference operations. Each business and
-environment needs a distinct repository and backup identity. Seven daily snapshots
-and zero hourly snapshots are the approved defaults. Repository/encryption recovery
+`deploy/backup.compose.yaml` supplies the configured single-business local reference.
+Use a distinct repository and backup identity for each isolated reference environment.
+The shared hosting target is one all-business repository per environment; #48 must
+implement and qualify it. Seven daily snapshots and zero hourly snapshots are the
+approved defaults. Repository/encryption recovery
 material must survive loss of the application host. Web/migration identities do not
 receive repository credentials.
 

@@ -22,16 +22,17 @@ Custom domain remains deferred; provider HTTPS is sufficient for the first relea
 | --- | --- | --- |
 | Environment | Owner-approved personal host, domain, TLS, budget, availability and operational owner | Frankfurt Cloud Run + Neon confirmed; actual resources and live verification pending |
 | Secrets | Separate staging/production clients/accounts, private mounts and rotation/recovery access | Prepared; actual configuration pending |
+| Shared tenancy | Independent memberships, authorized request context, row security, browser switching, controlled onboarding and two-business isolation | #44 schema foundation implemented; #45-#49 pending |
 | Exact revision | Backend/native DB/frontend/generated/browser checks and independent review | Pending release revision |
 | Package | Verified JAR/dist, image digests, restricted runtime, routing/cookies/private health | PR #38 merged after full local/CI verification; recovery image/rehearsal evidence in #11 |
 | Deployment automation | Explicit provider/environment, tested digests, restricted/short-lived credentials where supported | Provider architecture confirmed; setup pending |
-| Empty production | New DB, validated migrations, zero business/staff records before invitation | Actual environment pending |
+| Empty production | New DB, validated migrations, zero guest/room/booking/ledger/staff records before invitation; registry metadata is expected | Actual environment pending |
 | Google/access | Real callback, secure cookie, CSRF/Origin, logout, expiry, invites and revocation | Setup deferred; actual verification pending |
 | Backups | Approved retention/RPO/RTO, encrypted off-server storage, scheduler and failure alert | D15 daily/seven-day retention/24-hour loss/24-hour recovery confirmed; actual storage/schedule/alerts pending |
-| Restore | Timed isolated restore, financial/record/audit reconciliation, stale session rejection | Local synthetic rehearsal implemented; actual off-server target/acceptance pending |
+| Restore | Timed all-business restore and selective business recovery, financial/record/audit reconciliation, stale session rejection | Single-business local reference implemented; shared local and off-server qualification pending |
 | Upgrade | Prior-schema preservation/rerun, failure handling and compatible rollback/forward fix | PostgreSQL transactional migration/rerun/quarantine tests and isolated restore; hosted qualification pending |
 | Operations | Privacy-safe signals, DB/auth/booking/backup/service alerts, verified delivery and response owner | Private signals/local receiver tested; actual destination, external availability check and ownership pending |
-| Staff pilot | Desktop/phone booking conflicts/retry, repricing, cancellation, deposits/refunds, stay operations, cleaning and reports | Pending deployed Owner pilot |
+| Staff pilot | Two-business desktop/phone isolation, booking conflicts/retry, repricing, cancellation, deposits/refunds, stay operations, cleaning and reports | Pending deployed Owner pilot |
 | Production smoke | Actual HTTPS/login, private API rejection, empty start, readiness and fresh backup | Actual environment pending |
 
 For each executed gate record the date, full revision, digests, environment, commands,
