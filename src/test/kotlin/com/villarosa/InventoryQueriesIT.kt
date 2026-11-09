@@ -50,7 +50,16 @@ constructor(
     @BeforeEach
     fun fixtures() {
         TestData.reset(jdbc, database.jdbcUrl)
-        guest = guests.saveAndFlush(Customer.buildCustomer("Query", "Гостин", "000", "Synthetic"))
+        guest =
+            guests.saveAndFlush(
+                Customer.buildCustomer(
+                    "Query",
+                    "Гостин",
+                    "000",
+                    "Synthetic",
+                    businessId = "villa-rosa",
+                )
+            )
         room =
             rooms.saveAndFlush(
                 Apartment(
@@ -62,6 +71,7 @@ constructor(
                     150,
                     baseRateCents = 5001,
                     rateVersion = 1,
+                    propertyId = "villa-rosa",
                 )
             )
     }
@@ -159,7 +169,7 @@ constructor(
         jdbc.batchUpdate(
             *(0 until 105)
                 .map { n ->
-                    "INSERT INTO reservations (customer_id, room_id, start_date, end_date) VALUES (${guest.id}, ${room.id}, '${start.plusDays(n.toLong())}', '${start.plusDays(n + 1L)}')"
+                    "INSERT INTO reservations (property_id, customer_id, room_id, start_date, end_date) VALUES ('villa-rosa', ${guest.id}, ${room.id}, '${start.plusDays(n.toLong())}', '${start.plusDays(n + 1L)}')"
                 }
                 .toTypedArray()
         )

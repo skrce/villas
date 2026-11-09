@@ -3,6 +3,7 @@ package com.villarosa.service
 import com.villarosa.exception.invalid
 import com.villarosa.repository.CustomerRepository
 import com.villarosa.repository.model.Customer
+import com.villarosa.security.BusinessScope
 import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.Expression
 import jakarta.persistence.criteria.Root
@@ -30,7 +31,10 @@ class GuestDirectory(private val guests: CustomerRepository) {
             Specification<Customer> { root, _, cb ->
                 val filters =
                     mutableListOf(
-                        cb.equal(root.get<String>("propertyId"), PropertyScope.ID),
+                        cb.equal(
+                            root.get<String>("propertyId"),
+                            BusinessScope.id(),
+                        ),
                         cb.greaterThan(root.get("id"), after),
                     )
                 if (!includeArchived) filters += cb.isTrue(root.get("active"))
@@ -70,7 +74,10 @@ class GuestDirectory(private val guests: CustomerRepository) {
                     profile.email?.let { matches += cb.equal(cb.lower(root.get("email")), it) }
                 }
                 cb.and(
-                    cb.equal(root.get<String>("propertyId"), PropertyScope.ID),
+                    cb.equal(
+                        root.get<String>("propertyId"),
+                        BusinessScope.id(),
+                    ),
                     cb.or(*matches.toTypedArray()),
                 )
             }

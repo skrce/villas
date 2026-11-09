@@ -5,6 +5,7 @@ import com.villarosa.exception.invalid
 import com.villarosa.exception.missing
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
@@ -58,6 +59,7 @@ class InventoryWriter(
                     dates.end,
                     guestCount,
                     acceptedQuoteId = price.id,
+                    propertyId = BusinessScope.id(),
                 )
             )
         quotes.accept(price, booking)
@@ -82,12 +84,13 @@ class InventoryWriter(
         readinessVersion: Long? = null,
     ): OperationResult {
         checkGuest(
-            reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+            reservations.customerId(BusinessScope.id(), id)
+                ?: missing("Reservation does not exist.")
         )
         val original =
-            reservations.roomId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+            reservations.roomId(BusinessScope.id(), id) ?: missing("Reservation does not exist.")
         val before =
-            reservations.findByPropertyIdAndId(PropertyScope.ID, id)
+            reservations.findByPropertyIdAndId(BusinessScope.id(), id)
                 ?: missing("Reservation does not exist.")
         val locked = lockRooms(allocations.rooms(before).toList() + listOf(original, destination))
         val booking = current(id, expected, locked.keys)
@@ -157,12 +160,13 @@ class InventoryWriter(
         allowCheckedIn: Boolean = false,
     ): OperationResult {
         checkGuest(
-            reservations.customerId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+            reservations.customerId(BusinessScope.id(), id)
+                ?: missing("Reservation does not exist.")
         )
         val roomId =
-            reservations.roomId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+            reservations.roomId(BusinessScope.id(), id) ?: missing("Reservation does not exist.")
         val before =
-            reservations.findByPropertyIdAndId(PropertyScope.ID, id)
+            reservations.findByPropertyIdAndId(BusinessScope.id(), id)
                 ?: missing("Reservation does not exist.")
         val locked = lockRooms(allocations.rooms(before).toList() + roomId)
         val room = locked.getValue(roomId)
@@ -228,7 +232,7 @@ class InventoryWriter(
 
     fun cancel(id: Int, expected: Long?, key: String, reason: String? = null): OperationResult {
         val roomId =
-            reservations.roomId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+            reservations.roomId(BusinessScope.id(), id) ?: missing("Reservation does not exist.")
         lockRooms(listOf(roomId))
         val booking = current(id, expected, setOf(roomId))
         if (booking.phase == StayPhase.NO_SHOW)
@@ -263,36 +267,37 @@ class InventoryWriter(
                     startDate = dates.start,
                     endDate = dates.end,
                     reason = reason,
+                    propertyId = BusinessScope.id(),
                 )
             )
         blockEvent(block, key, "BLOCKED")
-        return OperationResult(key, OperationKind.BLOCK, block.id!!, maintenance = block)
+        return OperationResult(key, OperationKind.BLOCK, block.id!!, maintenance = block.info())
     }
 
     fun unblock(id: Int, expected: Long, key: String): OperationResult {
         val roomId =
-            blocks.roomId(PropertyScope.ID, id) ?: missing("Maintenance block does not exist.")
+            blocks.roomId(BusinessScope.id(), id) ?: missing("Maintenance block does not exist.")
         lockRooms(listOf(roomId))
         val block =
-            blocks.locked(PropertyScope.ID, id) ?: missing("Maintenance block does not exist.")
+            blocks.locked(BusinessScope.id(), id) ?: missing("Maintenance block does not exist.")
         version(block.version, expected)
         if (block.status != ReservationStatus.CANCELLED) {
             block.status = ReservationStatus.CANCELLED
             blocks.saveAndFlush(block)
             blockEvent(block, key, "UNBLOCKED")
         }
-        return OperationResult(key, OperationKind.UNBLOCK, id, maintenance = block)
+        return OperationResult(key, OperationKind.UNBLOCK, id, maintenance = block.info())
     }
 
     private fun lockRooms(ids: List<Int>): Map<Int, Apartment> =
         ids.distinct().sorted().associateWith { id ->
             if (id <= 0) invalid("INVALID_ID", "Room ID must be positive.")
-            rooms.locked(PropertyScope.ID, id) ?: missing("Room does not exist.")
+            rooms.locked(BusinessScope.id(), id) ?: missing("Room does not exist.")
         }
 
     private fun current(id: Int, expected: Long?, lockedRooms: Set<Int>): Reservation {
         val booking =
-            reservations.locked(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+            reservations.locked(BusinessScope.id(), id) ?: missing("Reservation does not exist.")
         if (expected != null) version(booking.version, expected)
         if (booking.roomId !in lockedRooms)
             conflict("RESERVATION_CHANGED", "The reservation moved. Reload it before editing.")
@@ -328,7 +333,7 @@ class InventoryWriter(
     }
 
     private fun checkGuest(id: Int) {
-        val guest = guests.locked(PropertyScope.ID, id) ?: missing("Guest does not exist.")
+        val guest = guests.locked(BusinessScope.id(), id) ?: missing("Guest does not exist.")
         if (!guest.active)
             conflict("GUEST_ARCHIVED", "Restore this guest before making a reservation change.")
     }
@@ -364,6 +369,7 @@ class InventoryWriter(
                     roomFromDate = booking.roomFromDate,
                     reason = reason,
                     occurredAt = time.now(),
+                    propertyId = BusinessScope.id(),
                 )
             )
         return InventoryEventInfo.from(event)
@@ -380,6 +386,7 @@ class InventoryWriter(
                 roomId = block.roomId,
                 startDate = block.startDate,
                 endDate = block.endDate,
+                propertyId = BusinessScope.id(),
             )
         )
     }

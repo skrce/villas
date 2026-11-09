@@ -7,6 +7,7 @@ import com.villarosa.repository.LedgerRepository
 import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.*
 import com.villarosa.security.BusinessAudit
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import java.time.LocalDate
@@ -78,7 +79,7 @@ class LedgerService(
     @Transactional(propagation = Propagation.MANDATORY, readOnly = true)
     fun position(booking: Reservation): LedgerSummary {
         access.current(current.identity())
-        check(booking.propertyId == PropertyScope.ID)
+        check(booking.propertyId == BusinessScope.id())
         val id = booking.id!!
         val agreed = quotes.currentPrice(booking.id!!)?.quote?.price?.totalCents
         val charge = agreed?.let {
@@ -106,7 +107,7 @@ class LedgerService(
         pageSize(limit)
         val rows =
             entries.history(
-                PropertyScope.ID,
+                BusinessScope.id(),
                 id,
                 LedgerInput.cursor(before),
                 PageRequest.of(0, limit + 1),
@@ -125,7 +126,7 @@ class LedgerService(
         pageSize(limit)
         val rows =
             entries.payments(
-                PropertyScope.ID,
+                BusinessScope.id(),
                 id,
                 LedgerInput.cursor(before),
                 PageRequest.of(0, limit + 1),
@@ -273,13 +274,13 @@ class LedgerService(
 
     private fun read(id: Int): Reservation {
         access.current(current.identity())
-        return reservations.findByPropertyIdAndId(PropertyScope.ID, id)
+        return reservations.findByPropertyIdAndId(BusinessScope.id(), id)
             ?: missing("Reservation does not exist.")
     }
 
     private fun locked(id: Int, expected: Long): Reservation {
         val booking =
-            reservations.locked(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+            reservations.locked(BusinessScope.id(), id) ?: missing("Reservation does not exist.")
         ReadinessService.checkVersion(booking.version, expected)
         if (booking.acceptedQuoteId == null)
             conflict(
@@ -292,10 +293,13 @@ class LedgerService(
     }
 
     private fun entry(id: Int, entry: Long): LedgerEntry =
-        entries.findByPropertyIdAndReservationIdAndId(PropertyScope.ID, id, entry)
-            ?: missing("Ledger entry does not exist for this reservation.")
+        entries.findByPropertyIdAndReservationIdAndId(
+            BusinessScope.id(),
+            id,
+            entry,
+        ) ?: missing("Ledger entry does not exist for this reservation.")
 
-    private fun reversed(id: Long) = entries.existsByPropertyIdAndReversesId(PropertyScope.ID, id)
+    private fun reversed(id: Long) = entries.existsByPropertyIdAndReversesId(BusinessScope.id(), id)
 
     private fun effective(value: String): LocalDate =
         LedgerInput.date(value).also {
@@ -313,7 +317,7 @@ class LedgerService(
                 .query(
                     "SELECT e.kind, SUM(e.amount_cents) AS total FROM ledger_entries e WHERE e.property_id=? AND e.reservation_id=? AND e.kind IN ('PAYMENT','REFUND') AND NOT EXISTS (SELECT 1 FROM ledger_entries r WHERE r.property_id=e.property_id AND r.reverses_id=e.id) GROUP BY e.kind",
                     { row, _ -> row.getString(1) to exact(row.getBigDecimal(2)) },
-                    PropertyScope.ID,
+                    BusinessScope.id(),
                     id,
                 )
                 .toMap()
@@ -328,7 +332,7 @@ class LedgerService(
             .queryForObject(
                 "SELECT COALESCE(SUM(e.amount_cents),0) FROM ledger_entries e WHERE e.property_id=? AND e.reservation_id=? AND e.kind='REFUND' AND e.payment_id=? AND NOT EXISTS (SELECT 1 FROM ledger_entries r WHERE r.property_id=e.property_id AND r.reverses_id=e.id)",
                 java.math.BigDecimal::class.java,
-                PropertyScope.ID,
+                BusinessScope.id(),
                 id,
                 payment,
             )!!
@@ -376,6 +380,7 @@ class LedgerService(
                     reference = reference,
                     effectiveDate = date,
                     recordedAt = time.now(),
+                    propertyId = BusinessScope.id(),
                 )
             )
         audit.record(

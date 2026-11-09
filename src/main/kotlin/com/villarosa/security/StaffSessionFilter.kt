@@ -20,6 +20,19 @@ class StaffSessionFilter(
         response: HttpServletResponse,
         chain: FilterChain,
     ) {
+        BusinessScope.clear()
+        try {
+            dispatch(request, response, chain)
+        } finally {
+            BusinessScope.clear()
+        }
+    }
+
+    private fun dispatch(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        chain: FilterChain,
+    ) {
         if (ReleasePaths.matches(request)) {
             response.setHeader("Cache-Control", "no-store")
             chain.doFilter(request, response)
@@ -55,20 +68,25 @@ class StaffSessionFilter(
             val path = request.requestURI.removePrefix(request.contextPath)
             if (
                 !path.startsWith("/api/v1/auth/") &&
-                    !path.startsWith("/api/v1/businesses/") &&
-                    path !in setOf("/oauth2/authorization/google", "/login/oauth2/code/google")
+                    path !in setOf("/oauth2/authorization/google", "/login/oauth2/code/google") &&
+                    !(settings.mode != "production" &&
+                        (path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")))
             ) {
-                if (
-                    request.getHeader("X-Villas-Business")?.let {
-                        it != com.villarosa.service.PropertyScope.ID
-                    } == true
-                )
+                val headers = request.getHeaders(BUSINESS_HEADER).toList()
+                if (headers.size > 1) return failure(response, 400, "INVALID_BUSINESS")
+                val supplied = headers.singleOrNull()
+                val pathBusiness = STAFF_PATH.matchEntire(path)?.groupValues?.get(1)
+                if (pathBusiness != null && supplied != null && pathBusiness != supplied)
                     return failure(response, 403, "BUSINESS_ACCESS_DENIED")
-                try {
-                    access.resolve(authentication.identity, com.villarosa.service.PropertyScope.ID)
-                } catch (_: DomainException) {
-                    return failure(response, 401, "SESSION_REVOKED")
-                }
+                val businessId =
+                    pathBusiness ?: supplied ?: return failure(response, 400, "BUSINESS_REQUIRED")
+                val actor =
+                    try {
+                        access.resolve(authentication.identity, businessId)
+                    } catch (error: DomainException) {
+                        return failure(response, error.status.value(), error.code)
+                    }
+                BusinessScope.select(AuthorizedBusiness(businessId, actor))
             }
             if (
                 request.method !in SAFE_METHODS &&
@@ -108,10 +126,19 @@ class StaffSessionFilter(
         response.status = status
         response.contentType = "application/json"
         response.setHeader("Cache-Control", "no-store")
-        response.writer.write("""{"code":"$code","message":"Sign in again to continue."}""")
+        val message =
+            when (code) {
+                "BUSINESS_REQUIRED",
+                "INVALID_BUSINESS" -> "Select a valid business for this request."
+                "BUSINESS_ACCESS_DENIED" -> "This business is unavailable for your account."
+                else -> "Sign in again to continue."
+            }
+        response.writer.write("""{"code":"$code","message":"$message"}""")
     }
 
     companion object {
+        const val BUSINESS_HEADER = "X-Villas-Business"
+        private val STAFF_PATH = Regex("/api/v1/businesses/([^/]+)/staff(?:/.*)?")
         const val GENERATION = "villas.sessionGeneration"
         const val AUTHENTICATED_AT = "villas.authenticatedAt"
         const val LAST_SEEN_AT = "villas.lastSeenAt"

@@ -6,6 +6,7 @@ import com.villarosa.exception.missing
 import com.villarosa.repository.ApartmentRepository
 import com.villarosa.repository.model.Apartment
 import com.villarosa.security.BusinessAudit
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import java.util.Locale
@@ -28,13 +29,16 @@ class ApartmentService(
     @Transactional(readOnly = true)
     fun getAllApartments(): List<Apartment> {
         access.current(current.identity())
-        return apartmentRepository.findByPropertyId(PropertyScope.ID)
+        return apartmentRepository.findByPropertyId(BusinessScope.id())
     }
 
     @Transactional(readOnly = true)
     fun findApartmentById(id: Int): Apartment? {
         access.current(current.identity())
-        return apartmentRepository.findByPropertyIdAndId(PropertyScope.ID, id)
+        return apartmentRepository.findByPropertyIdAndId(
+            BusinessScope.id(),
+            id,
+        )
     }
 
     @Transactional(readOnly = true)
@@ -53,7 +57,10 @@ class ApartmentService(
             Specification<Apartment> { root, _, cb ->
                 val filters =
                     mutableListOf(
-                        cb.equal(root.get<String>("propertyId"), PropertyScope.ID),
+                        cb.equal(
+                            root.get<String>("propertyId"),
+                            BusinessScope.id(),
+                        ),
                         cb.greaterThan(root.get("id"), after),
                     )
                 if (!includeArchived) filters += cb.isTrue(root.get("active"))
@@ -77,7 +84,12 @@ class ApartmentService(
         val actor = access.lockOwner(current.identity())
         val profile = input.normalized()
         referenceAvailable(profile.reference, 0)
-        val room = Apartment(capacity = profile.capacity).apply { assign(profile) }
+        val room =
+            Apartment(
+                    capacity = profile.capacity,
+                    propertyId = BusinessScope.id(),
+                )
+                .apply { assign(profile) }
         apartmentRepository.saveAndFlush(room)
         audit.record(actor.id, "ROOM_CREATED", "ROOM", room.id!!.toString())
         return room
@@ -86,7 +98,7 @@ class ApartmentService(
     fun update(id: Int, version: Long, input: RoomProfile): Apartment {
         val actor = access.lockOwner(current.identity())
         val room =
-            apartmentRepository.locked(PropertyScope.ID, id) ?: missing("Room does not exist.")
+            apartmentRepository.locked(BusinessScope.id(), id) ?: missing("Room does not exist.")
         expected(room.version, version)
         val profile = input.normalized()
         referenceAvailable(profile.reference, id)
@@ -100,7 +112,7 @@ class ApartmentService(
     fun status(id: Int, version: Long, active: Boolean): Apartment {
         val actor = access.lockOwner(current.identity())
         val room =
-            apartmentRepository.locked(PropertyScope.ID, id) ?: missing("Room does not exist.")
+            apartmentRepository.locked(BusinessScope.id(), id) ?: missing("Room does not exist.")
         expected(room.version, version)
         if (room.active != active) {
             protection.roomChange(id, room.capacity!!, active)
@@ -125,7 +137,7 @@ class ApartmentService(
     private fun referenceAvailable(reference: String, id: Int) {
         if (
             apartmentRepository.existsByPropertyIdAndReferenceAndIdNot(
-                PropertyScope.ID,
+                BusinessScope.id(),
                 reference,
                 id,
             )

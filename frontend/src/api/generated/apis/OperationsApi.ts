@@ -190,6 +190,10 @@ export class OperationsApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations/{id}/cancel`;
         urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
@@ -246,6 +250,10 @@ export class OperationsApi extends runtime.BaseAPI {
 
         if (requestParameters['idempotencyKey'] != null) {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
         }
 
 
@@ -306,6 +314,10 @@ export class OperationsApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations/{id}/change`;
         urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
@@ -362,6 +374,10 @@ export class OperationsApi extends runtime.BaseAPI {
 
         if (requestParameters['idempotencyKey'] != null) {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
         }
 
 
@@ -422,6 +438,10 @@ export class OperationsApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations/{id}/check-out`;
         urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
@@ -480,6 +500,10 @@ export class OperationsApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations/{id}/actual-times`;
         urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
@@ -527,6 +551,10 @@ export class OperationsApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/front-desk`;
 
@@ -571,6 +599,10 @@ export class OperationsApi extends runtime.BaseAPI {
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/housekeeping`;
@@ -628,6 +660,10 @@ export class OperationsApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations/{id}/move`;
         urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
@@ -667,6 +703,10 @@ export class OperationsApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/property-time/options`;
@@ -725,6 +765,10 @@ export class OperationsApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations/{id}/no-show`;
         urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
@@ -775,6 +819,10 @@ export class OperationsApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations/{id}/allocations`;
         urlPath = urlPath.replace(`{${"id"}}`, encodeURIComponent(String(requestParameters['id'])));
@@ -811,6 +859,10 @@ export class OperationsApi extends runtime.BaseAPI {
         const queryParameters: any = {};
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/apartments/{roomId}/readiness`;
@@ -856,6 +908,10 @@ export class OperationsApi extends runtime.BaseAPI {
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/apartments/{roomId}/readiness/events`;

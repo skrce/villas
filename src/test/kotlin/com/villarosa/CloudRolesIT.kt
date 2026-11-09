@@ -38,7 +38,7 @@ class CloudRolesIT {
     }
 
     @Test
-    fun sqlCreatedRolesCanMigrateThenRunAndBackUpWithoutInheritedAdministrativePermissions() {
+    fun sqlCreatedRolesMigrateAndKeepMissingScopeAndUnqualifiedBackupsClosed() {
         roles()
         roles()
         administrator().use {
@@ -63,9 +63,9 @@ class CloudRolesIT {
             .use {
                 it.createStatement().use { sql ->
                     sql.executeQuery("SELECT property_id FROM staff_property_lock FOR UPDATE")
-                        .use { rows -> assertThat(rows.next()).isTrue() }
+                        .use { rows -> assertThat(rows.next()).isFalse() }
                     sql.executeQuery("SELECT active FROM businesses FOR SHARE").use { rows ->
-                        assertThat(rows.next()).isTrue()
+                        assertThat(rows.next()).isFalse()
                     }
                     sql.executeQuery("SELECT singleton FROM staff_identity_lock FOR UPDATE").use {
                         rows ->
@@ -106,10 +106,14 @@ class CloudRolesIT {
                 it.createStatement().use { sql ->
                     sql.executeQuery("SELECT COUNT(*) FROM flyway_schema_history").use { rows ->
                         rows.next()
-                        assertThat(rows.getInt(1)).isEqualTo(17)
+                        assertThat(rows.getInt(1)).isEqualTo(18)
                     }
                     assertThrows<SQLException> {
                         sql.executeUpdate("DELETE FROM customers WHERE id=1")
+                    }
+                    sql.execute("SET row_security=off")
+                    assertThrows<SQLException> {
+                        sql.executeQuery("SELECT COUNT(*) FROM customers")
                     }
                 }
             }

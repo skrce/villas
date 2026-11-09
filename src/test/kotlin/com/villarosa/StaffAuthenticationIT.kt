@@ -48,7 +48,8 @@ constructor(
         body: String? = null,
         csrf: String? = null,
         origin: String? = BASE,
-        businessHeader: String? = null,
+        businessHeader: String? =
+            if (path.startsWith("/api/v1/businesses/")) null else "villa-rosa",
     ): HttpResponse<String> {
         val builder = HttpRequest.newBuilder(URI(BASE + path)).timeout(Duration.ofSeconds(10))
         if (method != "GET" && origin != null) builder.header("Origin", origin)
@@ -67,7 +68,7 @@ constructor(
     fun reset() {
         TestData.reset(jdbc, database.jdbcUrl, authenticatedOwner = false)
         clock.time.set(Instant.now())
-        directory.bootstrap("owner@example.test")
+        directory.bootstrap("owner@example.test", businessId = "villa-rosa")
         provider.fault.set("")
         cookies = CookieManager(null, CookiePolicy.ACCEPT_ALL)
         http =
@@ -306,8 +307,13 @@ constructor(
                     .statusCode()
             )
             .isEqualTo(403)
-        directory.revokeSessions(account.identity(), account.id, account.version)
-        assertThat(request("/api/v1/apartments").statusCode()).isEqualTo(401)
+        directory.revokeSessions(
+            TestData.identity(jdbc, account),
+            account.id,
+            account.version,
+            businessId = "villa-rosa",
+        )
+        assertThat(request("/api/v1/apartments").statusCode()).isEqualTo(403)
     }
 
     @Test
@@ -406,9 +412,9 @@ constructor(
         assertThat(request("/api/v1/businesses/villa-rosa/staff").statusCode()).isEqualTo(200)
         assertThat(request("/api/v1/businesses/$unrelated/staff").statusCode()).isEqualTo(403)
         assertThat(request("/api/v1/businesses/INVALID/staff").statusCode()).isEqualTo(400)
-        assertThat(request("/api/v1/businesses/staff").statusCode()).isEqualTo(404)
+        assertThat(request("/api/v1/businesses/staff").statusCode()).isEqualTo(400)
         assertThat(request("/api/v1/apartments", businessHeader = business).statusCode())
-            .isEqualTo(403)
+            .isEqualTo(200)
         assertThat(
                 request(
                         "/api/v1/businesses/$business/staff/invitations",
@@ -438,7 +444,7 @@ constructor(
         onboarding.create(business, "Authorized synthetic lake", "owner@example.test")
         signIn()
         val owner = checkNotNull(staff.findByPropertyIdAndEmail("villa-rosa", "owner@example.test"))
-        directory.invite(owner.identity(), "second-owner@example.test", "villa-rosa")
+        directory.invite(TestData.identity(jdbc, owner), "second-owner@example.test", "villa-rosa")
         val second =
             directory.accept(
                 VerifiedStaffIdentity(
@@ -446,9 +452,15 @@ constructor(
                     "synthetic-second-owner",
                     "second-owner@example.test",
                     true,
-                )
+                ),
+                businessId = "villa-rosa",
             )
-        directory.revokeSessions(second.identity(), owner.id, owner.version)
+        directory.revokeSessions(
+            TestData.identity(jdbc, second),
+            owner.id,
+            owner.version,
+            businessId = "villa-rosa",
+        )
         assertThat(request("/api/v1/businesses/villa-rosa/staff").statusCode()).isEqualTo(403)
         assertThat(request("/api/v1/businesses/$business/staff").statusCode()).isEqualTo(200)
         assertThat(request("/api/v1/auth/memberships").body()).doesNotContain("villa-rosa")
@@ -468,7 +480,7 @@ constructor(
         assertThat(session.get("authenticated").asBoolean()).isTrue()
         assertThat(session.get("staff").isNull).isTrue()
         assertThat(session.get("propertyName").isNull).isTrue()
-        assertThat(request("/api/v1/apartments").statusCode()).isEqualTo(401)
+        assertThat(request("/api/v1/apartments").statusCode()).isEqualTo(403)
         assertThat(request("/api/v1/businesses/$business/staff").statusCode()).isEqualTo(200)
         assertThat(request("/api/v1/auth/logout", "POST", csrf = csrf()).statusCode())
             .isEqualTo(204)

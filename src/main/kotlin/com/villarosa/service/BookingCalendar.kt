@@ -2,6 +2,7 @@ package com.villarosa.service
 
 import com.villarosa.exception.conflict
 import com.villarosa.exception.invalid
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import io.swagger.v3.oas.annotations.media.Schema
@@ -69,7 +70,7 @@ class CalendarStore(private val jdbc: JdbcTemplate) {
                     r.getBoolean("active"),
                 )
             },
-            PropertyScope.ID,
+            BusinessScope.id(),
             after,
             archived,
             limit + 1,
@@ -95,9 +96,11 @@ class CalendarStore(private val jdbc: JdbcTemplate) {
                     phase = r.getString("stay_phase"),
                 )
             },
-            *(listOf(PropertyScope.ID, Date.valueOf(dates.end), Date.valueOf(dates.start)) +
-                    ids +
-                    listOf(MAX_EVENTS + 1))
+            *(listOf(
+                    BusinessScope.id(),
+                    Date.valueOf(dates.end),
+                    Date.valueOf(dates.start),
+                ) + ids + listOf(MAX_EVENTS + 1))
                 .toTypedArray(),
         )
 
@@ -114,9 +117,11 @@ class CalendarStore(private val jdbc: JdbcTemplate) {
                     r.getLong("version"),
                 )
             },
-            *(listOf(PropertyScope.ID, Date.valueOf(dates.end), Date.valueOf(dates.start)) +
-                    ids +
-                    listOf(MAX_EVENTS + 1))
+            *(listOf(
+                    BusinessScope.id(),
+                    Date.valueOf(dates.end),
+                    Date.valueOf(dates.start),
+                ) + ids + listOf(MAX_EVENTS + 1))
                 .toTypedArray(),
         )
 

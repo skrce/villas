@@ -1,6 +1,5 @@
 package com.villarosa.repository
 
-import com.villarosa.service.PropertyScope
 import jakarta.persistence.*
 import java.time.Instant
 import java.time.LocalDate
@@ -13,8 +12,7 @@ import org.springframework.data.jpa.repository.Query
 @Table(name = "booking_quotes")
 class StoredQuote(
     @Id @Column(length = 36) val id: String = UUID.randomUUID().toString(),
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "actor_id", nullable = false, length = 36) val actorId: String = "",
     @Column(name = "room_id", nullable = false) val roomId: Int = 0,
     @Column(name = "start_date", nullable = false) val startDate: LocalDate = LocalDate.MIN,
@@ -37,8 +35,7 @@ class StoredQuote(
 )
 class StoredReservationPrice(
     @Id @Column(length = 36) val id: String = "",
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "reservation_id", nullable = false) val reservationId: Int = 0,
     @Column(name = "reservation_version", nullable = false) val reservationVersion: Long = 0,
     @Column(name = "actor_id", nullable = false, length = 36) val actorId: String = "",

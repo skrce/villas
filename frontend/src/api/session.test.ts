@@ -1,13 +1,53 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 
 const fetchMock = vi.fn<typeof fetch>();
-const payload = (id = 'owner-one') => ({ authenticated: true, staff: { id, email: `${id}@example.test`, role: 'OWNER', active: true, version: 0 }, generation: 'login-one', csrfToken: 'memory-only-csrf', expiresAt: '2099-01-01T00:00:00Z', permissions: ['staff:manage'], provider: 'synthetic' });
+const payload = (id = 'owner-one') => ({ authenticated: true, propertyId: 'villa-rosa', staff: { id, email: `${id}@example.test`, role: 'OWNER', active: true, version: 0 }, generation: 'login-one', csrfToken: 'memory-only-csrf', expiresAt: '2099-01-01T00:00:00Z', permissions: ['staff:manage'], provider: 'synthetic' });
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const load = async () => { const session = await import('./session'); fetchMock.mockResolvedValueOnce(json(payload())); await session.refreshSession(); return session; };
 beforeEach(() => { vi.resetModules(); fetchMock.mockReset(); vi.stubGlobal('fetch', fetchMock); localStorage.clear(); });
 afterEach(() => vi.unstubAllGlobals());
 
 describe('staff session boundaries', () => {
+  it('refreshes a denied business grant without treating the identity as globally logged out', async () => {
+    const session=await load();
+    fetchMock.mockResolvedValueOnce(json({ code:'BUSINESS_ACCESS_DENIED' },403));
+    fetchMock.mockResolvedValueOnce(json({ ...payload(),staff:null,propertyId:null,identity:{id:'person-one',email:'owner@example.test'},memberships:[{businessId:'lake-house'}] }));
+    const response=await session.sessionFetch('/api/v1/apartments');
+    expect(session.getSession()).toMatchObject({status:'restricted',identityId:'person-one'});
+    await expect(response.json()).rejects.toThrow('session changed');
+    expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/v1/auth/session');
+  });
+
+  it.each([undefined, null, '', 'INVALID'])('rejects an authenticated response without a valid explicit business: %s', async (propertyId) => {
+    const session = await import('./session');
+    fetchMock.mockResolvedValueOnce(json({ ...payload(), propertyId }));
+    await session.refreshSession();
+    expect(session.getSession().status).toBe('unavailable');
+    const calls = fetchMock.mock.calls.length;
+    await expect(session.sessionFetch('/api/v1/apartments')).rejects.toThrow('session changed');
+    expect(fetchMock).toHaveBeenCalledTimes(calls);
+  });
+
+  it('sends the current explicit business on reads and writes without accepting a caller override', async () => {
+    const session = await load();
+    for (const method of ['GET', 'POST']) {
+      fetchMock.mockResolvedValueOnce(json([]));
+      await session.sessionFetch('/api/v1/apartments', { method, headers: { 'X-Villas-Business': 'other-business' } });
+      const headers = new Headers(fetchMock.mock.calls.at(-1)?.[1]?.headers);
+      expect(headers.get('X-Villas-Business')).toBe('villa-rosa');
+    }
+  });
+
+  it('invalidates captured clients when the explicit business changes without an actor or login change', async () => {
+    const session = await load();
+    const old = session.scopedSessionFetch('owner-one', session.getSessionEpoch());
+    fetchMock.mockResolvedValueOnce(json({ ...payload(), propertyId: 'lake-house' }));
+    await session.refreshSession();
+    const calls = fetchMock.mock.calls.length;
+    await expect(old('/api/v1/apartments')).rejects.toThrow('session changed');
+    expect(fetchMock).toHaveBeenCalledTimes(calls);
+  });
+
   it.each([true, false])("separates restricted identities while retaining the same identity draft key: same=%s", async (same) => {
     const session = await import('./session');
     fetchMock.mockResolvedValueOnce(json({ ...payload(), identity: { id: 'person-one', email: 'owner@example.test' } }));
@@ -112,7 +152,7 @@ describe('staff session boundaries', () => {
   });
   it('clears access when the session cannot be verified', async () => {
     const session = await load();
-    fetchMock.mockResolvedValueOnce(json({ authenticated: true, staff: { role: 'ADMIN' } }));
+    fetchMock.mockResolvedValueOnce(json({ authenticated: true, propertyId: 'villa-rosa', staff: { role: 'ADMIN' } }));
     await session.refreshSession();
     expect(session.getSession().status).toBe('unavailable');
     await expect(session.sessionFetch('/api/v1/customers', { method: 'POST' })).rejects.toThrow('session changed');

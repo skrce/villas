@@ -31,7 +31,12 @@ const freePort = async () => {
 };
 async function probe(
   t,
-  { signal = "SIGTERM", failure = "", occupied = false } = {},
+  {
+    signal = "SIGTERM",
+    failure = "",
+    occupied = false,
+    existingOwner = false,
+  } = {},
 ) {
   const directory = mkdtempSync(join(tmpdir(), "villas-demo-test-"));
   const log = join(directory, "events.log");
@@ -69,7 +74,7 @@ async function probe(
     join(directory, "scripts/local-db.mjs"),
     `import { appendFileSync } from 'node:fs';
 export const root = ${JSON.stringify(directory)};
-export const localDatabase = () => ({ sql: () => '0', compose: (args) => { appendFileSync(process.env.VILLAS_TEST_LOG, JSON.stringify({type:'database',args})+'\\n'); if(process.env.VILLAS_TEST_FAILURE==='cleanup') throw new Error('Synthetic stop failure'); } });`,
+export const localDatabase = () => ({ sql: (query) => query.includes('staff_accounts') && ${existingOwner} ? '1' : '0', compose: (args) => { appendFileSync(process.env.VILLAS_TEST_LOG, JSON.stringify({type:'database',args})+'\\n'); if(process.env.VILLAS_TEST_FAILURE==='cleanup') throw new Error('Synthetic stop failure'); } });`,
   );
   writeFileSync(
     join(directory, "scripts/dev-db.mjs"),
@@ -160,6 +165,13 @@ createServer((_request,response)=>{response.setHeader('Content-Type','applicatio
     1,
     output,
   );
+  assert.equal(
+    events().some(
+      (entry) =>
+        entry.type === "setup" && entry.args.includes("--bootstrap-owner"),
+    ),
+    !existingOwner,
+  );
   const workers = events().filter((entry) => entry.type === "ready");
   if (failure === "orphan")
     assert.ok(
@@ -176,6 +188,8 @@ test("demo SIGINT stops all owned servers and stops its database once", (t) =>
   probe(t, { signal: "SIGINT" }));
 test("demo SIGTERM stops all owned servers and stops its database once", (t) =>
   probe(t));
+test("demo reopens a retained Owner without attempting bootstrap again", (t) =>
+  probe(t, { existingOwner: true }));
 test("demo startup failure stops its other servers", (t) =>
   probe(t, { failure: "worker" }));
 test("demo cleanup failure reports retained recovery state", (t) =>

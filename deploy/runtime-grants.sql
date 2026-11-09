@@ -24,3 +24,6 @@ GRANT INSERT ON public.reservation_prices TO villas_runtime;
 GRANT INSERT ON public.ledger_entries TO villas_runtime;
 
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO villas_runtime;
+
+REVOKE ALL ON FUNCTION public.villas_identity_matches(TEXT,TEXT), public.villas_has_business(TEXT), public.villas_identity_business(TEXT), public.villas_admission_business(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.villas_identity_matches(TEXT,TEXT), public.villas_has_business(TEXT), public.villas_identity_business(TEXT), public.villas_admission_business(TEXT) TO villas_runtime;

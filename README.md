@@ -26,8 +26,8 @@ Milestone 10 is active. The approved target is one shared app and PostgreSQL dat
 per environment in Frankfurt, with independent accommodation businesses. The
 [shared-tenancy rollout](docs/contracts/multi-tenancy.md) is in progress under #44-#49.
 [Shared identity and staff memberships](docs/contracts/shared-identity.md) are implemented.
-Business-data workflows and the console still serve one configured business until
-#46/#47 add domain isolation, row security and browser switching. Live deployment is blocked. [Cloud Run + Neon setup and updates](docs/cloud-run-neon.md)
+[Business data isolation](docs/contracts/business-data-isolation.md) requires explicit
+request selection and PostgreSQL row security. The console switcher remains #47. Live deployment is blocked. [Cloud Run + Neon setup and updates](docs/cloud-run-neon.md)
 contains the prepared Terraform, keyless image publication and operator rollout.
 See [the PostgreSQL transition](docs/postgresql-transition.md).
 
@@ -90,6 +90,7 @@ synthetic provider and private database. Then start an empty database and the AP
 node scripts/dev-db.mjs start
 ./mvnw --batch-mode verify
 node scripts/run-api.mjs --migrate
+# Set VILLAS_OWNER_BUSINESS_ID explicitly in the private local settings first.
 node scripts/run-api.mjs --bootstrap-owner
 node scripts/run-api.mjs
 ```
@@ -247,3 +248,7 @@ pending booking changes across reloads and tabs. Its booking changes require bro
 Web Locks over HTTPS or localhost. See the [reservation contract](docs/contracts/reservations.md).
 The later staff workflows and live Google acceptance remain separate gates. See [decisions](docs/decisions.md) and
 [proposed permissions](docs/contracts/permissions.md).
+
+Domain API requests require an explicit `X-Villas-Business` selector. Read the
+[business data isolation contract](docs/contracts/business-data-isolation.md) before
+changing request scope, transactions, row policies or runtime/backup credentials.

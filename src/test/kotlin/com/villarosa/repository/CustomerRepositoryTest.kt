@@ -26,7 +26,9 @@ constructor(
 
     @Test
     fun findByFirstNameAndLastNameAndPhone_matchesExact() {
-        customerRepository.save(Customer.buildCustomer("Jane", "Doe", "123", "Main"))
+        customerRepository.save(
+            Customer.buildCustomer("Jane", "Doe", "123", "Main", businessId = "villa-rosa")
+        )
 
         val results = customerRepository.findByFirstNameAndLastNameAndPhone("Jane", "Doe", "123")
 
@@ -36,8 +38,12 @@ constructor(
 
     @Test
     fun findByFirstNameContaining_matchesPartial() {
-        customerRepository.save(Customer.buildCustomer("Jane", "Doe", "123", "Main"))
-        customerRepository.save(Customer.buildCustomer("John", "Doe", "456", "Main"))
+        customerRepository.save(
+            Customer.buildCustomer("Jane", "Doe", "123", "Main", businessId = "villa-rosa")
+        )
+        customerRepository.save(
+            Customer.buildCustomer("John", "Doe", "456", "Main", businessId = "villa-rosa")
+        )
 
         val results = customerRepository.findByFirstNameContaining("Jan")
 
@@ -46,8 +52,12 @@ constructor(
 
     @Test
     fun findByPhoneContaining_matchesPartial() {
-        customerRepository.save(Customer.buildCustomer("Jane", "Doe", "123456", "Main"))
-        customerRepository.save(Customer.buildCustomer("John", "Doe", "987654", "Main"))
+        customerRepository.save(
+            Customer.buildCustomer("Jane", "Doe", "123456", "Main", businessId = "villa-rosa")
+        )
+        customerRepository.save(
+            Customer.buildCustomer("John", "Doe", "987654", "Main", businessId = "villa-rosa")
+        )
 
         val results = customerRepository.findByPhoneContaining("123")
 

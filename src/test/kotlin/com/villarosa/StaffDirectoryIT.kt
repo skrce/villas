@@ -64,8 +64,8 @@ constructor(
         VerifiedStaffIdentity("https://accounts.google.com", "synthetic-$subject", email, true)
 
     private fun owner(): StaffAccount {
-        directory.bootstrap("owner@example.test")
-        return directory.accept(verified("owner@example.test"))
+        directory.bootstrap("owner@example.test", businessId = "villa-rosa")
+        return directory.accept(verified("owner@example.test"), businessId = "villa-rosa")
     }
 
     @BeforeEach
@@ -77,13 +77,25 @@ constructor(
     @Test
     fun bootstrapIsExplicitIdempotentAndNeverSilentlyChangesTheOwner() {
         assertThat(staff.count()).isZero()
-        val first = directory.bootstrap(" Owner@Example.test ")
-        assertThat(directory.bootstrap("owner@example.test")).isEqualTo(first)
+        val first = directory.bootstrap(" Owner@Example.test ", businessId = "villa-rosa")
+        assertThat(directory.bootstrap("owner@example.test", businessId = "villa-rosa"))
+            .isEqualTo(first)
         assertThat(events.count()).isEqualTo(1)
-        assertThat(assertThrows<DomainException> { directory.bootstrap("other@example.test") }.code)
+        assertThat(
+                assertThrows<DomainException> {
+                        directory.bootstrap("other@example.test", businessId = "villa-rosa")
+                    }
+                    .code
+            )
             .isEqualTo("OWNER_ALREADY_CONFIGURED")
-        assertThat(directory.accept(verified("owner@example.test")).role).isEqualTo(StaffRole.OWNER)
-        assertThat(assertThrows<DomainException> { directory.bootstrap("owner@example.test") }.code)
+        assertThat(directory.accept(verified("owner@example.test"), businessId = "villa-rosa").role)
+            .isEqualTo(StaffRole.OWNER)
+        assertThat(
+                assertThrows<DomainException> {
+                        directory.bootstrap("owner@example.test", businessId = "villa-rosa")
+                    }
+                    .code
+            )
             .isEqualTo("OWNER_ALREADY_CONFIGURED")
         assertThat(staff.count()).isEqualTo(1)
     }
@@ -108,6 +120,7 @@ constructor(
                     "VILLAS_DB_URL" to database.jdbcUrl,
                     "VILLAS_DB_USERNAME" to database.username,
                     "VILLAS_DB_PASSWORD" to database.password,
+                    "VILLAS_OWNER_BUSINESS_ID" to "villa-rosa",
                     "VILLAS_INITIAL_OWNER_EMAIL" to "cli-owner@example.test",
                 )
             )
@@ -130,19 +143,30 @@ constructor(
 
     @Test
     fun replacingAnUnclaimedBootstrapRequiresTheExplicitOfflineFlag() {
-        val original = directory.bootstrap("wrong@example.test")
-        val replacement = directory.bootstrap("owner@example.test", replacePending = true)
+        val original = directory.bootstrap("wrong@example.test", businessId = "villa-rosa")
+        val replacement =
+            directory.bootstrap(
+                "owner@example.test",
+                replacePending = true,
+                businessId = "villa-rosa",
+            )
         assertThat(replacement.id).isNotEqualTo(original.id)
         assertThat(invitations.findById(original.id).get().state).isEqualTo(InvitationState.REVOKED)
         assertThat(
-                assertThrows<DomainException> { directory.accept(verified("wrong@example.test")) }
+                assertThrows<DomainException> {
+                        directory.accept(verified("wrong@example.test"), businessId = "villa-rosa")
+                    }
                     .code
             )
             .isEqualTo("STAFF_NOT_ALLOWED")
         owner()
         assertThat(
                 assertThrows<DomainException> {
-                        directory.bootstrap("third@example.test", replacePending = true)
+                        directory.bootstrap(
+                            "third@example.test",
+                            replacePending = true,
+                            businessId = "villa-rosa",
+                        )
                     }
                     .code
             )
@@ -151,28 +175,39 @@ constructor(
 
     @Test
     fun expiredInitialSetupCanBeRetriedWithoutCreatingUnverifiedAccounts() {
-        val original = directory.bootstrap("expired@example.test")
+        val original = directory.bootstrap("expired@example.test", businessId = "villa-rosa")
         clock.time.set(original.expiresAt)
-        val replacement = directory.bootstrap("owner@example.test")
+        val replacement = directory.bootstrap("owner@example.test", businessId = "villa-rosa")
         assertThat(replacement.email).isEqualTo("owner@example.test")
         assertThat(staff.count()).isZero()
-        assertThat(assertThrows<DomainException> { directory.bootstrap("bad email") }.code)
+        assertThat(
+                assertThrows<DomainException> {
+                        directory.bootstrap("bad email", businessId = "villa-rosa")
+                    }
+                    .code
+            )
             .isEqualTo("INVALID_EMAIL")
     }
 
     @Test
     fun onlyAnExactVerifiedInvitationCanCreateAnAccount() {
-        directory.bootstrap("first.last+villas@example.test")
+        directory.bootstrap("first.last+villas@example.test", businessId = "villa-rosa")
         for (identity in
             listOf(
                 verified("firstlast+villas@example.test"),
                 verified("first.last@example.test"),
                 verified("first.last+villas@other.test"),
                 verified("first.last+villas@example.test").copy(emailVerified = false),
-            )) assertThat(assertThrows<DomainException> { directory.accept(identity) }.code)
+            )) assertThat(
+                assertThrows<DomainException> {
+                        directory.accept(identity, businessId = "villa-rosa")
+                    }
+                    .code
+            )
             .isEqualTo("STAFF_NOT_ALLOWED")
         assertThat(staff.count()).isZero()
-        val account = directory.accept(verified("First.Last+Villas@Example.test"))
+        val account =
+            directory.accept(verified("First.Last+Villas@Example.test"), businessId = "villa-rosa")
         assertThat(account.email).isEqualTo("first.last+villas@example.test")
         assertThat(invitations.findAll().single().state).isEqualTo(InvitationState.ACCEPTED)
     }
@@ -180,10 +215,14 @@ constructor(
     @Test
     fun anAcceptedEmailCannotBeReboundToAnotherProviderAccount() {
         val account = owner()
-        assertThat(directory.accept(verified("owner@example.test")).id).isEqualTo(account.id)
+        assertThat(directory.accept(verified("owner@example.test"), businessId = "villa-rosa").id)
+            .isEqualTo(account.id)
         assertThat(
                 assertThrows<DomainException> {
-                        directory.accept(verified("owner@example.test", "different"))
+                        directory.accept(
+                            verified("owner@example.test", "different"),
+                            businessId = "villa-rosa",
+                        )
                     }
                     .code
             )
@@ -191,7 +230,8 @@ constructor(
         assertThat(
                 assertThrows<DomainException> {
                         directory.accept(
-                            verified("owner@example.test").copy(issuer = "https://other.invalid")
+                            verified("owner@example.test").copy(issuer = "https://other.invalid"),
+                            businessId = "villa-rosa",
                         )
                     }
                     .code
@@ -203,34 +243,76 @@ constructor(
     @Test
     fun GoogleSubjectRetainsIdentityAcrossAVerifiedEmailChange() {
         val account = owner()
-        val oldIdentity = account.identity()
-        val renamed = directory.accept(verified("renamed@example.test", "owner@example.test"))
+        val oldIdentity = TestData.identity(jdbc, account)
+        val renamed =
+            directory.accept(
+                verified("renamed@example.test", "owner@example.test"),
+                businessId = "villa-rosa",
+            )
         assertThat(renamed.id).isEqualTo(account.id)
         assertThat(renamed.email).isEqualTo("renamed@example.test")
         assertThat(assertThrows<DomainException> { access.current(oldIdentity) }.code)
             .isEqualTo("SESSION_REVOKED")
-        assertThat(access.current(renamed.identity()).id).isEqualTo(account.id)
+        assertThat(access.current(TestData.identity(jdbc, renamed)).id).isEqualTo(account.id)
     }
 
     @Test
     fun expiredOrRevokedInvitationsCannotBeUsed() {
         val owner = owner()
-        val pending = directory.invite(owner.identity(), "expired@example.test")
-        assertThat(directory.invite(owner.identity(), "expired@example.test")).isEqualTo(pending)
+        val pending =
+            directory.invite(
+                TestData.identity(jdbc, owner),
+                "expired@example.test",
+                businessId = "villa-rosa",
+            )
+        assertThat(
+                directory.invite(
+                    TestData.identity(jdbc, owner),
+                    "expired@example.test",
+                    businessId = "villa-rosa",
+                )
+            )
+            .isEqualTo(pending)
         clock.time.set(pending.expiresAt)
         assertThat(
-                assertThrows<DomainException> { directory.accept(verified("expired@example.test")) }
+                assertThrows<DomainException> {
+                        directory.accept(
+                            verified("expired@example.test"),
+                            businessId = "villa-rosa",
+                        )
+                    }
                     .code
             )
             .isEqualTo("STAFF_NOT_ALLOWED")
-        assertThat(directory.pendingInvitations(owner.identity())).isEmpty()
-        val replacement = directory.invite(owner.identity(), "expired@example.test")
+        assertThat(
+                directory.pendingInvitations(
+                    TestData.identity(jdbc, owner),
+                    businessId = "villa-rosa",
+                )
+            )
+            .isEmpty()
+        val replacement =
+            directory.invite(
+                TestData.identity(jdbc, owner),
+                "expired@example.test",
+                businessId = "villa-rosa",
+            )
         assertThat(replacement.id).isNotEqualTo(pending.id)
         val revoked =
-            directory.revokeInvitation(owner.identity(), replacement.id, replacement.version)
+            directory.revokeInvitation(
+                TestData.identity(jdbc, owner),
+                replacement.id,
+                replacement.version,
+                businessId = "villa-rosa",
+            )
         assertThat(revoked.state).isEqualTo(InvitationState.REVOKED)
         assertThat(
-                assertThrows<DomainException> { directory.accept(verified("expired@example.test")) }
+                assertThrows<DomainException> {
+                        directory.accept(
+                            verified("expired@example.test"),
+                            businessId = "villa-rosa",
+                        )
+                    }
                     .code
             )
             .isEqualTo("STAFF_NOT_ALLOWED")
@@ -239,37 +321,76 @@ constructor(
     @Test
     fun deactivationCannotBeUndoneByReplayingAnAcceptedInvitation() {
         val one = owner()
-        directory.invite(one.identity(), "second@example.test")
-        val two = directory.accept(verified("second@example.test"))
-        directory.deactivate(one.identity(), two.id, two.version)
-        assertThat(assertThrows<DomainException> { access.current(two.identity()) }.code)
+        directory.invite(
+            TestData.identity(jdbc, one),
+            "second@example.test",
+            businessId = "villa-rosa",
+        )
+        val two = directory.accept(verified("second@example.test"), businessId = "villa-rosa")
+        directory.deactivate(
+            TestData.identity(jdbc, one),
+            two.id,
+            two.version,
+            businessId = "villa-rosa",
+        )
+        assertThat(
+                assertThrows<DomainException> { access.current(TestData.identity(jdbc, two)) }.code
+            )
             .isEqualTo("SESSION_REVOKED")
         assertThat(
-                assertThrows<DomainException> { directory.accept(verified("second@example.test")) }
+                assertThrows<DomainException> {
+                        directory.accept(verified("second@example.test"), businessId = "villa-rosa")
+                    }
                     .code
             )
             .isEqualTo("STAFF_NOT_ALLOWED")
-        directory.invite(one.identity(), "second@example.test")
-        val reactivated = directory.accept(verified("second@example.test"))
+        directory.invite(
+            TestData.identity(jdbc, one),
+            "second@example.test",
+            businessId = "villa-rosa",
+        )
+        val reactivated =
+            directory.accept(verified("second@example.test"), businessId = "villa-rosa")
         assertThat(reactivated.id).isEqualTo(two.id)
         assertThat(reactivated.securityVersion).isGreaterThan(two.securityVersion)
-        assertThat(directory.accounts(one.identity())).hasSize(2)
+        assertThat(directory.accounts(TestData.identity(jdbc, one), businessId = "villa-rosa"))
+            .hasSize(2)
     }
 
     @Test
     fun reactivationRetainsTheSubjectAndAdoptsTheNewlyVerifiedEmail() {
         val owner = owner()
-        directory.invite(owner.identity(), "second@example.test")
-        val second = directory.accept(verified("second@example.test"))
-        directory.deactivate(owner.identity(), second.id, second.version)
-        directory.invite(owner.identity(), "renamed@example.test")
-        val reactivated = directory.accept(verified("renamed@example.test", "second@example.test"))
+        directory.invite(
+            TestData.identity(jdbc, owner),
+            "second@example.test",
+            businessId = "villa-rosa",
+        )
+        val second = directory.accept(verified("second@example.test"), businessId = "villa-rosa")
+        directory.deactivate(
+            TestData.identity(jdbc, owner),
+            second.id,
+            second.version,
+            businessId = "villa-rosa",
+        )
+        directory.invite(
+            TestData.identity(jdbc, owner),
+            "renamed@example.test",
+            businessId = "villa-rosa",
+        )
+        val reactivated =
+            directory.accept(
+                verified("renamed@example.test", "second@example.test"),
+                businessId = "villa-rosa",
+            )
         assertThat(reactivated.id).isEqualTo(second.id)
         assertThat(reactivated.email).isEqualTo("renamed@example.test")
         assertThat(staff.findByPropertyIdAndEmail("villa-rosa", "second@example.test")).isNull()
         assertThat(
                 assertThrows<DomainException> {
-                        directory.accept(verified("second@example.test", "different"))
+                        directory.accept(
+                            verified("second@example.test", "different"),
+                            businessId = "villa-rosa",
+                        )
                     }
                     .code
             )
@@ -279,13 +400,19 @@ constructor(
     @Test
     fun sessionRevocationInvalidatesEveryOldIdentityWithoutDeactivatingTheAccount() {
         val owner = owner()
-        val old = owner.identity()
-        val saved = directory.revokeSessions(old, owner.id, owner.version)
+        val old = TestData.identity(jdbc, owner)
+        val saved =
+            directory.revokeSessions(old, owner.id, owner.version, businessId = "villa-rosa")
         assertThat(saved.active).isTrue()
         assertThat(saved.version).isEqualTo(1)
         assertThat(assertThrows<DomainException> { access.current(old) }.code)
             .isEqualTo("SESSION_REVOKED")
-        assertThat(directory.accept(verified("owner@example.test")).identity().securityVersion)
+        assertThat(
+                directory
+                    .accept(verified("owner@example.test"), businessId = "villa-rosa")
+                    .identity()
+                    .securityVersion
+            )
             .isEqualTo(1)
     }
 
@@ -294,27 +421,48 @@ constructor(
         val owner = owner()
         assertThat(
                 assertThrows<DomainException> {
-                        directory.deactivate(owner.identity(), owner.id, 1)
+                        directory.deactivate(
+                            TestData.identity(jdbc, owner),
+                            owner.id,
+                            1,
+                            businessId = "villa-rosa",
+                        )
                     }
                     .code
             )
             .isEqualTo("STALE_VERSION")
         assertThat(
                 assertThrows<DomainException> {
-                        directory.revokeSessions(owner.identity(), owner.id, -1)
+                        directory.revokeSessions(
+                            TestData.identity(jdbc, owner),
+                            owner.id,
+                            -1,
+                            businessId = "villa-rosa",
+                        )
                     }
                     .code
             )
             .isEqualTo("INVALID_VERSION")
         assertThat(
                 assertThrows<DomainException> {
-                        directory.deactivate(owner.identity(), "missing", 0)
+                        directory.deactivate(
+                            TestData.identity(jdbc, owner),
+                            "missing",
+                            0,
+                            businessId = "villa-rosa",
+                        )
                     }
                     .code
             )
             .isEqualTo("NOT_FOUND")
         assertThat(
-                assertThrows<DomainException> { directory.invite(owner.identity(), owner.email) }
+                assertThrows<DomainException> {
+                        directory.invite(
+                            TestData.identity(jdbc, owner),
+                            owner.email,
+                            businessId = "villa-rosa",
+                        )
+                    }
                     .code
             )
             .isEqualTo("STAFF_ALREADY_ACTIVE")
@@ -335,11 +483,19 @@ constructor(
                     email = "other@example.test",
                 )
             )
-        assertThat(assertThrows<DomainException> { access.current(other.identity()) }.code)
+        assertThat(
+                assertThrows<DomainException> { access.current(TestData.identity(jdbc, other)) }
+                    .code
+            )
             .isEqualTo("SESSION_REVOKED")
         assertThat(
                 assertThrows<DomainException> {
-                        directory.deactivate(owner.identity(), other.id, 0)
+                        directory.deactivate(
+                            TestData.identity(jdbc, owner),
+                            other.id,
+                            0,
+                            businessId = "villa-rosa",
+                        )
                     }
                     .code
             )
@@ -350,8 +506,12 @@ constructor(
     @Test
     fun simultaneousOwnerDeactivationsCannotRemoveTheLastOwner() {
         val one = owner()
-        directory.invite(one.identity(), "second@example.test")
-        val two = directory.accept(verified("second@example.test"))
+        directory.invite(
+            TestData.identity(jdbc, one),
+            "second@example.test",
+            businessId = "villa-rosa",
+        )
+        val two = directory.accept(verified("second@example.test"), businessId = "villa-rosa")
         val ready = CountDownLatch(2)
         val start = CountDownLatch(1)
         val executor = Executors.newFixedThreadPool(2)
@@ -362,7 +522,12 @@ constructor(
                         ready.countDown()
                         check(start.await(10, TimeUnit.SECONDS))
                         try {
-                            directory.deactivate(account.identity(), account.id, account.version)
+                            directory.deactivate(
+                                TestData.identity(jdbc, account),
+                                account.id,
+                                account.version,
+                                businessId = "villa-rosa",
+                            )
                             "COMMITTED"
                         } catch (error: DomainException) {
                             error.code
@@ -384,15 +549,24 @@ constructor(
     @Test
     fun anAuditFailureRollsBackAccountDeactivationAndVersionChanges() {
         val owner = owner()
-        directory.invite(owner.identity(), "second@example.test")
-        val other = directory.accept(verified("second@example.test"))
+        directory.invite(
+            TestData.identity(jdbc, owner),
+            "second@example.test",
+            businessId = "villa-rosa",
+        )
+        val other = directory.accept(verified("second@example.test"), businessId = "villa-rosa")
         val eventCount = events.count()
         jdbc.execute(
             "CREATE OR REPLACE FUNCTION synthetic_staff_audit_failure_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic audit failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER synthetic_staff_audit_failure BEFORE INSERT ON staff_events FOR EACH ROW EXECUTE FUNCTION synthetic_staff_audit_failure_fn()"
         )
         try {
             assertThrows<RuntimeException> {
-                directory.deactivate(owner.identity(), other.id, other.version)
+                directory.deactivate(
+                    TestData.identity(jdbc, owner),
+                    other.id,
+                    other.version,
+                    businessId = "villa-rosa",
+                )
             }
             val saved = staff.findById(other.id).get()
             assertThat(saved.active).isTrue()
@@ -406,9 +580,10 @@ constructor(
 
     @Test
     fun offlineRecoveryCreatesOnlyAnAuditedInvitationThatStillRequiresVerifiedIdentity() {
-        val invite = directory.recover("recovery@example.test")
+        val invite = directory.recover("recovery@example.test", businessId = "villa-rosa")
         assertThat(staff.count()).isZero()
-        assertThat(directory.recover("recovery@example.test").id).isEqualTo(invite.id)
+        assertThat(directory.recover("recovery@example.test", businessId = "villa-rosa").id)
+            .isEqualTo(invite.id)
         assertThat(
                 jdbc.queryForObject(
                     "SELECT kind FROM staff_events WHERE subject_id = ?",
@@ -424,7 +599,8 @@ constructor(
                     "recovery-subject",
                     "recovery@example.test",
                     true,
-                )
+                ),
+                businessId = "villa-rosa",
             )
         assertThat(account.active).isTrue()
         assertThat(account.role).isEqualTo(StaffRole.OWNER)

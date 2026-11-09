@@ -21,7 +21,7 @@ An active allocation occupies `[startDate, endDate)`. Two intervals overlap exac
 `existing.startDate < requested.endDate AND existing.endDate > requested.startDate`.
 Adjacent stays are allowed. Active maintenance blocks consume the same inventory.
 
-Creation checks the configured property's active guest and room references, a positive
+Creation checks the selected business's active guest and room references, a positive
 integral guest count, capacity, room active state, and overlapping inventory. Moves
 and date/count changes enforce those same room rules. Assigning the current room is
 a no-op, including when that room has subsequently been made inactive. It still

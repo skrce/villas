@@ -56,7 +56,7 @@ constructor(
     }
 
     private fun both(): StaffSessionIdentity {
-        directory.bootstrap("owner@example.test")
+        directory.bootstrap("owner@example.test", businessId = "villa-rosa")
         onboarding.create(business, "Синтетичко езеро", "owner@example.test")
         return shared.signIn(verified())
     }
@@ -171,7 +171,7 @@ constructor(
 
     @Test
     fun concurrentFirstSignInsCreateOneIdentityAndConsumeEachInvitationOnce() {
-        directory.bootstrap("owner@example.test")
+        directory.bootstrap("owner@example.test", businessId = "villa-rosa")
         onboarding.create(business, "Synthetic lake", "owner@example.test")
         val executor = Executors.newFixedThreadPool(2)
         try {
@@ -423,7 +423,7 @@ constructor(
 
     @Test
     fun aSecondBusinessAuditFailureRollsBackTheEntireLoginAdmission() {
-        directory.bootstrap("owner@example.test")
+        directory.bootstrap("owner@example.test", businessId = "villa-rosa")
         onboarding.create(business, "Synthetic lake", "owner@example.test")
         jdbc.execute(
             "CREATE FUNCTION reject_second_admission() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN IF NEW.kind='INVITATION_ACCEPTED' AND NEW.property_id='villa-rosa' THEN RAISE EXCEPTION 'Synthetic admission failure'; END IF; RETURN NEW; END \$\$; CREATE TRIGGER reject_second_admission BEFORE INSERT ON staff_events FOR EACH ROW EXECUTE FUNCTION reject_second_admission()"
@@ -503,7 +503,19 @@ constructor(
                         org.springframework.security.core.context.SecurityContextHolder.getContext()
                             .authentication = StaffAuthentication(login)
                         try {
-                            customers.createCustomer("Must not", "Commit", null, null)
+                            BusinessScope.within(
+                                AuthorizedBusiness(
+                                    "villa-rosa",
+                                    login.memberships
+                                        .getValue("villa-rosa")
+                                        .copy(
+                                            personId = login.id,
+                                            personVersion = login.securityVersion,
+                                        ),
+                                )
+                            ) {
+                                customers.createCustomer("Must not", "Commit", null, null)
+                            }
                             "COMMITTED"
                         } catch (failure: DomainException) {
                             failure.code

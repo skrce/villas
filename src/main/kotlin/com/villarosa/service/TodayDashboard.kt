@@ -1,5 +1,6 @@
 package com.villarosa.service
 
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import org.springframework.jdbc.core.JdbcTemplate
@@ -27,7 +28,7 @@ class TodayDashboard(
             jdbc.queryForObject(
                 "SELECT EXISTS(SELECT 1 FROM reservations r ${ReportMoney.JOINS} WHERE r.property_id=? AND (${ReportMoney.INVALID_SOURCE}))",
                 Boolean::class.java,
-                PropertyScope.ID,
+                BusinessScope.id(),
             ) == true
         )
         val now = time.now()
@@ -37,7 +38,7 @@ class TodayDashboard(
                 jdbc.queryForObject(
                     "SELECT COUNT(*) FROM reservations r WHERE r.property_id=? AND ($predicate)",
                     Long::class.java,
-                    PropertyScope.ID,
+                    BusinessScope.id(),
                     *dates,
                 )!!
             return TodayQueue(count, daily.deskSnapshot(list, 0, 5, today.toString()).items)
@@ -66,25 +67,25 @@ class TodayDashboard(
             jdbc.queryForObject(
                 "SELECT COALESCE(SUM(guest_count),0) FROM reservations WHERE property_id=? AND stay_phase='CHECKED_IN'",
                 Long::class.java,
-                PropertyScope.ID,
+                BusinessScope.id(),
             )!!
         val rooms =
             jdbc.queryForMap(
                 "SELECT COUNT(*) AS total,COALESCE(SUM(CASE WHEN a.base_rate_cents IS NULL THEN 1 ELSE 0 END),0) AS missing,COALESCE(SUM(CASE WHEN COALESCE(s.state,'DIRTY')='DIRTY' THEN 1 ELSE 0 END),0) AS dirty,COALESCE(SUM(CASE WHEN s.state='IN_PROGRESS' THEN 1 ELSE 0 END),0) AS cleaning,COALESCE(SUM(CASE WHEN s.state='INSPECTION' THEN 1 ELSE 0 END),0) AS inspection,COALESCE(SUM(CASE WHEN s.state='CLEAN' THEN 1 ELSE 0 END),0) AS clean,COALESCE(SUM(CASE WHEN EXISTS(SELECT 1 FROM maintenance_blocks b WHERE b.property_id=a.property_id AND b.room_id=a.id AND b.status='ACTIVE' AND b.start_date<=? AND b.end_date>?) THEN 1 ELSE 0 END),0) AS blocked FROM apartments a LEFT JOIN room_readiness s ON s.property_id=a.property_id AND s.room_id=a.id WHERE a.property_id=? AND a.active=TRUE",
                 today,
                 today,
-                PropertyScope.ID,
+                BusinessScope.id(),
             )
         val finance =
             jdbc.queryForMap(
                 "SELECT COALESCE(SUM(CASE WHEN (${ReportMoney.OUTSTANDING})>0 THEN 1 ELSE 0 END),0) AS outstanding_count,COALESCE(SUM(${ReportMoney.OUTSTANDING}),0) AS outstanding,COALESCE(SUM(CASE WHEN (${ReportMoney.CREDIT})>0 THEN 1 ELSE 0 END),0) AS credit_count,COALESCE(SUM(${ReportMoney.CREDIT}),0) AS credit,COALESCE(SUM(CASE WHEN p.id IS NULL THEN 1 ELSE 0 END),0) AS unknown_count FROM reservations r ${ReportMoney.JOINS} WHERE r.property_id=?",
-                PropertyScope.ID,
+                BusinessScope.id(),
             )
         val balances =
             jdbc.query(
                 "SELECT r.id,r.stay_phase,r.start_date,r.end_date,CONCAT(c.first_name,' ',c.last_name) AS guest_name,${ReportMoney.FIELDS},(${ReportMoney.INVALID_SOURCE}) AS invalid_source FROM reservations r JOIN customers c ON c.property_id=r.property_id AND c.id=r.customer_id ${ReportMoney.JOINS} WHERE r.property_id=? AND (p.id IS NULL OR (${ReportMoney.OUTSTANDING})>0 OR (${ReportMoney.CREDIT})>0) ORDER BY CASE WHEN p.id IS NULL THEN 0 ELSE 1 END,(${ReportMoney.OUTSTANDING}) DESC,(${ReportMoney.CREDIT}) DESC,r.id LIMIT 5",
                 { r, _ -> ReportMoney.balance(r) },
-                PropertyScope.ID,
+                BusinessScope.id(),
             )
         fun count(values: Map<String, Any?>, key: String) =
             (values.getValue(key) as Number).toLong()

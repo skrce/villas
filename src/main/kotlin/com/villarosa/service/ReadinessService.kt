@@ -6,6 +6,7 @@ import com.villarosa.exception.missing
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
 import com.villarosa.security.BusinessAudit
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import java.time.ZoneOffset
@@ -42,9 +43,9 @@ class ReadinessService(
     @Transactional(readOnly = true)
     fun read(roomId: Int): ReadinessView {
         access.current(current.identity())
-        if (rooms.findByPropertyIdAndId(PropertyScope.ID, roomId) == null)
+        if (rooms.findByPropertyIdAndId(BusinessScope.id(), roomId) == null)
             missing("Room does not exist.")
-        return readiness.findByPropertyIdAndRoomId(PropertyScope.ID, roomId)?.view()
+        return readiness.findByPropertyIdAndRoomId(BusinessScope.id(), roomId)?.view()
             ?: ReadinessView(roomId, ReadinessState.DIRTY, 0, null)
     }
 
@@ -73,7 +74,7 @@ class ReadinessService(
         key: String,
         reason: String?,
     ): OperationResult {
-        val room = rooms.locked(PropertyScope.ID, roomId) ?: missing("Room does not exist.")
+        val room = rooms.locked(BusinessScope.id(), roomId) ?: missing("Room does not exist.")
         if (!room.active) conflict("ROOM_INACTIVE", "Restore the room before changing readiness.")
         val saved = locked(room)
         checkVersion(saved.version, expected)
@@ -111,10 +112,10 @@ class ReadinessService(
         jdbc.update(
             "INSERT INTO room_readiness (room_id,property_id,state,version,changed_at) VALUES (?,?,'DIRTY',0,?) ON CONFLICT DO NOTHING",
             room.id!!,
-            PropertyScope.ID,
+            BusinessScope.id(),
             time.now().atOffset(ZoneOffset.UTC),
         )
-        return readiness.locked(PropertyScope.ID, room.id!!)
+        return readiness.locked(BusinessScope.id(), room.id!!)
             ?: missing("Room readiness does not exist.")
     }
 
@@ -133,7 +134,7 @@ class ReadinessService(
             jdbc.queryForObject(
                 "SELECT COUNT(*) FROM reservations WHERE property_id=? AND room_id=? AND stay_phase='CHECKED_IN' AND id<>?",
                 Long::class.java,
-                PropertyScope.ID,
+                BusinessScope.id(),
                 roomId,
                 excluded,
             ) != 0L
@@ -160,7 +161,13 @@ class ReadinessService(
                 ?: invalid("INVALID_CURSOR", "Use a nonnegative event cursor.")
         if (limit !in 1..100)
             invalid("INVALID_PAGE_SIZE", "Readiness history pages contain 1 to 100 entries.")
-        val rows = events.history(PropertyScope.ID, roomId, cursor, PageRequest.of(0, limit + 1))
+        val rows =
+            events.history(
+                BusinessScope.id(),
+                roomId,
+                cursor,
+                PageRequest.of(0, limit + 1),
+            )
         val items = rows.take(limit).map { it.info() }
         return ReadinessHistory(items, if (rows.size > limit) items.last().id else null)
     }
@@ -188,6 +195,7 @@ class ReadinessService(
                     reason = reason,
                     reservationId = reservationId,
                     occurredAt = saved.changedAt,
+                    propertyId = BusinessScope.id(),
                 )
             )
         audit.record(current.identity().id, "READINESS_CHANGED", "ROOM", saved.roomId.toString())

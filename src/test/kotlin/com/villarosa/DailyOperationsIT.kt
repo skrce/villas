@@ -52,7 +52,12 @@ constructor(
         clock.value = Instant.parse("2026-11-06T23:30:00.123456Z")
         room =
             rooms.saveAndFlush(
-                Apartment(capacity = 4, name = "Synthetic operations", reference = "OPS-1")
+                Apartment(
+                    capacity = 4,
+                    name = "Synthetic operations",
+                    reference = "OPS-1",
+                    propertyId = "villa-rosa",
+                )
             )
         guest =
             guests
@@ -62,6 +67,7 @@ constructor(
                         lastName = "Guest",
                         phone = "000123456",
                         notes = "Private synthetic note",
+                        propertyId = "villa-rosa",
                     )
                 )
                 .id!!
@@ -87,6 +93,7 @@ constructor(
                     if (phase == StayPhase.CHECKED_OUT)
                         end.atTime(12, 0).toInstant(java.time.ZoneOffset.UTC)
                     else null,
+                propertyId = "villa-rosa",
             )
         )
 
@@ -163,7 +170,12 @@ constructor(
     fun housekeepingFiltersPaginateByRoomWithoutWritingOrLosingOccupiedRooms() {
         val second =
             rooms.saveAndFlush(
-                Apartment(capacity = 2, name = "Synthetic second", reference = "OPS-2")
+                Apartment(
+                    capacity = 2,
+                    name = "Synthetic second",
+                    reference = "OPS-2",
+                    propertyId = "villa-rosa",
+                )
             )
         rooms.saveAndFlush(
             Apartment(
@@ -171,6 +183,7 @@ constructor(
                 name = "Synthetic archived",
                 reference = "OPS-3",
                 active = false,
+                propertyId = "villa-rosa",
             )
         )
         readiness.change(room.id!!, ReadinessState.IN_PROGRESS, 0, key(), null)

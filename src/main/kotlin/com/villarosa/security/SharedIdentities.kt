@@ -18,6 +18,7 @@ class SharedIdentities(
     private val invitations: InvitationRepository,
     private val events: StaffEventRepository,
     private val clock: Clock,
+    private val database: DatabaseScope,
 ) {
     @Transactional(propagation = Propagation.REQUIRES_NEW, isolation = Isolation.READ_COMMITTED)
     fun signIn(
@@ -33,6 +34,7 @@ class SharedIdentities(
         )
             denied()
         val email = StaffDirectory.email(verified.email)
+        database.admission(verified)
         checkNotNull(coordination.locked()) {
             "Shared identity requires an explicit schema migration."
         }

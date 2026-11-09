@@ -25,7 +25,7 @@ class MigrationsIT {
     @Test
     fun offlineCheckRejectsANewerAppliedSchemaWithoutChangingIt() {
         Files.writeString(
-            recovery.resolve("V18__future_probe.sql"),
+            recovery.resolve("V19__future_probe.sql"),
             "CREATE TABLE future_probe(id INTEGER)",
         )
         Flyway.configure()
@@ -48,14 +48,14 @@ class MigrationsIT {
                 sql.executeQuery("SELECT MAX(version::integer) FROM flyway_schema_history").use {
                     rows ->
                     rows.next()
-                    assertThat(rows.getInt(1)).isEqualTo(18)
+                    assertThat(rows.getInt(1)).isEqualTo(19)
                 }
             }
         }
     }
 
     @Test
-    fun offlineCheckRequiresTheWholeSchemaAndMatchingBusinessWithoutApplyingPendingMigrations() {
+    fun offlineCheckRequiresWholeSchemaWithoutApplyingPendingMigrationsOrSelectingABusiness() {
         DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "14")
             .migrate()
         assertThrows<FlywayException> {
@@ -70,7 +70,7 @@ class MigrationsIT {
                     .info()
                     .pending()
             )
-            .hasSize(3)
+            .hasSize(4)
         DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
         connection().use {
             it.createStatement().use { sql ->
@@ -90,9 +90,7 @@ class MigrationsIT {
                 )
             }
         }
-        assertThrows<IllegalArgumentException> {
-            DatabaseMigrations.check(database.jdbcUrl, "schema_check", "synthetic")
-        }
+        DatabaseMigrations.check(database.jdbcUrl, "schema_check", "synthetic")
     }
 
     @Test
@@ -128,8 +126,9 @@ class MigrationsIT {
     }
 
     @Test
-    fun anotherBusinessDatabaseCannotStartTheApplication() {
-        DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+    fun legacyBusinessBindingRejectsAnotherBusinessBeforeTheSharedUpgrade() {
+        DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "17")
+            .migrate()
         val source =
             org.springframework.jdbc.datasource.DriverManagerDataSource(
                 database.jdbcUrl,
@@ -157,7 +156,7 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(17)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(18)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
@@ -210,7 +209,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(16)
+            .isEqualTo(17)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement
@@ -311,9 +310,11 @@ class MigrationsIT {
         DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
         connection().use { connection ->
             connection.createStatement().use { statement ->
-                statement.executeUpdate("INSERT INTO apartments (id, capacity) VALUES (1, 2)")
                 statement.executeUpdate(
-                    "INSERT INTO customers (id, first_name, last_name, phone, address) VALUES (1, 'Test', 'Guest', '000', 'Synthetic')"
+                    "INSERT INTO apartments (property_id, id, capacity) VALUES ('villa-rosa', 1, 2)"
+                )
+                statement.executeUpdate(
+                    "INSERT INTO customers (property_id, id, first_name, last_name, phone, address) VALUES ('villa-rosa', 1, 'Test', 'Guest', '000', 'Synthetic')"
                 )
 
                 for ((start, end) in
@@ -327,12 +328,12 @@ class MigrationsIT {
                     )) {
                     assertThrows<SQLException> {
                         statement.executeUpdate(
-                            "INSERT INTO reservations (customer_id, room_id, start_date, end_date) VALUES (1, 1, '$start', '$end')"
+                            "INSERT INTO reservations (property_id, customer_id, room_id, start_date, end_date) VALUES ('villa-rosa', 1, 1, '$start', '$end')"
                         )
                     }
                     assertThrows<SQLException> {
                         statement.executeUpdate(
-                            "INSERT INTO maintenance_blocks (room_id, start_date, end_date, reason) VALUES (1, '$start', '$end', 'Synthetic')"
+                            "INSERT INTO maintenance_blocks (property_id, room_id, start_date, end_date, reason) VALUES ('villa-rosa', 1, '$start', '$end', 'Synthetic')"
                         )
                     }
                 }
@@ -402,13 +403,13 @@ class MigrationsIT {
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeUpdate(
-                    "INSERT INTO apartments (id, capacity, view) VALUES (1, 2, 'Езеро')"
+                    "INSERT INTO apartments (property_id, id, capacity, view) VALUES ('villa-rosa', 1, 2, 'Езеро')"
                 )
                 statement.executeUpdate(
-                    "INSERT INTO customers (id, first_name, last_name, phone, address) VALUES (1, 'Test', 'Гостин', '000', 'Synthetic')"
+                    "INSERT INTO customers (property_id, id, first_name, last_name, phone, address) VALUES ('villa-rosa', 1, 'Test', 'Гостин', '000', 'Synthetic')"
                 )
                 statement.executeUpdate(
-                    "INSERT INTO reservations (id, customer_id, room_id, start_date, end_date) VALUES (1, 1, 1, '2026-03-28', '2026-03-30')"
+                    "INSERT INTO reservations (property_id, id, customer_id, room_id, start_date, end_date) VALUES ('villa-rosa', 1, 1, 1, '2026-03-28', '2026-03-30')"
                 )
             }
         }

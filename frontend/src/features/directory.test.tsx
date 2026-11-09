@@ -91,6 +91,7 @@ const calls = (path: string, method: string) =>
   );
 const session = () => ({
   authenticated,
+  propertyId: "villa-rosa",
   generation,
   staff: {
     id: "owner-five",

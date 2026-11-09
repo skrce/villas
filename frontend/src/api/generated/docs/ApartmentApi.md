@@ -39,7 +39,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -59,7 +59,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 <a id="blockapartment"></a>
 ## blockApartment
 
-> MaintenanceBlock blockApartment(apartmentId, idempotencyKey, roomBlockRequest)
+> MaintenanceInfo blockApartment(apartmentId, idempotencyKey, roomBlockRequest)
 
 Add a dated maintenance block using a private JSON body
 
@@ -76,11 +76,11 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Return type
 
-[**MaintenanceBlock**](MaintenanceBlock.md)
+[**MaintenanceInfo**](MaintenanceInfo.md)
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -119,7 +119,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -158,7 +158,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -194,7 +194,7 @@ This endpoint does not need any parameter.
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -234,7 +234,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -274,7 +274,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 

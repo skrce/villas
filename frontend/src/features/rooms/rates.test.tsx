@@ -47,6 +47,7 @@ async function response(
   if (path === "/api/v1/auth/session")
     return json({
       authenticated,
+      propertyId: "villa-rosa",
       generation,
       staff: {
         id: "rate-owner",

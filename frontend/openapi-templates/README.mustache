@@ -6,7 +6,7 @@ contract with `npm run generate:api`; do not edit generated files.
 Use the session-aware clients in `frontend/src/api/client.ts`. Browser requests use
 same-origin credentials. Unsafe requests also require the current CSRF header.
 Never read, copy or configure the HttpOnly session cookie as a JavaScript API key.
-Business-scoped staff operations require an explicit authorized `businessId`.
+Domain requests require an explicit `X-Villas-Business` ID. It selects a business and never proves access; the server verifies the current membership. The session-aware fetch adapter supplies this header. External generated clients can configure the `businessSelection` header scheme. Business-scoped staff paths require an explicit authorized `businessId`; a conflicting header is rejected.
 
 ## API endpoints
 

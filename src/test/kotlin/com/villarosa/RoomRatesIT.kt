@@ -40,7 +40,14 @@ constructor(
     }
 
     private fun room() =
-        rooms.saveAndFlush(Apartment(capacity = 4, regularPrice = 123, topSeasonPrice = 234))
+        rooms.saveAndFlush(
+            Apartment(
+                capacity = 4,
+                regularPrice = 123,
+                topSeasonPrice = 234,
+                propertyId = "villa-rosa",
+            )
+        )
 
     private fun season() = SeasonRate("Лето", "2030-07-01", "2030-09-01", 7501)
 

@@ -61,6 +61,7 @@ constructor(
                     name = "Synthetic blue",
                     reference = "REP-A",
                     baseRateCents = 5001,
+                    propertyId = "villa-rosa",
                 )
             )
         b =
@@ -70,6 +71,7 @@ constructor(
                     name = "Synthetic green",
                     reference = "REP-B",
                     baseRateCents = 6001,
+                    propertyId = "villa-rosa",
                 )
             )
         guest =
@@ -81,6 +83,7 @@ constructor(
                         phone = "123456",
                         email = "private@example.test",
                         notes = "Private synthetic note",
+                        propertyId = "villa-rosa",
                     )
                 )
                 .id!!
@@ -278,6 +281,7 @@ constructor(
                         name = "Synthetic queue $i",
                         reference = "QUEUE-$i",
                         baseRateCents = 100,
+                        propertyId = "villa-rosa",
                     )
                 )
             book(room, "2026-11-08", "2026-11-09")

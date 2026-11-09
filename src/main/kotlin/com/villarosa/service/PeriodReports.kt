@@ -3,6 +3,7 @@ package com.villarosa.service
 import com.villarosa.exception.conflict
 import com.villarosa.exception.invalid
 import com.villarosa.exception.missing
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import java.nio.charset.StandardCharsets
@@ -233,7 +234,7 @@ class PeriodReports(
         val normalized = result.copy(notices = notices.distinct())
         val digest =
             MessageDigest.getInstance("SHA-256")
-                .digest(json.writeValueAsBytes(normalized))
+                .digest(json.writeValueAsBytes(listOf(BusinessScope.id(), normalized)))
                 .joinToString("") { "%02x".format(it) }
         return normalized.copy(snapshotId = digest)
     }

@@ -76,7 +76,10 @@ constructor(
     @ValueSource(strings = ["/reservation", "/reservation/", "/api/v1/reservations"])
     fun moveAcceptsGeneratedClientAndLegacyPaths(path: String) {
         val booking = saveReservation()
-        val destination = apartments.save(Apartment(null, 2, "East", "Garden", 100, 150))
+        val destination =
+            apartments.save(
+                Apartment(null, 2, "East", "Garden", 100, 150, propertyId = "villa-rosa")
+            )
         com.villarosa.TestData.configureSyntheticRate(jdbc, destination.id!!)
         val quoted =
             mvc.perform(
@@ -208,7 +211,15 @@ constructor(
     @ParameterizedTest
     @ValueSource(strings = ["/customer", "/customer/", "/api/v1/customers"])
     fun customerSearchAllowsOneOptionalFilterOnEverySupportedPath(path: String) {
-        customers.save(Customer.buildCustomer("Unicode", "Гостин", "000", "Synthetic address"))
+        customers.save(
+            Customer.buildCustomer(
+                "Unicode",
+                "Гостин",
+                "000",
+                "Synthetic address",
+                businessId = "villa-rosa",
+            )
+        )
 
         mvc.perform(
                 get(path)
@@ -226,7 +237,10 @@ constructor(
     @ParameterizedTest
     @ValueSource(strings = ["/apartment", "/apartment/", "/api/v1/apartments"])
     fun apartmentListingSupportsLegacyAndCanonicalPaths(path: String) {
-        val room = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
+        val room =
+            apartments.save(
+                Apartment(null, 2, "South", "Lake", 100, 150, propertyId = "villa-rosa")
+            )
 
         mvc.perform(
                 get(path)
@@ -352,14 +366,26 @@ constructor(
 
     private fun saveReservation(): Reservation {
         val guest =
-            customers.save(Customer.buildCustomer("Test", "Guest", "000", "Synthetic address"))
-        val room = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
+            customers.save(
+                Customer.buildCustomer(
+                    "Test",
+                    "Guest",
+                    "000",
+                    "Synthetic address",
+                    businessId = "villa-rosa",
+                )
+            )
+        val room =
+            apartments.save(
+                Apartment(null, 2, "South", "Lake", 100, 150, propertyId = "villa-rosa")
+            )
         return reservations.save(
             Reservation.buildReservation(
                 guest.id!!,
                 room.id!!,
                 LocalDate.parse("2026-11-06"),
                 LocalDate.parse("2026-11-09"),
+                businessId = "villa-rosa",
             )
         )
     }

@@ -54,6 +54,7 @@ docs/LedgerSummary.md
 docs/LedgerTotals.md
 docs/MaintenanceApi.md
 docs/MaintenanceBlock.md
+docs/MaintenanceInfo.md
 docs/MaintenancePage.md
 docs/OccupancyRow.md
 docs/OperationResult.md
@@ -145,6 +146,7 @@ models/LedgerHistory.ts
 models/LedgerSummary.ts
 models/LedgerTotals.ts
 models/MaintenanceBlock.ts
+models/MaintenanceInfo.ts
 models/MaintenancePage.ts
 models/OccupancyRow.ts
 models/OperationResult.ts

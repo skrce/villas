@@ -16,7 +16,7 @@ object OwnerBootstrap {
         val businessId =
             BusinessIds.requireValid(
                 PrivateSettings.resolve()["VILLAS_OWNER_BUSINESS_ID"]
-                    ?: com.villarosa.service.PropertyScope.ID
+                    ?: error("Set VILLAS_OWNER_BUSINESS_ID in the private setup configuration.")
             )
         SpringApplicationBuilder(Application::class.java)
             .web(WebApplicationType.NONE)

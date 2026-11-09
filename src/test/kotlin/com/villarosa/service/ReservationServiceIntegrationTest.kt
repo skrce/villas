@@ -124,7 +124,14 @@ constructor(
         val customer = saveCustomer()
         val apartment = saveApartment()
         reservationRepository.save(
-            Reservation(null, customer.id, apartment.id, date("2020-01-03"), date("2020-01-06"))
+            Reservation(
+                null,
+                customer.id,
+                apartment.id,
+                date("2020-01-03"),
+                date("2020-01-06"),
+                propertyId = "villa-rosa",
+            )
         )
 
         val exception =
@@ -147,10 +154,24 @@ constructor(
         val apartment2 = saveApartment()
         val apartment3 = saveApartment()
         reservationRepository.save(
-            Reservation(null, customer.id, apartment2.id, date("2020-01-03"), date("2020-01-06"))
+            Reservation(
+                null,
+                customer.id,
+                apartment2.id,
+                date("2020-01-03"),
+                date("2020-01-06"),
+                propertyId = "villa-rosa",
+            )
         )
         reservationRepository.save(
-            Reservation(null, customer.id, apartment3.id, date("2020-02-01"), date("2020-02-05"))
+            Reservation(
+                null,
+                customer.id,
+                apartment3.id,
+                date("2020-02-01"),
+                date("2020-02-05"),
+                propertyId = "villa-rosa",
+            )
         )
 
         val available = reservationService.findAvailableApartments("2020-01-01", "2020-01-10")
@@ -186,7 +207,14 @@ constructor(
         val apartment = saveApartment()
         val reservation =
             reservationRepository.save(
-                Reservation(null, customer.id, apartment.id, date("2020-01-01"), date("2020-01-05"))
+                Reservation(
+                    null,
+                    customer.id,
+                    apartment.id,
+                    date("2020-01-01"),
+                    date("2020-01-05"),
+                    propertyId = "villa-rosa",
+                )
             )
 
         reservationService.cancelReservation(reservation.id!!)
@@ -218,6 +246,7 @@ constructor(
                     apartment1.id,
                     date("2020-01-01"),
                     date("2020-01-05"),
+                    propertyId = "villa-rosa",
                 )
             )
 
@@ -245,10 +274,18 @@ constructor(
                     apartment1.id,
                     date("2020-01-01"),
                     date("2020-01-05"),
+                    propertyId = "villa-rosa",
                 )
             )
         reservationRepository.save(
-            Reservation(null, customer.id, apartment2.id, date("2020-01-03"), date("2020-01-06"))
+            Reservation(
+                null,
+                customer.id,
+                apartment2.id,
+                date("2020-01-03"),
+                date("2020-01-06"),
+                propertyId = "villa-rosa",
+            )
         )
 
         val exception =
@@ -268,13 +305,34 @@ constructor(
         val customer = saveCustomer()
         val apartment = saveApartment()
         reservationRepository.save(
-            Reservation(null, customer.id, apartment.id, date("2020-01-01"), date("2020-01-05"))
+            Reservation(
+                null,
+                customer.id,
+                apartment.id,
+                date("2020-01-01"),
+                date("2020-01-05"),
+                propertyId = "villa-rosa",
+            )
         )
         reservationRepository.save(
-            Reservation(null, customer.id, apartment.id, date("2020-03-01"), date("2020-03-05"))
+            Reservation(
+                null,
+                customer.id,
+                apartment.id,
+                date("2020-03-01"),
+                date("2020-03-05"),
+                propertyId = "villa-rosa",
+            )
         )
         reservationRepository.save(
-            Reservation(null, customer.id, apartment.id, date("2020-02-01"), date("2020-02-05"))
+            Reservation(
+                null,
+                customer.id,
+                apartment.id,
+                date("2020-02-01"),
+                date("2020-02-05"),
+                propertyId = "villa-rosa",
+            )
         )
 
         val results = reservationService.findReservationsByCustomer(customer.id!!)
@@ -289,7 +347,9 @@ constructor(
         phone: String = "123",
         address: String = "Main",
     ): Customer =
-        customerRepository.save(Customer.buildCustomer(firstName, lastName, phone, address))
+        customerRepository.save(
+            Customer.buildCustomer(firstName, lastName, phone, address, businessId = "villa-rosa")
+        )
 
     private fun saveApartment(
         capacity: Int = 2,
@@ -308,6 +368,7 @@ constructor(
                 topSeasonPrice,
                 baseRateCents = 5001,
                 rateVersion = 1,
+                propertyId = "villa-rosa",
             )
         )
 

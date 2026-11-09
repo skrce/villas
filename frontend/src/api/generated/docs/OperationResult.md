@@ -10,7 +10,7 @@ Name | Type
 `key` | string
 `kind` | string
 `ledgerEntry` | [LedgerEntryInfo](LedgerEntryInfo.md)
-`maintenance` | [MaintenanceBlock](MaintenanceBlock.md)
+`maintenance` | [MaintenanceInfo](MaintenanceInfo.md)
 `readiness` | [ReadinessView](ReadinessView.md)
 `readinessEvent` | [ReadinessEventInfo](ReadinessEventInfo.md)
 `reservation` | [ReservationInfo](ReservationInfo.md)

@@ -48,9 +48,22 @@ constructor(
     fun fixtures() {
         TestData.reset(jdbc)
         clock.value = Instant.parse("2026-11-07T12:00:00.123456Z")
-        room = rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 5001)).id!!
+        room =
+            rooms
+                .saveAndFlush(
+                    Apartment(capacity = 4, baseRateCents = 5001, propertyId = "villa-rosa")
+                )
+                .id!!
         val guest =
-            guests.saveAndFlush(Customer(firstName = "Synthetic", lastName = "Operations")).id!!
+            guests
+                .saveAndFlush(
+                    Customer(
+                        firstName = "Synthetic",
+                        lastName = "Operations",
+                        propertyId = "villa-rosa",
+                    )
+                )
+                .id!!
         val quote = quotes.create(room, "2026-11-07", "2026-11-09", 2)
         id =
             inventory

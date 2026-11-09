@@ -29,15 +29,36 @@ constructor(
     fun findByStartDateBeforeAndEndDateAfter_returnsOverlaps() {
         val reservation1 =
             reservationRepository.save(
-                Reservation(null, 1, 1, date("2020-01-01"), date("2020-01-05"))
+                Reservation(
+                    null,
+                    1,
+                    1,
+                    date("2020-01-01"),
+                    date("2020-01-05"),
+                    propertyId = "villa-rosa",
+                )
             )
         val reservation2 =
             reservationRepository.save(
-                Reservation(null, 1, 2, date("2020-01-05"), date("2020-01-15"))
+                Reservation(
+                    null,
+                    1,
+                    2,
+                    date("2020-01-05"),
+                    date("2020-01-15"),
+                    propertyId = "villa-rosa",
+                )
             )
         val reservation3 =
             reservationRepository.save(
-                Reservation(null, 2, 3, date("2020-01-18"), date("2020-01-25"))
+                Reservation(
+                    null,
+                    2,
+                    3,
+                    date("2020-01-18"),
+                    date("2020-01-25"),
+                    propertyId = "villa-rosa",
+                )
             )
 
         val results =
@@ -53,8 +74,26 @@ constructor(
 
     @Test
     fun findByRoomId_returnsOnlyMatchingRoom() {
-        reservationRepository.save(Reservation(null, 1, 1, date("2020-01-01"), date("2020-01-05")))
-        reservationRepository.save(Reservation(null, 2, 2, date("2020-01-06"), date("2020-01-07")))
+        reservationRepository.save(
+            Reservation(
+                null,
+                1,
+                1,
+                date("2020-01-01"),
+                date("2020-01-05"),
+                propertyId = "villa-rosa",
+            )
+        )
+        reservationRepository.save(
+            Reservation(
+                null,
+                2,
+                2,
+                date("2020-01-06"),
+                date("2020-01-07"),
+                propertyId = "villa-rosa",
+            )
+        )
 
         val results = reservationRepository.findByRoomId(1)
 
@@ -64,8 +103,26 @@ constructor(
 
     @Test
     fun findByCustomerId_returnsOnlyMatchingCustomer() {
-        reservationRepository.save(Reservation(null, 1, 1, date("2020-01-01"), date("2020-01-05")))
-        reservationRepository.save(Reservation(null, 2, 1, date("2020-01-06"), date("2020-01-07")))
+        reservationRepository.save(
+            Reservation(
+                null,
+                1,
+                1,
+                date("2020-01-01"),
+                date("2020-01-05"),
+                propertyId = "villa-rosa",
+            )
+        )
+        reservationRepository.save(
+            Reservation(
+                null,
+                2,
+                1,
+                date("2020-01-06"),
+                date("2020-01-07"),
+                propertyId = "villa-rosa",
+            )
+        )
 
         val results = reservationRepository.findByCustomerId(2)
 

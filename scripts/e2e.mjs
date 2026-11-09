@@ -5,6 +5,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 process.env.VILLAS_LOCAL_INSTANCE = `e2e-${randomBytes(6).toString('hex')}`;
 process.env.VILLAS_MODE = 'local';
 process.env.VILLAS_PROPERTY_ID = 'browser-garden';
+process.env.VILLAS_OWNER_BUSINESS_ID = 'browser-garden';
 process.env.VILLAS_PROPERTY_NAME = 'Browser Garden';
 process.env.VILLAS_AUTH_PROVIDER = 'synthetic';
 process.env.VILLAS_GOOGLE_CLIENT_ID = 'villas-test';

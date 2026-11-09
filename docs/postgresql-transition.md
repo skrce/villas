@@ -7,9 +7,10 @@ with independent business memberships. Staging, production and ABL remain separa
 The same personal accounts as ABL may own Villas resources. Daily encrypted backups
 retain seven days, with 24-hour loss/recovery targets.
 
-The engine transition below remains in use. Shared identity/staff membership management
-is implemented in V17. Domain request/database isolation, browser switching and shared
-hosting remain pending under [the tenancy contract](contracts/multi-tenancy.md).
+The engine transition below remains in use. V17 implements shared identity and staff
+memberships; V18 adds explicit domain request scope and PostgreSQL row security.
+Browser switching and shared hosting/recovery qualification remain pending under
+[the tenancy contract](contracts/multi-tenancy.md).
 Live deployment is blocked; use [the current hosting guide](cloud-run-neon.md).
 
 ## Existing data and schema history
@@ -40,11 +41,11 @@ qualified. Published migrations remain immutable; clean/baseline shortcuts stay 
 Set a stable `VILLAS_PROPERTY_ID`, using 1 to 64 lowercase letters, digits or hyphens,
 and a `VILLAS_PROPERTY_NAME` of at most 100 characters. The default local business is
 `villa-rosa` / `Villa Rosa`. Flyway initializes matching defaults and the staff lock.
-`property_identity` binds the database to that ID; application startup rejects a
-mismatch. V16 registers that business and requires it to be active at startup.
-The compatibility domain workflows still serve their configured business. V17 provides
-shared identity and explicit staff membership authorization; domain row security and
-a business switcher remain later implementation steps.
+Before V18, `property_identity` binds the database to that ID and refuses unsafe
+legacy upgrades. V16 registers the business, V17 separates Google identity and
+memberships, and V18 adds [business request/database isolation](contracts/business-data-isolation.md).
+The shared runtime does not use a configured business as request authority. The
+current console compatibility summary still uses its configured ID; switching is #47.
 
 The browser gate runs the entire workflow with a non-default business ID and name.
 Native checks cover booking races, exact prices/ledger balances, Unicode contacts,

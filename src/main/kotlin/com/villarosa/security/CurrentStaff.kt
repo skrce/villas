@@ -26,15 +26,7 @@ class StaffAuthentication(val identity: StaffSessionIdentity) :
 
 @Component
 class CurrentStaff {
-    fun optional(): StaffIdentity? =
-        (SecurityContextHolder.getContext().authentication as? StaffAuthentication)
-            ?.identity
-            ?.let { login ->
-                login.memberships[com.villarosa.service.PropertyScope.ID]?.copy(
-                    personId = login.id,
-                    personVersion = login.securityVersion,
-                )
-            }
+    fun optional(): StaffIdentity? = if (optionalSession() == null) null else identity()
 
     fun optionalSession(): StaffSessionIdentity? =
         (SecurityContextHolder.getContext().authentication as? StaffAuthentication)?.identity
@@ -47,11 +39,22 @@ class CurrentStaff {
                 "Sign in to continue.",
             )
 
-    fun identity(): StaffIdentity =
-        optional()
-            ?: throw DomainException(
-                "AUTHENTICATION_REQUIRED",
-                HttpStatus.UNAUTHORIZED,
-                "Sign in to continue.",
+    fun identity(): StaffIdentity {
+        val login = session()
+        val context = BusinessScope.require()
+        val grant = login.memberships[context.id]
+        if (
+            context.actor.personId != login.id ||
+                context.actor.personVersion != login.securityVersion ||
+                grant?.id != context.actor.id ||
+                grant.securityVersion != context.actor.securityVersion
+        ) {
+            throw DomainException(
+                "BUSINESS_ACCESS_DENIED",
+                HttpStatus.FORBIDDEN,
+                "This business is unavailable for your account.",
             )
+        }
+        return context.actor
+    }
 }

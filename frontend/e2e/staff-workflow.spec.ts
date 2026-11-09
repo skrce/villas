@@ -572,6 +572,9 @@ test("Owner invitations support another synthetic identity and self session revo
   ).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
   await signInHere(page, "Second synthetic Owner");
+  const identityId = (
+    await (await page.request.get("/api/v1/auth/session")).json()
+  ).identity.id;
   await expect(
     page
       .getByRole("banner")
@@ -590,7 +593,16 @@ test("Owner invitations support another synthetic identity and self session revo
   await expect(
     page.getByRole("button", { name: "Sign in to local demo" }),
   ).toBeVisible();
-  expect((await page.request.get("/api/v1/apartments")).status()).toBe(401);
+  const denied = await page.request.get("/api/v1/apartments");
+  expect(denied.status()).toBe(403);
+  expect(await denied.json()).toMatchObject({ code: "BUSINESS_ACCESS_DENIED" });
+  const session = await (await page.request.get("/api/v1/auth/session")).json();
+  expect(session).toMatchObject({
+    authenticated: true,
+    identity: { id: identityId },
+    staff: null,
+    memberships: [],
+  });
 });
 
 test("session revocation preserves entered booking details and never resubmits after sign-in", async ({

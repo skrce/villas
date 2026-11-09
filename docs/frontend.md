@@ -258,14 +258,14 @@ can appear or a download can be enabled. Invalid source payloads are explicit er
 
 ## Shared identity compatibility
 
-The console still uses its configured business until #46/#47. The workspace Owner
+The current console uses its configured compatibility summary until #47. The workspace Owner
 key is the membership's `staff.id`, not the canonical identity ID. The new server
 session can hold independent business grants, but the console does not select the
 first available business or mix business state. Without the configured grant it
 hides protected views, shows a workspace-access message and allows sign-out.
 A restricted session retains a draft key only for the same canonical identity;
 a different identity changes the workspace key and invalidates old continuations.
-The [shared-identity contract](contracts/shared-identity.md) records the API boundary;
+The [shared-identity contract](contracts/shared-identity.md) and [business isolation](contracts/business-data-isolation.md) record the API boundary. Every domain fetch supplies X-Villas-Business and rejects a missing ID; denied membership refreshes identity state without global logout. Captured requests are invalidated if that ID changes;
 #47 supplies explicit business URLs, switching and browser namespaces.
 
 API generation uses the pinned CLI plus `openapi-client-config.json` and the project

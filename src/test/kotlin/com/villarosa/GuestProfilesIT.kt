@@ -136,7 +136,12 @@ constructor(
         service.status(id, 0, false)
         val legacy =
             guests.saveAndFlush(
-                Customer(firstName = "Legacy", lastName = "Phone", phone = "00389 (70) 123-456")
+                Customer(
+                    firstName = "Legacy",
+                    lastName = "Phone",
+                    phone = "00389 (70) 123-456",
+                    propertyId = "villa-rosa",
+                )
             )
         val matches =
             service.duplicates(
@@ -173,6 +178,7 @@ constructor(
                     firstName = "Legacy",
                     lastName = "Phone",
                     phone = "00389\u00a070\u202f123-456",
+                    propertyId = "villa-rosa",
                 )
             )
         assertThat(service.query(null, "+389\u00a070123456", false, 0, 10).items.map { it.id })
@@ -208,7 +214,14 @@ constructor(
     fun archivalProtectsCurrentAndFutureStaysAndRetainsCancelledAndPastHistory() {
         val id = guest()
         val room =
-            rooms.saveAndFlush(Apartment(capacity = 3, baseRateCents = 5001, rateVersion = 1))
+            rooms.saveAndFlush(
+                Apartment(
+                    capacity = 3,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                    propertyId = "villa-rosa",
+                )
+            )
         val saved =
             inventory.create(
                 id,
@@ -227,6 +240,7 @@ constructor(
                 roomId = room.id,
                 startDate = LocalDate.of(2000, 1, 1),
                 endDate = LocalDate.of(2000, 1, 3),
+                propertyId = "villa-rosa",
             )
         )
         service.status(id, 0, false)
@@ -301,7 +315,14 @@ constructor(
     fun competingArchivalAndBookingCannotCommitAnActiveStayForAnArchivedGuest() {
         val id = guest()
         val room =
-            rooms.saveAndFlush(Apartment(capacity = 3, baseRateCents = 5001, rateVersion = 1))
+            rooms.saveAndFlush(
+                Apartment(
+                    capacity = 3,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                    propertyId = "villa-rosa",
+                )
+            )
         val start = CountDownLatch(1)
         val executor = Executors.newFixedThreadPool(2)
         try {
@@ -391,13 +412,14 @@ constructor(
     fun checkoutTodayUsesSkopjeCalendarEvenWhenUtcIsStillThePreviousDay() {
         val checkedOut = guest("Checked", "Out")
         val current = guest("Current", "Stay")
-        val room = rooms.saveAndFlush(Apartment(capacity = 3))
+        val room = rooms.saveAndFlush(Apartment(capacity = 3, propertyId = "villa-rosa"))
         bookings.saveAndFlush(
             Reservation(
                 customerId = checkedOut,
                 roomId = room.id,
                 startDate = LocalDate.of(2026, 11, 6),
                 endDate = LocalDate.of(2026, 11, 7),
+                propertyId = "villa-rosa",
             )
         )
         bookings.saveAndFlush(
@@ -406,6 +428,7 @@ constructor(
                 roomId = room.id,
                 startDate = LocalDate.of(2026, 11, 7),
                 endDate = LocalDate.of(2026, 11, 8),
+                propertyId = "villa-rosa",
             )
         )
         assertThat(service.status(checkedOut, 0, false).active).isFalse()

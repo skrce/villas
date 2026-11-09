@@ -16,13 +16,13 @@
 import * as runtime from '../runtime';
 import type {
   ErrorResponse,
-  MaintenanceBlock,
+  MaintenanceInfo,
 } from '../models/index';
 import {
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
-    MaintenanceBlockFromJSON,
-    MaintenanceBlockToJSON,
+    MaintenanceInfoFromJSON,
+    MaintenanceInfoToJSON,
 } from '../models/index';
 
 export interface CancelMaintenanceBlockRequest {
@@ -47,7 +47,7 @@ export class MaintenanceApi extends runtime.BaseAPI {
     /**
      * Retain a block cancellation and release inventory
      */
-    async cancelMaintenanceBlockRaw(requestParameters: CancelMaintenanceBlockRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MaintenanceBlock>> {
+    async cancelMaintenanceBlockRaw(requestParameters: CancelMaintenanceBlockRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MaintenanceInfo>> {
         if (requestParameters['blockId'] == null) {
             throw new runtime.RequiredError(
                 'blockId',
@@ -81,6 +81,10 @@ export class MaintenanceApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/maintenance-blocks/{blockId}`;
         urlPath = urlPath.replace(`{${"blockId"}}`, encodeURIComponent(String(requestParameters['blockId'])));
@@ -92,13 +96,13 @@ export class MaintenanceApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => MaintenanceBlockFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response, (jsonValue) => MaintenanceInfoFromJSON(jsonValue));
     }
 
     /**
      * Retain a block cancellation and release inventory
      */
-    async cancelMaintenanceBlock(requestParameters: CancelMaintenanceBlockRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MaintenanceBlock> {
+    async cancelMaintenanceBlock(requestParameters: CancelMaintenanceBlockRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MaintenanceInfo> {
         const response = await this.cancelMaintenanceBlockRaw(requestParameters, initOverrides);
         return await response.value();
     }
@@ -106,7 +110,7 @@ export class MaintenanceApi extends runtime.BaseAPI {
     /**
      * Block a room only if no active inventory overlaps
      */
-    async createMaintenanceBlockRaw(requestParameters: CreateMaintenanceBlockRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MaintenanceBlock>> {
+    async createMaintenanceBlockRaw(requestParameters: CreateMaintenanceBlockRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MaintenanceInfo>> {
         if (requestParameters['roomId'] == null) {
             throw new runtime.RequiredError(
                 'roomId',
@@ -159,6 +163,10 @@ export class MaintenanceApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/maintenance-blocks`;
 
@@ -169,13 +177,13 @@ export class MaintenanceApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => MaintenanceBlockFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response, (jsonValue) => MaintenanceInfoFromJSON(jsonValue));
     }
 
     /**
      * Block a room only if no active inventory overlaps
      */
-    async createMaintenanceBlock(requestParameters: CreateMaintenanceBlockRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MaintenanceBlock> {
+    async createMaintenanceBlock(requestParameters: CreateMaintenanceBlockRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MaintenanceInfo> {
         const response = await this.createMaintenanceBlockRaw(requestParameters, initOverrides);
         return await response.value();
     }

@@ -108,6 +108,7 @@ constructor(
                         "VILLAS_DB_URL" to database.jdbcUrl,
                         "VILLAS_DB_USERNAME" to database.username,
                         "VILLAS_DB_PASSWORD" to database.password,
+                        "VILLAS_OWNER_BUSINESS_ID" to "villa-rosa",
                         "VILLAS_INITIAL_OWNER_EMAIL" to "recovery@example.test",
                     )
                 )
