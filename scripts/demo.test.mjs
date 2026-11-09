@@ -31,7 +31,12 @@ const freePort = async () => {
 };
 async function probe(
   t,
-  { signal = "SIGTERM", failure = "", occupied = false, existingOwner = false } = {},
+  {
+    signal = "SIGTERM",
+    failure = "",
+    occupied = false,
+    existingOwner = false,
+  } = {},
 ) {
   const directory = mkdtempSync(join(tmpdir(), "villas-demo-test-"));
   const log = join(directory, "events.log");
@@ -160,7 +165,13 @@ createServer((_request,response)=>{response.setHeader('Content-Type','applicatio
     1,
     output,
   );
-  assert.equal(events().some((entry) => entry.type === "setup" && entry.args.includes("--bootstrap-owner")), !existingOwner);
+  assert.equal(
+    events().some(
+      (entry) =>
+        entry.type === "setup" && entry.args.includes("--bootstrap-owner"),
+    ),
+    !existingOwner,
+  );
   const workers = events().filter((entry) => entry.type === "ready");
   if (failure === "orphan")
     assert.ok(
