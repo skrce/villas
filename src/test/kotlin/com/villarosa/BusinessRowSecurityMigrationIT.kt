@@ -88,6 +88,23 @@ class BusinessRowSecurityMigrationIT {
     }
 
     @Test
+    fun syntheticFixturesRequireAnExplicitBusinessAndAtomicallyRefuseExistingRows() {
+        migrate()
+        execute("INSERT INTO businesses(id,name) VALUES('fixture-lake','Synthetic fixture lake')")
+        val fixture =
+            java.nio.file.Files.readString(java.nio.file.Path.of("dev/fixtures.sql"))
+                .replace("__VILLAS_FIXTURE_BUSINESS__", "fixture-lake")
+        execute(fixture)
+        assertThat(scalar("SELECT COUNT(*) FROM apartments WHERE property_id='fixture-lake'"))
+            .isEqualTo("2")
+        assertThat(scalar("SELECT COUNT(*) FROM apartments WHERE property_id='villa-rosa'"))
+            .isEqualTo("0")
+        val before = connection().use(::fingerprint)
+        assertThrows<java.sql.SQLException> { execute(fixture) }
+        assertThat(connection().use(::fingerprint)).isEqualTo(before)
+    }
+
+    @Test
     fun upgradeRetainsEveryRowAndSessionRemovesTenantDefaultsAndEnablesAllPolicies() {
         history()
         val before = connection().use(::fingerprint)

@@ -5,10 +5,10 @@ environment. Each accommodation business is a tenant. Staging and production sta
 separate, and ABL remains a separate app with its own resources. Use the same
 personal Google/Neon accounts as ABL, never employer credentials or ABL secrets/state.
 
-The conversion is in progress under [#44-#49](contracts/multi-tenancy.md). The current
-business-data workflows still serve the configured workspace. Shared Google identity
-and explicitly scoped staff membership management are implemented in #45; domain
-request/database isolation, browser switching and shared cloud resources remain pending.
+The conversion is in progress under [#44-#49](contracts/multi-tenancy.md). Shared
+Google identity and explicitly scoped staff membership management are implemented
+in #45. Domain requests and PostgreSQL row security require an authorized business
+in #46. Browser switching and shared cloud/recovery qualification remain pending.
 Do not deploy this intermediate revision as a shared service.
 
 The earlier per-business Terraform modules remain a locally tested reference until

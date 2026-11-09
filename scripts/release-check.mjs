@@ -202,7 +202,7 @@ try {
   config.services.proxy.volumes = config.services.proxy.volumes.filter(volume => volume.target !== '/etc/caddy/Caddyfile');
   config.services.identity = { image: pins.testNode, network_mode: 'service:api', user: `${uid}:${process.getgid()}`, environment: { ...synthetic, VILLAS_CONTAINER_REHEARSAL: '1' }, volumes: [{ type: 'bind', source: join(root, 'scripts/test-identity-provider.mjs'), target: '/fixture.mjs', read_only: true }], command: ['node', '/fixture.mjs'], logging: config.services.api.logging };
   saveConfig();
-  await sql(readFileSync(join(root, 'dev/fixtures.sql'), 'utf8'));
+  await sql(readFileSync(join(root, 'dev/fixtures.sql'), 'utf8').replaceAll('__VILLAS_FIXTURE_BUSINESS__', 'rehearsal-garden'));
   await compose(['run', '--rm', 'owner']);
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy', 'identity']);
   await run(process.execPath, ['frontend/node_modules/@playwright/test/cli.js', 'test', '--config', 'frontend/playwright.release.config.ts', '--max-failures=1'], { env: { ...cleanEnvironment, ...synthetic, VILLAS_PROPERTY_ID: 'rehearsal-garden', VILLAS_PROPERTY_NAME: 'Rehearsal Garden', VILLAS_BROWSER_CLOCK_FILE: join(clock, 'instant.txt') }, timeout: 600_000 });

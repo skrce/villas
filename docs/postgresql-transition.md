@@ -7,9 +7,10 @@ with independent business memberships. Staging, production and ABL remain separa
 The same personal accounts as ABL may own Villas resources. Daily encrypted backups
 retain seven days, with 24-hour loss/recovery targets.
 
-The engine transition below remains in use. Shared identity/staff membership management
-is implemented in V17. Domain request/database isolation, browser switching and shared
-hosting remain pending under [the tenancy contract](contracts/multi-tenancy.md).
+The engine transition below remains in use. V17 implements shared identity and staff
+memberships; V18 adds explicit domain request scope and PostgreSQL row security.
+Browser switching and shared hosting/recovery qualification remain pending under
+[the tenancy contract](contracts/multi-tenancy.md).
 Live deployment is blocked; use [the current hosting guide](cloud-run-neon.md).
 
 ## Existing data and schema history
