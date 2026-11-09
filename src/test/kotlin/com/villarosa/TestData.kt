@@ -7,6 +7,14 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.security.core.context.SecurityContextHolder
 
 object TestData {
+    fun registerBusiness(jdbc: JdbcTemplate, id: String) {
+        jdbc.update(
+            "INSERT INTO businesses(id,name) VALUES(?,?) ON CONFLICT DO NOTHING",
+            id,
+            "Synthetic $id",
+        )
+    }
+
     fun configureSyntheticRate(jdbc: JdbcTemplate, roomId: Int) {
         jdbc.update(
             "UPDATE apartments SET base_rate_cents=5001, rate_version=1 WHERE property_id='villa-rosa' AND id=? AND base_rate_cents IS NULL",

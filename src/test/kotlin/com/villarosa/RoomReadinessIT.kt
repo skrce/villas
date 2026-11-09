@@ -238,6 +238,7 @@ constructor(
 
     @Test
     fun foreignRoomsAndInvalidHistoryRequestsFailWithoutLeakingReadiness() {
+        TestData.registerBusiness(jdbc, "other")
         val foreign = rooms.saveAndFlush(room.copy(id = null, propertyId = "other"))
         assertThat(assertThrows<DomainException> { service.read(foreign.id!!) }.code)
             .isEqualTo("NOT_FOUND")

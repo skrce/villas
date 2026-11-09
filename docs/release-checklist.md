@@ -1,5 +1,13 @@
 # Release checklist
 
+The Owner superseded the per-business layout with a shared app and database per
+environment. Follow [the tenancy contract](contracts/multi-tenancy.md) and #44-#49.
+The current runtime and operational reference remain single-business during this
+conversion. Live Terraform commands are blocked before authentication until #48
+replaces the topology. Do not use the earlier setup instructions below to provision
+resources or treat them as shared-tenancy qualification.
+
+
 Milestone 10 is in preparation. Local verification, successful images and deployment
 commands are distinct from deployed acceptance. Keep [issue #11](https://github.com/skrce/villas/issues/11)
 consistent with this record. [Real Google acceptance](https://github.com/skrce/villas/issues/4)

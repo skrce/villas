@@ -10,11 +10,19 @@ object DatabaseMigrations {
         password: String,
         target: String = "latest",
         exact: Boolean = false,
+        propertyName: String = com.villarosa.service.PropertyScope.NAME,
     ): Flyway =
         Flyway.configure()
             .dataSource(url, username, password)
             .locations("classpath:db/postgresql")
-            .placeholders(mapOf("propertyId" to com.villarosa.service.PropertyScope.ID))
+            .placeholders(
+                mapOf(
+                    "propertyId" to com.villarosa.service.PropertyScope.ID,
+                    "propertyName" to
+                        com.villarosa.service.PropertyScope.displayName(propertyName)
+                            .replace("'", "''"),
+                )
+            )
             .target(target)
             .cleanDisabled(true)
             .baselineOnMigrate(false)

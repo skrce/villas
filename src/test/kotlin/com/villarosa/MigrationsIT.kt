@@ -25,7 +25,7 @@ class MigrationsIT {
     @Test
     fun offlineCheckRejectsANewerAppliedSchemaWithoutChangingIt() {
         Files.writeString(
-            recovery.resolve("V16__future_probe.sql"),
+            recovery.resolve("V17__future_probe.sql"),
             "CREATE TABLE future_probe(id INTEGER)",
         )
         Flyway.configure()
@@ -48,7 +48,7 @@ class MigrationsIT {
                 sql.executeQuery("SELECT MAX(version::integer) FROM flyway_schema_history").use {
                     rows ->
                     rows.next()
-                    assertThat(rows.getInt(1)).isEqualTo(16)
+                    assertThat(rows.getInt(1)).isEqualTo(17)
                 }
             }
         }
@@ -70,7 +70,7 @@ class MigrationsIT {
                     .info()
                     .pending()
             )
-            .hasSize(1)
+            .hasSize(2)
         DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
         connection().use {
             it.createStatement().use { sql ->
@@ -82,6 +82,9 @@ class MigrationsIT {
         DatabaseMigrations.check(database.jdbcUrl, "schema_check", "synthetic")
         connection().use {
             it.createStatement().use { sql ->
+                sql.executeUpdate(
+                    "INSERT INTO businesses(id,name) VALUES('other-business','Synthetic other')"
+                )
                 sql.executeUpdate(
                     "UPDATE property_identity SET property_id='other-business' WHERE singleton=1"
                 )
@@ -137,6 +140,9 @@ class MigrationsIT {
         connection().use { connection ->
             connection.createStatement().use { sql ->
                 sql.executeUpdate(
+                    "INSERT INTO businesses(id,name) VALUES('other-business','Synthetic other')"
+                )
+                sql.executeUpdate(
                     "UPDATE property_identity SET property_id='other-business' WHERE singleton=1"
                 )
             }
@@ -151,7 +157,7 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(15)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(16)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
@@ -204,7 +210,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(14)
+            .isEqualTo(15)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement

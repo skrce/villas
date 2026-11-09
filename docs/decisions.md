@@ -7,16 +7,17 @@ Confirmed with the owner on November 5, 2026.
 | D01: Staff identity | Confirmed | Invited staff use Google OIDC and server-side sessions. No production staff passwords, public signup, or fallback password administrator. Milestone 3 owns implementation and real-provider verification. |
 | D02: Region and property settings | Confirmed | Start in North Macedonia. EUR in exact integer cents for new money contracts. Property calendar dates use `Europe/Skopje`, including daylight saving. Audit/event timestamps use UTC. |
 | D03: Initial business data | Confirmed | Start production with a new empty database. Staff add real rooms, rates, and bookings through the app. No historical booking import or price conversion is required. Demo fixtures are explicit local/test/staging data only. |
-| D04: Hosting | Confirmed by the Owner on November 8, 2026 | Prepare Cloud Run in Frankfurt (`europe-west3`) and Neon PostgreSQL in Frankfurt (`aws-eu-central-1`), targeting Free initially. Use the same personal accounts as ABL with separate Villas resources, a separate deployment/database per business and no employer credentials. Actual account/resource configuration, monitoring ownership and live acceptance remain setup gates. Start with provider HTTPS addresses; custom domain remains deferred. |
+| D04: Hosting | Revised by the Owner on November 8, 2026 | One shared Villas Cloud Run application in Frankfurt `europe-west3` and one shared Neon PostgreSQL database in `aws-eu-central-1` per environment, targeting Free initially. Staging and production stay separate. Use the same personal Google/Neon accounts as ABL with separate Villas resources and no employer credentials. This supersedes deployment/database per business. Provider HTTPS initially; actual setup, measured cost/availability and live acceptance remain open. |
 | D09: Initial staff roles | Confirmed | Owner is the only available role initially. Every invitation grants Owner access. Other roles require a later explicit decision and implementation. |
 | D10: Staff session lifetime | Confirmed | Sessions last at most seven days and expire after three days of inactivity. Logout and account/session revocation invalidate access immediately. |
 | D11: Initial accommodation pricing | Confirmed on November 6, 2026 | A base EUR nightly price per room with dated seasonal replacements. The price covers any party within capacity. Owners enter the final accommodation price. Villas adds no taxes, fees, discounts or minimum-stay rules. |
 | D14: Reporting occupancy | Confirmed on November 7, 2026 | Booked room nights use saved dated assignments, excluding cancellations and no-shows. Disclose that capacity uses the current active room roster because historical room availability was not tracked. Collections and current balances have separate definitions in the reporting contract. |
 | D15: Recovery targets | Confirmed on November 7, 2026 | Daily encrypted backups, targeting at most 24 hours of lost data and recovery within 24 hours. The scheduler reserves job runtime within the data-loss window. Retain daily encrypted backups for seven days, confirmed on November 8, 2026. Actual off-server protection and recovery performance require qualification after hosting is chosen. |
+| D16: Shared tenancy | Confirmed by the Owner on November 8, 2026 | Each accommodation business is a tenant in the shared app/database. Preserve invitation-only Google login and independent Owner memberships. Implement #44-#49 under milestone 10 before shared launch. Business creation remains controlled; no public signup or platform administrator bypass. Fewer than 100 users and 2,000 total requests/day is the sizing input. |
 
-The first release serves staff at one property through a responsive online app.
+The first release serves staff through a responsive online app. Each business initially manages one property.
 Public booking and guest accounts are outside the ten-step plan. The existing
-Kotlin/Spring, Java 21 and React/TypeScript/Vite remain in use. The Owner approved PostgreSQL before first production deployment. Each business has its own app, database, secrets and recovery configuration.
+Kotlin/Spring, Java 21 and React/TypeScript/Vite remain in use. The Owner approved PostgreSQL before first production deployment. Businesses share an app/database within each environment under [the tenancy contract](contracts/multi-tenancy.md). Staging, production and ABL remain separate.
 
 ## Business policy gates
 
@@ -42,3 +43,8 @@ those gates remain open while the verified local implementation enables mileston
 The current schema and fixtures preserve legacy integer price fields. They do not
 establish a production price unit. Milestone 6 introduces the EUR-cent contract
 without converting historical records, consistent with D03.
+
+The previous per-business hosting choice was implemented as local preparation in
+PR #43. D04/D16 supersede that topology before provisioning. PostgreSQL and the
+existing staff workflows remain in use; the shared tenancy rollout and current
+implementation status are in [the contract](contracts/multi-tenancy.md).

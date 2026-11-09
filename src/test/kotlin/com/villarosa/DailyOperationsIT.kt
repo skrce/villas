@@ -228,6 +228,7 @@ constructor(
 
     @Test
     fun propertyScopeCurrentMembershipAndBoundsApplyToBothLists() {
+        TestData.registerBusiness(jdbc, "foreign")
         val foreignRoom = rooms.saveAndFlush(room.copy(id = null, propertyId = "foreign"))
         val foreignGuest =
             guests.saveAndFlush(

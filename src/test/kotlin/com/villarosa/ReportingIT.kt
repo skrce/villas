@@ -339,6 +339,7 @@ constructor(
 
     @Test
     fun propertyScopeRevocationAndQueryLimitsApplyToReportsAndExports() {
+        TestData.registerBusiness(jdbc, "foreign")
         val foreignRoom =
             rooms.saveAndFlush(a.copy(id = null, propertyId = "foreign", reference = "FOREIGN"))
         assertThat(report(ReportKind.OCCUPANCY).occupancy.map { it.roomId })

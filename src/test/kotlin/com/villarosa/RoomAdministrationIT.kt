@@ -230,6 +230,7 @@ constructor(
                     .roomId
             )
             .isEqualTo(room.id)
+        TestData.registerBusiness(jdbc, "other")
         val foreign = rooms.saveAndFlush(Apartment(capacity = 2, propertyId = "other"))
         assertThat(service.findApartmentById(foreign.id!!)).isNull()
         assertThat(

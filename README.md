@@ -22,8 +22,11 @@ implementation from the open real-Google, deployment and pilot gates.
 Release work starts in the [deployment guide](docs/deployment.md),
 [recovery procedure](docs/recovery.md), [operations](docs/operations.md) and
 [release checklist](docs/release-checklist.md).
-Milestone 10 is active. Cloud Run + Neon in Frankfurt is approved; resource setup
-and live acceptance remain open. [Cloud Run + Neon setup and updates](docs/cloud-run-neon.md)
+Milestone 10 is active. The approved target is one shared app and PostgreSQL database
+per environment in Frankfurt, with independent accommodation businesses. The
+[shared-tenancy rollout](docs/contracts/multi-tenancy.md) is in progress under #44-#49.
+The current runtime still serves one configured business; shared login, database
+row security and business switching are not yet implemented. Live deployment is blocked. [Cloud Run + Neon setup and updates](docs/cloud-run-neon.md)
 contains the prepared Terraform, keyless image publication and operator rollout.
 See [the PostgreSQL transition](docs/postgresql-transition.md).
 
@@ -67,8 +70,9 @@ for port overrides and the UI/recovery conventions.
 
 Work in a fresh standalone Villas checkout for PostgreSQL. Legacy MariaDB volumes
 and their path-bound state remain intact; the launcher refuses their old project
-identity. Configure `VILLAS_PROPERTY_ID` and `VILLAS_PROPERTY_NAME` per business,
-using one deployment/database each. From the checkout root:
+identity. During the first tenancy step, `VILLAS_PROPERTY_ID` and
+`VILLAS_PROPERTY_NAME` still configure the local compatibility business. This is
+not shared runtime routing or the new hosting topology. From the checkout root:
 
 ```sh
 cp .env.local.example .env.local

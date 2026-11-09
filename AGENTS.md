@@ -27,10 +27,14 @@ dates, and UTC instants for events. Production starts empty. Synthetic fixtures 
 explicit local/test data. Do not infer a migration requirement from the old example
 data, and do not convert legacy test price integers into real rates.
 
-Each deployment serves one business. `VILLAS_PROPERTY_ID` and `VILLAS_PROPERTY_NAME`
-configure its identity. PostgreSQL binds the database to that ID; do not retarget an
-existing database to another business. Use separate app identities, credentials,
-Neon projects/databases and backup repositories.
+The approved target is one shared Villas app and PostgreSQL database per environment.
+Read `docs/contracts/multi-tenancy.md` and #44-#49 before tenancy work. Staging,
+production and ABL remain separate. During the first schema step the runtime still
+serves its configured business; `PropertyScope` and its database binding are a
+compatibility boundary, not completed tenant routing. Do not retarget an existing
+database or expose other registered businesses before authorization, RLS and browser
+isolation pass. The earlier per-business cloud layout is superseded and live
+Terraform commands are blocked until #48 replaces it.
 
 ## Checks and contracts
 

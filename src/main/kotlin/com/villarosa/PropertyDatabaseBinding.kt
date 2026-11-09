@@ -28,6 +28,21 @@ class PropertyDatabaseBinding(dataSource: DataSource) {
                         }
                     }
                 }
+            val registry =
+                connection.metaData.getTables(null, "public", "businesses", arrayOf("TABLE")).use {
+                    it.next()
+                }
+            if (registry) {
+                connection.prepareStatement("SELECT active FROM businesses WHERE id=?").use {
+                    statement ->
+                    statement.setString(1, PropertyScope.ID)
+                    statement.executeQuery().use { rows ->
+                        require(rows.next() && rows.getBoolean(1)) {
+                            "The configured business is not registered and active."
+                        }
+                    }
+                }
+            }
         }
     }
 }

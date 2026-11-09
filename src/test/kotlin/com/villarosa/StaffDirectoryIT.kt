@@ -318,6 +318,7 @@ constructor(
                     .code
             )
             .isEqualTo("STAFF_ALREADY_ACTIVE")
+        TestData.registerBusiness(jdbc, "other")
         val other =
             staff.saveAndFlush(
                 StaffAccount(

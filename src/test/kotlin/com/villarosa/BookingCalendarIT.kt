@@ -105,6 +105,7 @@ constructor(
 
     @Test
     fun roomPagesAreExclusiveScopedAndArchivedRoomsAreExplicit() {
+        TestData.registerBusiness(jdbc, "other")
         val archived =
             rooms.saveAndFlush(
                 room.copy(id = null, name = "Archived", reference = "OLD", active = false)
@@ -123,6 +124,7 @@ constructor(
 
     @Test
     fun otherPropertyReservationsNeverOccupyThisCalendar() {
+        TestData.registerBusiness(jdbc, "other")
         val otherGuest = guests.saveAndFlush(guest.copy(id = null, propertyId = "other"))
         val otherRoom =
             rooms.saveAndFlush(room.copy(id = null, propertyId = "other", reference = "OTHER"))
