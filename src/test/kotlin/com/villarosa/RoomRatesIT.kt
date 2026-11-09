@@ -130,14 +130,14 @@ constructor(
         val id = room().id!!
         val before = rates.update(id, 0, "EUR", 5001, listOf(season()))
         jdbc.execute(
-            "CREATE TRIGGER reject_rate_audit BEFORE INSERT ON business_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic audit failure'"
+            "CREATE OR REPLACE FUNCTION reject_rate_audit_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic audit failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER reject_rate_audit BEFORE INSERT ON business_events FOR EACH ROW EXECUTE FUNCTION reject_rate_audit_fn()"
         )
         try {
             assertThrows<org.springframework.dao.DataAccessException> {
                 rates.update(id, 1, "EUR", 6001, emptyList())
             }
         } finally {
-            jdbc.execute("DROP TRIGGER IF EXISTS reject_rate_audit")
+            jdbc.execute("DROP TRIGGER IF EXISTS reject_rate_audit ON business_events")
         }
         assertThat(rates.get(id)).isEqualTo(before)
         assertThat(
@@ -185,7 +185,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

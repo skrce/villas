@@ -419,14 +419,14 @@ constructor(
                     offer.id,
                 )
         jdbc.execute(
-            "CREATE TRIGGER reject_edit_price BEFORE INSERT ON reservation_prices FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic edit price failure'"
+            "CREATE OR REPLACE FUNCTION reject_edit_price_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic edit price failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER reject_edit_price BEFORE INSERT ON reservation_prices FOR EACH ROW EXECUTE FUNCTION reject_edit_price_fn()"
         )
         try {
             val failure = assertThrows<jakarta.persistence.PersistenceException> { apply() }
             assertThat(generateSequence(failure as Throwable) { it.cause }.last().message)
                 .contains("Synthetic edit price failure")
         } finally {
-            jdbc.execute("DROP TRIGGER IF EXISTS reject_edit_price")
+            jdbc.execute("DROP TRIGGER IF EXISTS reject_edit_price ON reservation_prices")
         }
         assertThat(inventory.reservation(saved.resourceId)).isEqualTo(saved.reservation)
         assertThat(count("reservation_prices")).isEqualTo(1)
@@ -599,12 +599,12 @@ constructor(
         clock.value = old.expiresAt
         val operation = key()
         jdbc.execute(
-            "CREATE TRIGGER reject_refresh BEFORE INSERT ON business_events FOR EACH ROW BEGIN IF NEW.kind='QUOTE_CREATED' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic quote audit failure'; END IF; END"
+            "CREATE OR REPLACE FUNCTION reject_refresh_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN IF NEW.kind='QUOTE_CREATED' THEN RAISE EXCEPTION 'Synthetic quote audit failure' USING ERRCODE='45000'; END IF; RETURN NEW; END \$\$; CREATE TRIGGER reject_refresh BEFORE INSERT ON business_events FOR EACH ROW EXECUTE FUNCTION reject_refresh_fn()"
         )
         try {
             assertThrows<org.springframework.dao.DataAccessException> { confirm(old, operation) }
         } finally {
-            jdbc.execute("DROP TRIGGER IF EXISTS reject_refresh")
+            jdbc.execute("DROP TRIGGER IF EXISTS reject_refresh ON business_events")
         }
         assertThat(count("booking_quotes")).isEqualTo(1)
         assertThat(quotes.get(old.id)).isEqualTo(old)
@@ -645,16 +645,18 @@ constructor(
         val key = key()
         if (kind == "PRICE_AUDIT")
             jdbc.execute(
-                "CREATE TRIGGER reject_price BEFORE INSERT ON business_events FOR EACH ROW BEGIN IF NEW.kind='PRICE_ACCEPTED' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic price audit failure'; END IF; END"
+                "CREATE OR REPLACE FUNCTION reject_price_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN IF NEW.kind='PRICE_ACCEPTED' THEN RAISE EXCEPTION 'Synthetic price audit failure' USING ERRCODE='45000'; END IF; RETURN NEW; END \$\$; CREATE TRIGGER reject_price BEFORE INSERT ON business_events FOR EACH ROW EXECUTE FUNCTION reject_price_fn()"
             )
         else
             jdbc.execute(
-                "CREATE TRIGGER reject_price BEFORE INSERT ON inventory_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic inventory event failure'"
+                "CREATE OR REPLACE FUNCTION reject_price_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic inventory event failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER reject_price BEFORE INSERT ON inventory_events FOR EACH ROW EXECUTE FUNCTION reject_price_fn()"
             )
         try {
             assertThrows<org.springframework.dao.DataAccessException> { confirm(quote, key) }
         } finally {
-            jdbc.execute("DROP TRIGGER IF EXISTS reject_price")
+            jdbc.execute(
+                "DROP TRIGGER IF EXISTS reject_price ON business_events; DROP TRIGGER IF EXISTS reject_price ON inventory_events"
+            )
         }
         assertThat(count("reservations")).isZero()
         assertThat(count("reservation_prices")).isZero()
@@ -748,7 +750,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

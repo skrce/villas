@@ -54,14 +54,16 @@ Google/pilot acceptance remains open in #11 and #4.
 
 Milestone 3's real Google setup and live-provider acceptance were explicitly deferred
 by the Owner. [Issue #4](https://github.com/skrce/villas/issues/4) remains open for
-those checks. Local synthetic OIDC success does not satisfy them. The Owner deferred
-hosting/domain selection and confirmed daily backups with 24-hour loss/recovery
-targets (D15). Retention, storage, cost and monitoring ownership remain open. No cloud deployment or
+those checks. Local synthetic OIDC success does not satisfy them. The Owner approved
+Cloud Run + Neon PostgreSQL in Frankfurt on November 8, 2026, using the same personal
+accounts as ABL with separate Villas resources per business. Daily encrypted backups
+are retained seven days, with 24-hour loss/recovery targets. Actual resource setup,
+monitoring ownership and live verification remain open. No cloud deployment or
 production/pilot acceptance is implied by the local demo.
 
-For the next release session, inspect #11 and the current PR/CI heads first. Resolve
-D04 before provisioning or choosing paid services. Continue local preparation until
-the Owner resumes hosting/domain selection; set up the Villas-specific Google
+For the next release session, inspect #11 and the current PR/CI heads first. Follow the confirmed
+D04 architecture and [PostgreSQL transition](postgresql-transition.md); prepare
+separate per-business resources within the free-tier target; set up the Villas-specific Google
 client under #4 when the Owner is ready. Configure separate staging/production
 secrets and off-server protection, qualify external availability/alert delivery,
 then perform deployed Google/recovery checks and the Owner pilot. Production starts
@@ -111,7 +113,7 @@ gate even when all implementation PRs are merged.
 | Concern | Starting points |
 | --- | --- |
 | Application/configuration and HTTP security | `src/main/kotlin/com/villarosa/Application.kt`, `SecurityConfiguration.kt`, `security/` |
-| Scoped models, repositories and V1..V15 migrations | `src/main/kotlin/com/villarosa/repository/`, `src/main/resources/db/migration/` |
+| Scoped models, repositories and V1..V15 migrations | `src/main/kotlin/com/villarosa/repository/`, `src/main/resources/db/postgresql/` |
 | Atomic inventory changes and reconciliation | `service/OperationCoordinator.kt`, `service/InventoryWriter.kt`, `repository/InventoryRepository.kt` |
 | Stay phases, actual times and dated room assignments | `service/StayOperations.kt`, `service/RoomAllocations.kt`, `controller/StayOperationsController.kt` |
 | Rates, immutable quotes and agreements | `service/QuoteService.kt`, related rate/price services and the pricing contract |
@@ -143,7 +145,7 @@ map proves the current filename.
 | Schema and restore | [MigrationsIT](../src/test/kotlin/com/villarosa/MigrationsIT.kt), related `*MigrationIT.kt` files, [RecoveryMigrationIT](../src/test/kotlin/com/villarosa/RecoveryMigrationIT.kt), [container rehearsal](../scripts/release-check.mjs) |
 | Shared mutation handling and release tools | [useSave tests](../frontend/src/shared/useSave.test.tsx), [action adapters](../frontend/src/api/), [launcher/artifact/backup/monitor/policy tests](../scripts/) |
 
-Kotlin `*IT.kt` cases use native MariaDB; unit and HTTP tests are also under
+Kotlin `*IT.kt` cases use native PostgreSQL; unit and HTTP tests are also under
 `src/test/kotlin/`. React tests sit beside their source. The full command below owns
 test ordering and generated-client verification. Add a regression for the changed
 behavior rather than treating the files in this table as exhaustive coverage.
@@ -155,7 +157,7 @@ transaction. They serialize on the Owner, relevant guest, sorted affected room r
 and reservation as appropriate. Preserve those locks when changing a call path.
 Reviewed versions are required; optimistic version checks do not replace inventory
 locks. Writes, immutable events, audit, quote acceptance and the saved operation
-result commit together. Test rollback, stale updates and competing writes in MariaDB.
+result commit together. Test rollback, stale updates and competing writes in PostgreSQL.
 Reads that combine a booking, balances or room allocations use consistent snapshots.
 
 Reports are current corrected views, not historical as-of accounting. Occupancy is
@@ -193,9 +195,9 @@ npm --prefix frontend ci
 node scripts/check.mjs
 ```
 
-The full check runs clean Maven verification, native MariaDB migrations/concurrency
+The full check runs clean Maven verification, native PostgreSQL migrations/concurrency
 checks, OpenAPI/client drift checks, frontend formatting/lint/coverage/build, owned
-launcher tests and Chromium against the packaged API, disposable MariaDB and synthetic
+launcher tests and Chromium against the packaged API, disposable PostgreSQL and synthetic
 OIDC. Do not replace native tests with H2 or silently skip them. For a contract change,
 verify the backend, run `node scripts/sync-openapi.mjs --write`, then
 `npm --prefix frontend run generate:api`; review and commit the complete generated
@@ -217,9 +219,8 @@ before expecting merged backend changes to appear in a packaged demo.
 
 For an ordinary app update, follow [the later-change release procedure](deployment.md#releasing-a-later-change).
 CI currently checks and rehearses images. Registry publication and staging/production
-deployment jobs still await the hosting decision. ABL's release controls may inform
-that implementation; its Cloud Run/Neon settings and PostgreSQL migrations are not
-Villas configuration. MariaDB remains the confirmed database.
+deployment jobs require the selected personal resources and live verification. ABL's release controls inform that implementation. Villas has its own resources,
+credentials, migrations and acceptance evidence. PostgreSQL is the approved database.
 
 Use a `codex/` branch and small PRs linked to the active milestone. Keep an independent
 review on each PR, address material findings, run required checks and merge only after

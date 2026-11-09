@@ -11,7 +11,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
 class RoomAllocationsMigrationIT {
-    @Container val database = TestDatabases.mariaDb()
+    @Container val database = TestDatabases.postgres()
 
     @ParameterizedTest
     @MethodSource("prefixes")
@@ -95,7 +95,7 @@ class RoomAllocationsMigrationIT {
             checkNotNull(
                     RoomAllocationsMigrationIT::class
                         .java
-                        .getResource("/db/migration/V14__room_allocations.sql")
+                        .getResource("/db/postgresql/V14__room_allocations.sql")
                 )
                 .readText()
                 .split(';')

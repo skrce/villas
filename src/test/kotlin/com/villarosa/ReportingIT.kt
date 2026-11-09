@@ -156,7 +156,7 @@ constructor(
     @Test
     fun savedNightlyLinesAreClippedAndCurrentRateChangesDoNotAlterAgreedCharges() {
         jdbc.update(
-            "INSERT INTO seasonal_rates(id,property_id,room_id,name,start_date,end_date,nightly_cents) VALUES(?,?,?,?,?,?,?)",
+            "INSERT INTO seasonal_rates(id,property_id,room_id,name,start_date,end_date,nightly_cents) VALUES(?,?,?,?,CAST(? AS DATE),CAST(? AS DATE),?)",
             key(),
             PropertyScope.ID,
             a.id,
@@ -237,7 +237,7 @@ constructor(
     @Test
     fun unknownLegacyPricesAreNeverConvertedToZeroOrCompleteTotals() {
         jdbc.update(
-            "INSERT INTO reservations(property_id,customer_id,room_id,start_date,end_date,guest_count,status,stay_phase,version) VALUES(?,?,?,?,?,?,'ACTIVE','CONFIRMED',0)",
+            "INSERT INTO reservations(property_id,customer_id,room_id,start_date,end_date,guest_count,status,stay_phase,version) VALUES(?,?,?,CAST(? AS DATE),CAST(? AS DATE),?,'ACTIVE','CONFIRMED',0)",
             PropertyScope.ID,
             guest,
             a.id,
@@ -488,7 +488,7 @@ constructor(
         assertThat(assertThrows<DomainException> { report(ReportKind.CHARGES, room = a.id) }.code)
             .isEqualTo("REPORT_SOURCE_INCOMPLETE")
         jdbc.update(
-            "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,?,?)",
+            "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,CAST(? AS DATE),CAST(? AS DATE))",
             PropertyScope.ID,
             id,
             b.id,
@@ -523,7 +523,7 @@ constructor(
             )
             .isEqualTo("REPORT_SOURCE_INCOMPLETE")
         jdbc.update(
-            "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,?,?)",
+            "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,CAST(? AS DATE),CAST(? AS DATE))",
             PropertyScope.ID,
             id,
             b.id,
@@ -571,7 +571,7 @@ constructor(
 
     private fun rawBookings(count: Int, days: Int = 1): List<Int> {
         jdbc.batchUpdate(
-            "INSERT INTO reservations(property_id,customer_id,room_id,start_date,end_date,guest_count,status,stay_phase,version) VALUES(?,?,?,?,?,1,'ACTIVE','CONFIRMED',0)",
+            "INSERT INTO reservations(property_id,customer_id,room_id,start_date,end_date,guest_count,status,stay_phase,version) VALUES(?,?,?,CAST(? AS DATE),CAST(? AS DATE),1,'ACTIVE','CONFIRMED',0)",
             (1..count).map {
                 arrayOf<Any>(
                     PropertyScope.ID,
@@ -605,7 +605,7 @@ constructor(
         val ids = rawBookings(1000, 10)
         val first = java.time.LocalDate.parse("2026-11-07")
         jdbc.batchUpdate(
-            "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,?,?)",
+            "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,CAST(? AS DATE),CAST(? AS DATE))",
             ids.flatMap { id ->
                 (0..9).map { day ->
                     arrayOf<Any>(
@@ -738,7 +738,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

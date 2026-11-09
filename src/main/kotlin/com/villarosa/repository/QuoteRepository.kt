@@ -23,7 +23,7 @@ class StoredQuote(
     @Column(nullable = false, length = 3) val currency: String = "EUR",
     @Column(name = "rate_version", nullable = false) val rateVersion: Long = 0,
     @Column(name = "total_cents", nullable = false) val totalCents: Long = 0,
-    @Column(name = "price_json", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "price_json", nullable = false, columnDefinition = "TEXT")
     val priceJson: String = "",
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.EPOCH,
     @Column(name = "expires_at", nullable = false) val expiresAt: Instant = Instant.EPOCH,
@@ -42,7 +42,7 @@ class StoredReservationPrice(
     @Column(name = "reservation_id", nullable = false) val reservationId: Int = 0,
     @Column(name = "reservation_version", nullable = false) val reservationVersion: Long = 0,
     @Column(name = "actor_id", nullable = false, length = 36) val actorId: String = "",
-    @Column(name = "quote_json", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "quote_json", nullable = false, columnDefinition = "TEXT")
     val quoteJson: String = "",
     @Column(name = "accepted_at", nullable = false) val acceptedAt: Instant = Instant.EPOCH,
 )

@@ -213,7 +213,7 @@ constructor(
     @Test
     fun readinessAndOperationAndAuditRollBackTogether() {
         jdbc.execute(
-            "CREATE TRIGGER synthetic_readiness_failure BEFORE INSERT ON business_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic readiness failure'"
+            "CREATE OR REPLACE FUNCTION synthetic_readiness_failure_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic readiness failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER synthetic_readiness_failure BEFORE INSERT ON business_events FOR EACH ROW EXECUTE FUNCTION synthetic_readiness_failure_fn()"
         )
         val stable = key()
         try {
@@ -221,7 +221,7 @@ constructor(
                 service.change(room.id!!, ReadinessState.IN_PROGRESS, 0, stable, null)
             }
         } finally {
-            jdbc.execute("DROP TRIGGER synthetic_readiness_failure")
+            jdbc.execute("DROP TRIGGER synthetic_readiness_failure ON business_events")
         }
         assertThat(service.read(room.id!!).version).isZero()
         assertThat(service.history(room.id!!, "0", 50).items).isEmpty()
@@ -253,7 +253,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

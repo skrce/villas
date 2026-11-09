@@ -27,6 +27,8 @@ data class SessionView(
     val permissions: List<String> = emptyList(),
     val provider: String = "google",
     val generation: String? = null,
+    val propertyId: String = com.villarosa.service.PropertyScope.ID,
+    val propertyName: String = com.villarosa.service.PropertyScope.NAME,
 )
 
 data class InviteOwnerRequest(@field:NotBlank @field:Email @field:Size(max = 254) val email: String)

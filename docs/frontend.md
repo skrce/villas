@@ -127,7 +127,7 @@ npm run demo
 
 Open `http://localhost:5173` and choose **Synthetic Owner**. This is an explicit local
 demo with a loopback identity provider, generated private client configuration, its
-own MariaDB project and two synthetic rooms. It does not read `.env.local`, provision
+own PostgreSQL project and two synthetic rooms. It does not read `.env.local`, provision
 the real Owner or call Google. Production rejects the synthetic provider. Ctrl+C stops
 only the demo's child process groups and database; its volume/state remain available.
 It never stops a process occupying a port. Owned process groups remain tracked if

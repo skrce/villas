@@ -22,6 +22,7 @@ const guest = {
 };
 let authenticated = true;
 let ownerId = "owner-test";
+let propertyName = "Villa Rosa";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -29,6 +30,7 @@ const json = (body: unknown, status = 200) =>
   });
 const session = () => ({
   authenticated,
+  propertyName,
   generation: "test-login",
   staff: {
     id: ownerId,
@@ -146,6 +148,7 @@ function cancellableResponses(staleFirst = false) {
 beforeEach(async () => {
   authenticated = true;
   ownerId = "owner-test";
+  propertyName = "Villa Rosa";
   localStorage.clear();
   sessionStorage.clear();
   window.history.replaceState({}, "", "/rooms");
@@ -161,6 +164,16 @@ beforeEach(async () => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("routed staff workspace", () => {
+  it("identifies the configured business in the workspace", async () => {
+    propertyName = "Езерски апартмани";
+    await refreshSession({ explicit: true });
+    await mount();
+    expect(
+      await screen.findByRole("link", { name: /Villas.*Езерски апартмани/ }),
+    ).toBeVisible();
+    expect(screen.getByText("Езерски апартмани · Europe/Skopje")).toBeVisible();
+  });
+
   it("loads the direct room route and exposes only implemented navigation", async () => {
     await mount();
     expect(

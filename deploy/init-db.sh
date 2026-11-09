@@ -9,11 +9,15 @@ read_secret() {
 migration=$(read_secret db_migration)
 runtime=$(read_secret db_runtime)
 backup=$(read_secret db_backup)
-MYSQL_PWD=$(cat /run/secrets/db_root) mariadb --user=root <<SQL
-CREATE DATABASE IF NOT EXISTS villarosa CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'villas_migration'@'%' IDENTIFIED BY '$migration';
-CREATE USER IF NOT EXISTS 'villas_runtime'@'%' IDENTIFIED BY '$runtime';
-CREATE USER IF NOT EXISTS 'villas_backup'@'%' IDENTIFIED BY '$backup';
-GRANT ALL PRIVILEGES ON villarosa.* TO 'villas_migration'@'%';
-GRANT SELECT, SHOW VIEW ON villarosa.* TO 'villas_backup'@'%';
+psql --no-psqlrc --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --set=ON_ERROR_STOP=1 <<SQL
+CREATE ROLE villas_migration LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '$migration';
+CREATE ROLE villas_runtime LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '$runtime';
+CREATE ROLE villas_backup LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD '$backup';
+REVOKE ALL ON DATABASE villarosa FROM PUBLIC;
+GRANT CONNECT ON DATABASE villarosa TO villas_migration, villas_runtime, villas_backup;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+ALTER SCHEMA public OWNER TO villas_migration;
+GRANT USAGE ON SCHEMA public TO villas_runtime, villas_backup;
+ALTER DEFAULT PRIVILEGES FOR ROLE villas_migration IN SCHEMA public GRANT SELECT ON TABLES TO villas_backup;
+ALTER DEFAULT PRIVILEGES FOR ROLE villas_migration IN SCHEMA public GRANT SELECT ON SEQUENCES TO villas_backup;
 SQL

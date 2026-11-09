@@ -33,7 +33,7 @@ data class Reservation(
     @Version @Column(nullable = false) var version: Long = 0,
     @JsonIgnore
     @Column(name = "property_id", nullable = false)
-    val propertyId: String = "villa-rosa",
+    val propertyId: String = com.villarosa.service.PropertyScope.ID,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "accepted_quote_id", length = 36) var acceptedQuoteId: String? = null,
     @Enumerated(EnumType.STRING)

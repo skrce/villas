@@ -281,7 +281,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

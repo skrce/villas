@@ -5,6 +5,15 @@ test("calendar selection creates a quoted stay that persists on the desktop grid
   page,
 }, testInfo) => {
   await signIn(page);
+  const deployment = await (
+    await page.request.get("/api/v1/auth/session")
+  ).json();
+  expect(deployment.propertyId).toBe(
+    process.env.VILLAS_PROPERTY_ID ?? "villa-rosa",
+  );
+  await expect(page.locator(".brand small")).toHaveText(
+    process.env.VILLAS_PROPERTY_NAME ?? "Villa Rosa",
+  );
   const headers = await headersFor(page);
   const created = await page.request.post("/api/v1/apartments", {
     headers,

@@ -106,7 +106,7 @@ class FrontendFiles(environment: Environment) {
 class ReleaseHealth(private val dataSource: DataSource) {
     private val versions =
         PathMatchingResourcePatternResolver()
-            .getResources("classpath*:db/migration/V*__*.sql")
+            .getResources("classpath*:db/postgresql/V*__*.sql")
             .map { checkNotNull(it.filename).substringAfter("V").substringBefore("__").toInt() }
             .sorted()
 

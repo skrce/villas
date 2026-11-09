@@ -1,6 +1,9 @@
 # Data model
 
-Villas starts with one configured property, `villa-rosa`. Rooms, guests, and bookings
+Each deployment serves one configured business, defaulting to `villa-rosa` locally.
+`VILLAS_PROPERTY_ID` is a validated deployment setting, not a client-selected tenant.
+`property_identity` binds an initialized database to that ID and startup refuses a
+mismatch. `VILLAS_PROPERTY_NAME` supplies its workspace label. Rooms, guests, and bookings
 carry a server-owned property ID. Composite foreign keys prevent linking bookings
 to another property's guest or room. API IDs retain their existing integer shape.
 Property IDs are not client-controlled fields in the console.
@@ -20,7 +23,7 @@ Property IDs are not client-controlled fields in the console.
 Stay dates are `LocalDate` values in the property's `Europe/Skopje` calendar, with
 check-in inclusive and check-out exclusive. Check-out must follow check-in. Nights
 are calendar-day differences across leap days and daylight-saving transitions.
-Inputs must contain exactly `YYYY-MM-DD` within MariaDB's supported 1000-9999 year
+Inputs must contain exactly `YYYY-MM-DD` within PostgreSQL's supported 1000-9999 year
 range. Timestamp suffixes and impossible dates are rejected.
 
 Apartment locks serialize inventory checks and writes. An optimistic version alone

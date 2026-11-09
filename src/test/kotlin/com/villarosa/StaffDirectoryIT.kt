@@ -380,7 +380,7 @@ constructor(
         val other = directory.accept(verified("second@example.test"))
         val eventCount = events.count()
         jdbc.execute(
-            "CREATE TRIGGER synthetic_staff_audit_failure BEFORE INSERT ON staff_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic audit failure'"
+            "CREATE OR REPLACE FUNCTION synthetic_staff_audit_failure_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic audit failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER synthetic_staff_audit_failure BEFORE INSERT ON staff_events FOR EACH ROW EXECUTE FUNCTION synthetic_staff_audit_failure_fn()"
         )
         try {
             assertThrows<RuntimeException> {
@@ -392,7 +392,7 @@ constructor(
             assertThat(saved.securityVersion).isEqualTo(other.securityVersion)
             assertThat(events.count()).isEqualTo(eventCount)
         } finally {
-            jdbc.execute("DROP TRIGGER IF EXISTS synthetic_staff_audit_failure")
+            jdbc.execute("DROP TRIGGER IF EXISTS synthetic_staff_audit_failure ON staff_events")
         }
     }
 
@@ -423,7 +423,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

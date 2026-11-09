@@ -10,7 +10,7 @@ if (instance !== 'local' && instance !== 'demo' && !/^demo-[1-9][0-9]{3,4}$/.tes
 const stateDirectory = `${root}/.local-state/${instance}`;
 const stateFile = `${stateDirectory}/db.json`;
 const envFile = `${stateDirectory}/db.env`;
-const project = `villas-${instance}-${createHash('sha256').update(root).digest('hex').slice(0, 12)}`;
+const project = `villas-pg-${instance}-${createHash('sha256').update(root).digest('hex').slice(0, 12)}`;
 
 export function localDatabase({ create = false } = {}) {
   if (!existsSync(stateFile)) {
@@ -19,20 +19,18 @@ export function localDatabase({ create = false } = {}) {
     const credentials = {
       project,
       password: randomBytes(24).toString('hex'),
-      rootPassword: randomBytes(24).toString('hex'),
     };
     writeFileSync(stateFile, `${JSON.stringify(credentials, null, 2)}\n`, { mode: 0o600, flag: 'wx' });
   }
   const state = JSON.parse(readFileSync(stateFile, 'utf8'));
-  if (state.project !== project || !/^[a-f0-9]{48}$/.test(state.password) || !/^[a-f0-9]{48}$/.test(state.rootPassword)) {
+  if (state.project !== project || !/^[a-f0-9]{48}$/.test(state.password)) {
     throw new Error('Local state belongs to another checkout or is invalid. Do not copy .local-state between checkouts.');
   }
-  const image = readFileSync(`${root}/mariadb-image.txt`, 'utf8').trim();
+  const image = readFileSync(`${root}/postgres-image.txt`, 'utf8').trim();
   const environment = {
     ...process.env,
-    VILLAS_MARIADB_IMAGE: image,
+    VILLAS_POSTGRES_IMAGE: image,
     VILLAS_DB_PASSWORD: state.password,
-    VILLAS_DB_ROOT_PASSWORD: state.rootPassword,
   };
   writeFileSync(envFile, '', { mode: 0o600 });
   const compose = (args, options = {}) => {
@@ -48,11 +46,11 @@ export function localDatabase({ create = false } = {}) {
     return result.stdout?.trim();
   };
   const port = () => {
-    const address = compose(['port', 'db', '3306'], { capture: true });
+    const address = compose(['port', 'db', '5432'], { capture: true });
     const match = /^127\.0\.0\.1:(\d+)$/.exec(address);
-    if (!match) throw new Error('Expected a running MariaDB port bound to 127.0.0.1. Start this checkout\'s database first.');
+    if (!match) throw new Error('Expected a running PostgreSQL port bound to 127.0.0.1. Start this checkout\'s database first.');
     return Number(match[1]);
   };
-  const sql = (input) => compose(['exec', '-T', 'db', 'sh', '-c', 'MYSQL_PWD="$MARIADB_PASSWORD" exec mariadb --user=villas_local --database=villarosa --batch --skip-column-names --default-character-set=utf8mb4'], { capture: true, input });
+  const sql = (input) => compose(['exec', '-T', 'db', 'sh', '-c', 'PGPASSWORD="$POSTGRES_PASSWORD" exec psql --username=villas_local --dbname=villarosa --no-psqlrc --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1'], { capture: true, input });
   return { compose, port, sql, password: state.password };
 }

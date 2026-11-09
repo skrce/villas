@@ -6,9 +6,11 @@ spring:
     username: ${VILLAS_DB_USERNAME:}
     password: ${VILLAS_DB_PASSWORD:}
     hikari:
-      minimum-idle: 1
+      minimum-idle: 0
       maximum-pool-size: 5
-      connection-timeout: 3000
+      connection-timeout: 15000
+      idle-timeout: 60000
+      keepalive-time: 0
   jpa:
     open-in-view: false
     hibernate:

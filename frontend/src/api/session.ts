@@ -6,7 +6,7 @@ export type Staff = Required<Pick<StaffView, 'id' | 'email' | 'role' | 'active' 
 export type SessionState =
   | { status: 'loading' }
   | { status: 'anonymous' | 'unavailable'; reason?: string; provider: 'google' | 'synthetic' }
-  | { status: 'authenticated'; staff: Staff; generation: string; expiresAt: Date; permissions: string[]; provider: 'google' | 'synthetic' };
+  | { status: 'authenticated'; staff: Staff; generation: string; expiresAt: Date; permissions: string[]; propertyName?: string; provider: 'google' | 'synthetic' };
 
 let state: SessionState = { status: 'loading' };
 let csrf: string | undefined;
@@ -89,7 +89,7 @@ export const refreshSession = async (options?: { explicit: boolean }) => {
       || typeof body.csrfToken !== 'string' || !body.csrfToken || Number.isNaN(expiry.getTime())
       || !Array.isArray(body.permissions) || !body.permissions.every((permission) => typeof permission === 'string')) throw new Error('The session response could not be confirmed.');
     csrf = body.csrfToken;
-    notify({ status: 'authenticated', staff: staff as Staff, generation: body.generation, expiresAt: expiry, permissions: body.permissions, provider });
+    notify({ status: 'authenticated', staff: staff as Staff, generation: body.generation, expiresAt: expiry, permissions: body.permissions, propertyName: typeof body.propertyName === 'string' ? body.propertyName : undefined, provider });
   } catch (error) {
     if (sequence !== refreshSequence) return;
     csrf = undefined;

@@ -35,6 +35,7 @@ constructor(
         jdbc.update(
             "INSERT INTO apartments (id,name,reference,capacity,active,version,property_id) VALUES (1,'Room','R-1',4,TRUE,0,'villa-rosa')"
         )
+        jdbc.execute("ALTER TABLE apartments ALTER COLUMN id RESTART WITH 2")
         browser = TestHttpSession.create(sessions, mvc)
     }
 

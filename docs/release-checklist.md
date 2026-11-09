@@ -7,16 +7,16 @@ is still open.
 
 | Gate | Required evidence | Status |
 | --- | --- | --- |
-| Environment | Owner-approved personal host, domain, TLS, budget, availability and operational owner | Hosting/domain explicitly deferred; local preparation only |
+| Environment | Owner-approved personal host, domain, TLS, budget, availability and operational owner | Frankfurt Cloud Run + Neon confirmed; actual resources and live verification pending |
 | Secrets | Separate staging/production clients/accounts, private mounts and rotation/recovery access | Prepared; actual configuration pending |
 | Exact revision | Backend/native DB/frontend/generated/browser checks and independent review | Pending release revision |
 | Package | Verified JAR/dist, image digests, restricted runtime, routing/cookies/private health | PR #38 merged after full local/CI verification; recovery image/rehearsal evidence in #11 |
-| Deployment automation | Explicit provider/environment, tested digests, restricted/short-lived credentials where supported | Pending provider choice |
+| Deployment automation | Explicit provider/environment, tested digests, restricted/short-lived credentials where supported | Provider architecture confirmed; setup pending |
 | Empty production | New DB, validated migrations, zero business/staff records before invitation | Actual environment pending |
 | Google/access | Real callback, secure cookie, CSRF/Origin, logout, expiry, invites and revocation | Setup deferred; actual verification pending |
-| Backups | Approved retention/RPO/RTO, encrypted off-server storage, scheduler and failure alert | D15 daily/24-hour loss/24-hour recovery confirmed; retention, actual storage/schedule/alerts pending |
+| Backups | Approved retention/RPO/RTO, encrypted off-server storage, scheduler and failure alert | D15 daily/seven-day retention/24-hour loss/24-hour recovery confirmed; actual storage/schedule/alerts pending |
 | Restore | Timed isolated restore, financial/record/audit reconciliation, stale session rejection | Local synthetic rehearsal implemented; actual off-server target/acceptance pending |
-| Upgrade | Prior-schema preservation/rerun, failure handling and compatible rollback/forward fix | V14-to-V15/rerun/quarantine failure tests and isolated restore; selected environment pending |
+| Upgrade | Prior-schema preservation/rerun, failure handling and compatible rollback/forward fix | PostgreSQL transactional migration/rerun/quarantine tests and isolated restore; hosted qualification pending |
 | Operations | Privacy-safe signals, DB/auth/booking/backup/service alerts, verified delivery and response owner | Private signals/local receiver tested; actual destination, external availability check and ownership pending |
 | Staff pilot | Desktop/phone booking conflicts/retry, repricing, cancellation, deposits/refunds, stay operations, cleaning and reports | Pending deployed Owner pilot |
 | Production smoke | Actual HTTPS/login, private API rejection, empty start, readiness and fresh backup | Actual environment pending |

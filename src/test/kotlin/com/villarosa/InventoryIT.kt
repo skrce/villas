@@ -327,7 +327,7 @@ constructor(
         val operation = key()
         val quote = quotes.create(first.id!!, "2026-11-06", "2026-11-09", 1)
         jdbc.execute(
-            "CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON inventory_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Synthetic audit failure'"
+            "CREATE OR REPLACE FUNCTION synthetic_audit_failure_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic audit failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON inventory_events FOR EACH ROW EXECUTE FUNCTION synthetic_audit_failure_fn()"
         )
         try {
             assertThrows<RuntimeException> { create(operation = operation, quote = quote) }
@@ -348,7 +348,7 @@ constructor(
                 )
                 .isEqualTo("OPERATION_NOT_COMMITTED")
         } finally {
-            jdbc.execute("DROP TRIGGER IF EXISTS synthetic_audit_failure")
+            jdbc.execute("DROP TRIGGER IF EXISTS synthetic_audit_failure ON inventory_events")
         }
         create(operation = operation, quote = quote)
         assertThat(reservations.count()).isEqualTo(1)
@@ -394,7 +394,7 @@ constructor(
             }
         }
         jdbc.execute(
-            "CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON inventory_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Synthetic audit failure'"
+            "CREATE OR REPLACE FUNCTION synthetic_audit_failure_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic audit failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER synthetic_audit_failure BEFORE INSERT ON inventory_events FOR EACH ROW EXECUTE FUNCTION synthetic_audit_failure_fn()"
         )
         try {
             assertThrows<RuntimeException> { action() }
@@ -411,7 +411,7 @@ constructor(
             assertThat(assertThrows<DomainException> { service.operation(kind, operation) }.code)
                 .isEqualTo("OPERATION_NOT_COMMITTED")
         } finally {
-            jdbc.execute("DROP TRIGGER IF EXISTS synthetic_audit_failure")
+            jdbc.execute("DROP TRIGGER IF EXISTS synthetic_audit_failure ON inventory_events")
         }
         action()
         assertThat(events.count()).isEqualTo(beforeEvents + 1)
@@ -751,7 +751,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

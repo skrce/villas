@@ -32,7 +32,14 @@ object TestData {
             jdbc.execute(
                 ConnectionCallback { connection ->
                     connection.metaData
-                        .getTables(null, null, "SPRING_SESSION", arrayOf("TABLE"))
+                        .getTables(
+                            null,
+                            null,
+                            if (connection.metaData.databaseProductName == "PostgreSQL")
+                                "spring_session"
+                            else "SPRING_SESSION",
+                            arrayOf("TABLE"),
+                        )
                         .use { it.next() }
                 }
             ) == true

@@ -31,7 +31,9 @@ const environment = {
   ...cleanEnvironment,
   VILLAS_APP_IMAGE: build.appId,
   VILLAS_PROXY_IMAGE: build.proxyId,
-  VILLAS_MARIADB_IMAGE: readFileSync(join(root, 'mariadb-image.txt'), 'utf8').trim(),
+  VILLAS_PROPERTY_ID: 'rehearsal-garden',
+  VILLAS_PROPERTY_NAME: 'Rehearsal Garden',
+  VILLAS_POSTGRES_IMAGE: readFileSync(join(root, 'postgres-image.txt'), 'utf8').trim(),
   VILLAS_DOMAIN: 'localhost',
   VILLAS_SECRET_DIR: secrets,
 };
@@ -65,7 +67,7 @@ const configFile = join(state, 'compose.json');
 const compose = (args, options) => run('docker', ['compose', '--project-name', project, '--env-file', join(state, 'env'), '--file', configFile, '--profile', 'operations', ...args], options);
 const sql = async (input, user = 'root', allowFailure = false, service = 'db') => {
   const secret = user === 'root' ? 'db_root' : user === 'villas_runtime' ? 'db_runtime' : 'db_migration';
-  return compose(['exec', '-T', service, 'sh', '-c', `MYSQL_PWD="$(cat /run/secrets/${secret})" exec mariadb --user=${user} --database=villarosa --batch --skip-column-names --default-character-set=utf8mb4`], { input, capture: true, allowFailure });
+  return compose(['exec', '-T', service, 'sh', '-c', `PGPASSWORD="$(cat /run/secrets/${secret})" exec psql --username=${user === 'root' ? 'villas_root' : user} --dbname=villarosa --no-psqlrc --quiet --tuples-only --no-align --field-separator='	' --set=ON_ERROR_STOP=1`], { input, capture: true, allowFailure });
 };
 const checkPorts = async () => {
   for (const port of [15073, 19108, 19443]) await new Promise((resolve, reject) => {
@@ -106,6 +108,7 @@ try {
   await compose(['run', '--rm', 'migrate']);
   await compose(['run', '--rm', 'migrate']);
   await sql(readFileSync(join(root, 'deploy/runtime-grants.sql'), 'utf8'));
+  await sql('BEGIN; SELECT property_id FROM staff_property_lock FOR UPDATE; ROLLBACK;', 'villas_runtime');
   const empty = await sql('SELECT (SELECT COUNT(*) FROM apartments)+(SELECT COUNT(*) FROM customers)+(SELECT COUNT(*) FROM reservations)+(SELECT COUNT(*) FROM staff_accounts)+(SELECT COUNT(*) FROM staff_invitations)+(SELECT COUNT(*) FROM ledger_entries);');
   assert.equal(empty.output, '0', 'Production initialization must be empty.');
   for (const statement of [
@@ -114,6 +117,8 @@ try {
     'DELETE FROM business_events WHERE id=0;',
     "UPDATE reservation_prices SET quote_json='{}' WHERE id='no-record';",
     "UPDATE flyway_schema_history SET checksum=0 WHERE installed_rank=0;",
+    "UPDATE property_identity SET property_id='foreign' WHERE singleton=1;",
+    "UPDATE staff_property_lock SET property_id='foreign' WHERE property_id='rehearsal-garden';",
   ]) assert.notEqual((await sql(statement, 'villas_runtime', true)).code, 0, 'Runtime credentials must reject schema/history mutations.');
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy']);
   await compose(['exec', '-T', 'api', 'java', '-jar', '/app/villas.jar', 'healthcheck']);
@@ -173,7 +178,7 @@ try {
   await sql(readFileSync(join(root, 'dev/fixtures.sql'), 'utf8'));
   await compose(['run', '--rm', 'api', 'bootstrap-owner']);
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy', 'identity']);
-  await run(process.execPath, ['frontend/node_modules/@playwright/test/cli.js', 'test', '--config', 'frontend/playwright.release.config.ts', '--max-failures=1'], { env: { ...cleanEnvironment, ...synthetic, VILLAS_BROWSER_CLOCK_FILE: join(clock, 'instant.txt') }, timeout: 600_000 });
+  await run(process.execPath, ['frontend/node_modules/@playwright/test/cli.js', 'test', '--config', 'frontend/playwright.release.config.ts', '--max-failures=1'], { env: { ...cleanEnvironment, ...synthetic, VILLAS_PROPERTY_ID: 'rehearsal-garden', VILLAS_PROPERTY_NAME: 'Rehearsal Garden', VILLAS_BROWSER_CLOCK_FILE: join(clock, 'instant.txt') }, timeout: 600_000 });
   const signedIn = await chromium.launch({ headless: true });
   let savedCookies;
   try {
@@ -185,22 +190,23 @@ try {
     savedCookies = await page.context().cookies();
   } finally { await signedIn.close(); }
   await compose(['stop', 'proxy', 'identity', 'api']);
-  const unsupported = await sql("SELECT (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='villarosa')+(SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='villarosa')+(SELECT COUNT(*) FROM information_schema.events WHERE event_schema='villarosa')+(SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='villarosa' AND (table_type<>'BASE TABLE' OR engine<>'InnoDB')); ");
-  assert.equal(unsupported.output, '0', 'The supported logical backup schema contains InnoDB tables without database programs.');
-  await sql(`INSERT INTO recovery_events(id,property_id,snapshot_id,invalidated_sessions,changed_staff,occurred_at) VALUES(UUID(),'villa-rosa','${'f'.repeat(64)}',0,0,UTC_TIMESTAMP(6));`);
+  const unsupported = await sql("SELECT (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='public')+(SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='public')+(SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type<>'BASE TABLE'); ");
+  assert.equal(unsupported.output, '0', 'The supported logical backup schema contains PostgreSQL base tables without database programs.');
+  await sql(`INSERT INTO recovery_events(id,property_id,snapshot_id,invalidated_sessions,changed_staff,occurred_at) VALUES(gen_random_uuid()::text,'rehearsal-garden','${'f'.repeat(64)}',0,0,CURRENT_TIMESTAMP(6));`);
   const fingerprint = async (service, excludeSnapshot) => {
-    const tables = (await sql("SELECT table_name FROM information_schema.tables WHERE table_schema='villarosa' ORDER BY table_name;", 'root', false, service)).output.split('\n');
+    const tables = (await sql("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;", 'root', false, service)).output.split('\n');
     const result = {};
     for (const table of tables) {
       assert(/^[A-Za-z0-9_]+$/.test(table));
-      if (['SPRING_SESSION', 'SPRING_SESSION_ATTRIBUTES'].includes(table)) continue;
+      if (['spring_session', 'spring_session_attributes'].includes(table)) continue;
       const selected = table === 'staff_accounts' ? 'id,property_id,issuer,subject,email,role,active,version,created_at' : '*';
       const where = table === 'recovery_events' && excludeSnapshot ? ` WHERE snapshot_id<>'${excludeSnapshot}'` : '';
-      const rows = (await sql(`SET time_zone='+00:00'; SELECT ${selected} FROM ${table}${where};`, 'root', false, service)).output.split('\n').sort().join('\n');
+      const rows = (await sql(`SET TIME ZONE 'UTC'; SELECT ${selected} FROM ${table}${where};`, 'root', false, service)).output.split('\n').sort().join('\n');
       result[table] = createHash('sha256').update(rows).digest('hex');
     }
     return result;
   };
+  await sql("CREATE TABLE restore_stream_probe(id INT PRIMARY KEY,payload BYTEA NOT NULL); INSERT INTO restore_stream_probe SELECT i,decode(string_agg(md5(random()::text),''),'hex') FROM generate_series(1,128) i CROSS JOIN generate_series(1,512) j GROUP BY i;", 'villas_migration');
   const original = await fingerprint('db');
   const generations = (await sql('SELECT id,security_version FROM staff_accounts ORDER BY id;')).output;
   const sessions = Number((await sql('SELECT COUNT(*) FROM SPRING_SESSION;')).output);
@@ -215,7 +221,7 @@ try {
   config.services.backup = {
     image: build.backupId, profiles: ['operations'], read_only: true,
     tmpfs: ['/tmp:rw,noexec,nosuid,size=128m'], cap_drop: ['ALL'], security_opt: ['no-new-privileges:true'], mem_limit: '512m', pids_limit: 128,
-    environment: { VILLAS_BACKUP_DB_HOST: 'db', VILLAS_BACKUP_DB_PASSWORD_FILE: '/run/secrets/db_backup', VILLAS_BACKUP_REPOSITORY_FILE: '/run/secrets/backup_repository', VILLAS_BACKUP_PASSWORD_FILE: '/run/secrets/backup_password', VILLAS_BACKUP_LOCAL_REHEARSAL: '1', VILLAS_LOCAL_INSTANCE: instance, VILLAS_BACKUP_HOST: `villas-rehearsal-${instance}`, VILLAS_KEEP_HOURLY: '0', VILLAS_KEEP_DAILY: '2', VILLAS_BACKUP_STATUS_FILE: '/status/backup.json' },
+    environment: { VILLAS_BACKUP_DB_SSLMODE: 'disable', VILLAS_BACKUP_DB_HOST: 'db', VILLAS_BACKUP_DB_PASSWORD_FILE: '/run/secrets/db_backup', VILLAS_BACKUP_REPOSITORY_FILE: '/run/secrets/backup_repository', VILLAS_BACKUP_PASSWORD_FILE: '/run/secrets/backup_password', VILLAS_BACKUP_LOCAL_REHEARSAL: '1', VILLAS_LOCAL_INSTANCE: instance, VILLAS_BACKUP_HOST: `villas-rehearsal-${instance}`, VILLAS_KEEP_HOURLY: '0', VILLAS_KEEP_DAILY: '2', VILLAS_BACKUP_STATUS_FILE: '/status/backup.json' },
     secrets: [{ source: 'db_backup' }, { source: 'backup_repository' }, { source: 'backup_password' }],
     volumes: [{ type: 'volume', source: 'repository', target: '/repo' }, { type: 'volume', source: 'backup_status', target: '/status' }], logging: config.services.api.logging,
   };
@@ -254,7 +260,7 @@ try {
   assert.deepEqual(await fingerprint('restored-db', snapshot), original);
   await sql(readFileSync(join(root, 'deploy/runtime-grants.sql'), 'utf8'), 'root', false, 'restored-db');
   await compose(['run', '--rm', 'validate-schema']);
-  config.services.api.environment.VILLAS_DB_URL = 'jdbc:mariadb://restored-db:3306/villarosa'; saveConfig();
+  config.services.api.environment.VILLAS_DB_URL = 'jdbc:postgresql://restored-db:5432/villarosa'; saveConfig();
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy', 'identity']);
   const restoredBrowser = await chromium.launch({ headless: true });
   try {

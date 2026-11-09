@@ -31,7 +31,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 @ActiveProfiles("test")
 @Testcontainers
-class MariaDbIT
+class PostgreSqlIT
 @Autowired
 constructor(
     private val jdbc: JdbcTemplate,
@@ -495,7 +495,7 @@ constructor(
                 }
         }
 
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @DynamicPropertySource

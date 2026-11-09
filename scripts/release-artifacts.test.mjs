@@ -14,7 +14,7 @@ const fixture = () => {
   for (const name of ['Dockerfile', 'proxy.Dockerfile', 'backup.Dockerfile', 'backup.mjs', 'monitor.mjs', 'recovery-policy.mjs', 'recovery-quarantine.sql', 'Caddyfile', 'images.json']) cpSync(join(root, 'deploy', name), join(directory, 'deploy', name));
   writeFileSync(join(directory, '.gitignore'), 'target/\nfrontend/dist/\nbin/\n');
   writeFileSync(join(directory, 'source.txt'), 'current source');
-  writeFileSync(join(directory, 'mariadb-image.txt'), `mariadb:test@sha256:${'a'.repeat(64)}`);
+  writeFileSync(join(directory, 'postgres-image.txt'), `postgres:test@sha256:${'a'.repeat(64)}`);
   writeFileSync(join(directory, 'frontend/dist/index.html'), '<title>Fixture</title>');
   writeFileSync(join(directory, 'target/villarosa-test.jar'), 'synthetic artifact');
   writeFileSync(join(directory, 'bin/docker'), `#!/usr/bin/env node

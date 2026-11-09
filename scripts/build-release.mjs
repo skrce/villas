@@ -55,7 +55,7 @@ try {
   rmSync(context, { recursive: true }); mkdirSync(context);
   for (const name of ['backup.mjs', 'monitor.mjs', 'recovery-policy.mjs', 'recovery-quarantine.sql']) cpSync(join(root, 'deploy', name), join(context, name));
   cpSync(join(root, 'deploy/backup.Dockerfile'), join(context, 'Dockerfile'));
-  run(['build', '--build-arg', `MARIADB_IMAGE=${readFileSync(join(root, 'mariadb-image.txt'), 'utf8').trim()}`, '--build-arg', `NODE_IMAGE=${pins.testNode}`, '--build-arg', `RESTIC_IMAGE=${pins.restic}`, '--label', `org.opencontainers.image.revision=${source}`, '--tag', `${prefix}-backup:${source}`, context]);
+  run(['build', '--build-arg', `POSTGRES_IMAGE=${readFileSync(join(root, 'postgres-image.txt'), 'utf8').trim()}`, '--build-arg', `NODE_IMAGE=${pins.testNode}`, '--build-arg', `RESTIC_IMAGE=${pins.restic}`, '--label', `org.opencontainers.image.revision=${source}`, '--tag', `${prefix}-backup:${source}`, context]);
   if (sourceTree !== treeDigest(root) || jarSha256 !== sha256(jar) || webSha256 !== directoryDigest(web)) throw new Error('Release inputs changed during the build. Rebuild from a stable revision.');
   const app = `${prefix}-app:${source}`;
   const proxy = `${prefix}-proxy:${source}`;
