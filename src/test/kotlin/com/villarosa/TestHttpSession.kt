@@ -1,7 +1,6 @@
 package com.villarosa
 
 import com.villarosa.security.AuthenticationSettings
-import com.villarosa.security.StaffAuthentication
 import com.villarosa.security.StaffSessionFilter
 import jakarta.servlet.http.Cookie
 import java.time.Instant
@@ -23,7 +22,7 @@ data class TestHttpSession(val cookie: Cookie, val csrf: String) {
             val store = repository as SessionRepository<Session>
             val context =
                 SecurityContextHolder.createEmptyContext().apply {
-                    authentication = StaffAuthentication(TestData.ownerIdentity())
+                    authentication = TestData.authentication(TestData.ownerIdentity())
                 }
             val session = store.createSession()
             session.maxInactiveInterval = AuthenticationSettings.IDLE_LIMIT

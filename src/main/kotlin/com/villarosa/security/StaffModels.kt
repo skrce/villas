@@ -81,7 +81,12 @@ class StaffEvent(
     @Column(name = "occurred_at", nullable = false) val occurredAt: Instant = Instant.now(),
 )
 
-data class StaffIdentity(val id: String, val securityVersion: Long) : java.io.Serializable
+data class StaffIdentity(
+    val id: String,
+    val securityVersion: Long,
+    val personId: String? = null,
+    val personVersion: Long? = null,
+) : java.io.Serializable
 
 data class VerifiedStaffIdentity(
     val issuer: String,

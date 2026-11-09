@@ -4,11 +4,12 @@ The initial release supports Owners only, as confirmed by the owner. All new sta
 invitations grant full Owner access. Sessions have a seven-day absolute limit
 and a three-day inactivity limit. Staff identity is separate from guest records.
 
-The approved shared app will separate Google identity from independent business
-memberships under [#45](https://github.com/skrce/villas/issues/45). The implementation
-below still serves one configured business. It does not yet provide shared login,
-business switching or database row security. Read [the tenancy contract](contracts/multi-tenancy.md)
-for the ordered conversion and authorization requirements.
+V17 separates canonical Google identity from independent Owner memberships under
+[#45](https://github.com/skrce/villas/issues/45). Staff management can name an explicitly
+authorized business. Booking/guest/room/financial workflows and the console still use
+the configured compatibility business until #46/#47. Database row security and shared
+hosting remain pending. Read [shared identity](contracts/shared-identity.md) and
+[the tenancy contract](contracts/multi-tenancy.md) before extending authentication.
 
 ## Account foundation
 
@@ -24,10 +25,12 @@ does not send an email. The owner can tell the invitee to visit Villas and sign 
 An inactive account needs a new invitation before it can be reactivated. Current
 security generations invalidate identities issued before revocation or deactivation.
 
-Canonical staff IDs are random UUIDs. Provider issuer and subject identify the Google
-account after validation. Email is an invitation match and contact field. Google's
-subject remains stable when its email changes. A verified rename keeps the staff ID
-and increments its security generation. [Google OIDC documentation](https://developers.google.com/identity/openid-connect/openid-connect).
+Canonical provider identity and per-business membership are distinct. New IDs are
+random UUIDs; migrated membership IDs remain unchanged because immutable history
+references them. Provider issuer and subject identify the Google account. Email is
+an invitation/contact field and never merges identities. A verified rename retains
+both kinds of ID and invalidates older global logins; membership revocation affects
+only that business's captured grants. [Google OIDC documentation](https://developers.google.com/identity/openid-connect/openid-connect).
 
 ## Initial owner setup
 
@@ -38,12 +41,12 @@ Put `VILLAS_INITIAL_OWNER_EMAIL` in the ignored `.env.local` configuration, then
 node scripts/run-api.mjs --bootstrap-owner
 ```
 
-This starts no HTTP listener. It creates a pending invitation only if there are no
-staff accounts. A repeat with the same email returns the existing unexpired
+This starts no HTTP listener. It creates a pending invitation only if the selected
+business has no staff accounts. A repeat with the same email returns the existing unexpired
 invitation. A different email is refused while one is pending. To correct an
 unclaimed setup, use the explicit `--replace-pending` flag. It revokes the old
 pending invitation and records the replacement. An expired setup can be retried.
-After an account exists, bootstrap cannot add or replace an owner.
+After an account exists in that business, bootstrap cannot add or replace its Owner.
 
 The production equivalent runs the same packaged `bootstrap-owner` command with
 Villas-specific database settings and `VILLAS_INITIAL_OWNER_EMAIL`. It never uses
@@ -54,11 +57,14 @@ arguments, source control, screenshots, and chat.
 
 Spring Security owns authorization-code exchange and state, nonce, issuer, audience,
 expiry and signature validation. Invitations are checked only after provider validation.
-The server replaces provider authentication with a minimal canonical staff identity;
-provider access/ID tokens are not retained in the database session. A fresh session ID
+The server replaces provider authentication with a canonical identity ID/generation
+and independent membership ID/generation grants. It stores no active-business selector;
+provider access/ID tokens and provider profiles are not retained in the database session. A fresh session ID
 is issued on login. JDBC sessions are created by V6, with runtime schema initialization
-disabled. The server checks current membership and security generation on every request.
-Inventory and guest writes lock and recheck the Owner inside the write transaction.
+disabled. The server checks the canonical identity on protected requests and resolves
+business requests against live membership and captured generation. Writes lock and
+recheck the person, active business and Owner inside the transaction. V17 purges the
+old session representation during migration, so existing staff sign in again.
 
 Production uses `__Host-villas`, Path=/, Secure, HttpOnly and SameSite=Lax, with no
 Domain attribute. Explicit HTTP loopback development uses `VILLAS_LOCAL_SESSION`.
@@ -76,6 +82,37 @@ confirmed only after the server session is read back as anonymous.
 Guest creation and search use JSON bodies so contacts do not appear in normal URLs.
 Audit events contain surrogate actor/subject IDs and UTC timestamps. The legacy GET
 search aliases remain protected for compatibility but the generated client uses POST.
+
+## Business onboarding and recovery
+
+For the first compatibility business, use `bootstrap-owner` above. For another
+business, migrate V17 and use the private offline `onboard-business` command. In a
+private checkout, put these inputs in its ignored configuration, then run:
+
+```sh
+node scripts/run-api.mjs --onboard-business
+```
+
+`VILLAS_NEW_BUSINESS_ID` is a stable lowercase/digit/hyphen ID of 1-64 characters.
+`VILLAS_NEW_BUSINESS_NAME` is the display name, at most 100 characters with no control
+characters. `VILLAS_INITIAL_OWNER_EMAIL` is the first Owner's private invitation email.
+All three support `_FILE` inputs to the packaged command. Runtime database credentials
+cannot onboard; use the separate migration/operator authority. The local wrapper
+always uses its checkout's private database; hosted operator jobs remain #48.
+
+The command creates the business, coordination row, pending invitation, operator
+audit event and hashed setup receipt atomically. It starts no HTTP listener, sends
+no message and creates no account/password. Repeat identical inputs after an uncertain
+result. A recorded operation reports its observed invitation state without reissuing
+it; changed setup details are refused. Inspect the existing business before choosing
+a new ID. An expired/revoked invitation uses explicit recovery rather than another
+onboarding operation.
+
+Set `VILLAS_OWNER_BUSINESS_ID` privately for `bootstrap-owner` or `recover-owner` to
+target an existing business. Omit it only for the configured compatibility business.
+It is separate from `VILLAS_PROPERTY_ID`, which still binds the legacy domain workflow
+and must not be changed to retarget that database. First-Owner recovery requires the
+same privileged database authority and Google verification as initial setup.
 
 ## Recovery and deferred Google setup
 
@@ -98,10 +135,18 @@ The intended local Google callback is
 Villas-specific Google project. A web client requires its exact callback registration
 and consent configuration. Store its client ID/secret only in private server
 configuration. Actual setup and real sign-in/revocation/recovery tests remain open.
+Use one Google client and canonical callback per environment for all businesses.
 Synthetic identity tests prove the local account contract and are not Google evidence.
 [Google setup requirements](https://developers.google.com/identity/openid-connect/openid-connect#settingup).
 
 ## Verification
+
+`SharedIdentityMigrationIT` proves provider-key grouping without email merging,
+complete membership/financial/audit preservation and atomic schema/session rollback.
+`SharedIdentitiesIT` covers independent grants, reactivation, last Owners, canonical
+renames, forged scope, concurrent admission/revocation, active-business waits,
+all-business login audit rollback and packaged operator retry/privacy behavior.
+
 
 `StaffDirectoryIT` uses the pinned PostgreSQL image and real migrations. It checks
 explicit bootstrap, exact invitation matching, account mismatch, expiry, replay,
@@ -124,7 +169,8 @@ a clean new attempt. A public random login generation, separate from the cookie/
 ID, changes on every sign-in so same-Owner reauthentication also rejects old actions.
 Logout hides the current workspace immediately and pauses competing session refreshes
 until its server response/read-back completes. Pending booking promises are scoped to
-the login generation; durable recovery keys remain scoped to the canonical Owner.
+the login generation; durable recovery keys remain scoped to the membership Owner. #47 adds explicit
+business namespaces to browser state and recovery.
 
 ## Release runtime
 

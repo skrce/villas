@@ -18,7 +18,7 @@ class BusinessRegistryMigrationIT {
     private fun connection(): Connection =
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
 
-    private fun migrate(target: String = "latest", name: String = "Villa Rosa") =
+    private fun migrate(target: String = "16", name: String = "Villa Rosa") =
         DatabaseMigrations.configured(
                 database.jdbcUrl,
                 database.username,
@@ -192,7 +192,7 @@ class BusinessRegistryMigrationIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(1)
+            .isEqualTo(2)
         PropertyDatabaseBinding(source)
     }
 

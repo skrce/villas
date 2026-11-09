@@ -11,55 +11,14 @@ All URIs are relative to */api/v1*
 
 
 
+<a id="listmaintenanceblocks"></a>
 ## listMaintenanceBlocks
 
 > MaintenancePage listMaintenanceBlocks(startDate, endDate, status, afterId, limit, roomId)
 
 Read a bounded maintenance calendar page
 
-### Example
-
-```ts
-import {
-  Configuration,
-  InventoryApi,
-} from '';
-import type { ListMaintenanceBlocksRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new InventoryApi(config);
-
-  const body = {
-    // string
-    startDate: startDate_example,
-    // string
-    endDate: endDate_example,
-    // 'ACTIVE' | 'CANCELLED' (optional)
-    status: status_example,
-    // number (optional)
-    afterId: 56,
-    // number (optional)
-    limit: 56,
-    // number (optional)
-    roomId: 56,
-  } satisfies ListMaintenanceBlocksRequest;
-
-  try {
-    const data = await api.listMaintenanceBlocks(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -96,55 +55,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="listreservations"></a>
 ## listReservations
 
 > ReservationPage listReservations(startDate, endDate, status, afterId, limit, roomId)
 
 Read a bounded overlapping-stay calendar page
 
-### Example
-
-```ts
-import {
-  Configuration,
-  InventoryApi,
-} from '';
-import type { ListReservationsRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new InventoryApi(config);
-
-  const body = {
-    // string
-    startDate: startDate_example,
-    // string
-    endDate: endDate_example,
-    // 'ACTIVE' | 'CANCELLED' (optional)
-    status: status_example,
-    // number (optional)
-    afterId: 56,
-    // number (optional)
-    limit: 56,
-    // number (optional)
-    roomId: 56,
-  } satisfies ListReservationsRequest;
-
-  try {
-    const data = await api.listReservations(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -181,49 +99,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="maintenancehistory"></a>
 ## maintenanceHistory
 
 > InventoryEventPage maintenanceHistory(blockId, afterId, limit)
 
 Read a bounded maintenance event page
 
-### Example
-
-```ts
-import {
-  Configuration,
-  InventoryApi,
-} from '';
-import type { MaintenanceHistoryRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new InventoryApi(config);
-
-  const body = {
-    // number
-    blockId: 56,
-    // string (optional)
-    afterId: afterId_example,
-    // number (optional)
-    limit: 56,
-  } satisfies MaintenanceHistoryRequest;
-
-  try {
-    const data = await api.maintenanceHistory(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -257,49 +140,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="reservationhistory"></a>
 ## reservationHistory
 
 > InventoryEventPage reservationHistory(reservationId, afterId, limit)
 
 Read a bounded reservation event page
 
-### Example
-
-```ts
-import {
-  Configuration,
-  InventoryApi,
-} from '';
-import type { ReservationHistoryRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new InventoryApi(config);
-
-  const body = {
-    // number
-    reservationId: 56,
-    // string (optional)
-    afterId: afterId_example,
-    // number (optional)
-    limit: 56,
-  } satisfies ReservationHistoryRequest;
-
-  try {
-    const data = await api.reservationHistory(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 

@@ -1,0 +1,8 @@
+{
+  "files": {
+    "README.mustache": {
+      "templateType": "SupportingFiles",
+      "destinationFilename": "README.md"
+    }
+  }
+}

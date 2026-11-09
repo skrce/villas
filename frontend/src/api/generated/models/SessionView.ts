@@ -13,6 +13,20 @@
  */
 
 import { mapValues } from '../runtime';
+import type { BusinessMembershipView } from './BusinessMembershipView';
+import {
+    BusinessMembershipViewFromJSON,
+    BusinessMembershipViewFromJSONTyped,
+    BusinessMembershipViewToJSON,
+    BusinessMembershipViewToJSONTyped,
+} from './BusinessMembershipView';
+import type { IdentityView } from './IdentityView';
+import {
+    IdentityViewFromJSON,
+    IdentityViewFromJSONTyped,
+    IdentityViewToJSON,
+    IdentityViewToJSONTyped,
+} from './IdentityView';
 import type { StaffView } from './StaffView';
 import {
     StaffViewFromJSON,
@@ -53,6 +67,18 @@ export interface SessionView {
     generation?: string | null;
     /**
      * 
+     * @type {IdentityView}
+     * @memberof SessionView
+     */
+    identity?: IdentityView | null;
+    /**
+     * 
+     * @type {Array<BusinessMembershipView>}
+     * @memberof SessionView
+     */
+    memberships?: Array<BusinessMembershipView>;
+    /**
+     * 
      * @type {Array<string>}
      * @memberof SessionView
      */
@@ -62,13 +88,13 @@ export interface SessionView {
      * @type {string}
      * @memberof SessionView
      */
-    propertyId?: string;
+    propertyId?: string | null;
     /**
      * 
      * @type {string}
      * @memberof SessionView
      */
-    propertyName?: string;
+    propertyName?: string | null;
     /**
      * 
      * @type {string}
@@ -104,6 +130,8 @@ export function SessionViewFromJSONTyped(json: any, ignoreDiscriminator: boolean
         'csrfToken': json['csrfToken'] == null ? undefined : json['csrfToken'],
         'expiresAt': json['expiresAt'] == null ? undefined : (new Date(json['expiresAt'])),
         'generation': json['generation'] == null ? undefined : json['generation'],
+        'identity': json['identity'] == null ? undefined : IdentityViewFromJSON(json['identity']),
+        'memberships': json['memberships'] == null ? undefined : ((json['memberships'] as Array<any>).map(BusinessMembershipViewFromJSON)),
         'permissions': json['permissions'] == null ? undefined : json['permissions'],
         'propertyId': json['propertyId'] == null ? undefined : json['propertyId'],
         'propertyName': json['propertyName'] == null ? undefined : json['propertyName'],
@@ -127,6 +155,8 @@ export function SessionViewToJSONTyped(value?: SessionView | null, ignoreDiscrim
         'csrfToken': value['csrfToken'],
         'expiresAt': value['expiresAt'] == null ? value['expiresAt'] : value['expiresAt'].toISOString(),
         'generation': value['generation'],
+        'identity': IdentityViewToJSON(value['identity']),
+        'memberships': value['memberships'] == null ? undefined : ((value['memberships'] as Array<any>).map(BusinessMembershipViewToJSON)),
         'permissions': value['permissions'],
         'propertyId': value['propertyId'],
         'propertyName': value['propertyName'],

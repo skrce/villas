@@ -3,7 +3,6 @@ package com.villarosa
 import com.villarosa.exception.DomainException
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
-import com.villarosa.security.StaffAuthentication
 import com.villarosa.service.*
 import java.time.Instant
 import java.util.UUID
@@ -464,7 +463,7 @@ constructor(
             executor
                 .submit {
                     SecurityContextHolder.getContext().authentication =
-                        StaffAuthentication(TestData.ownerIdentity())
+                        TestData.authentication(TestData.ownerIdentity())
                     try {
                         action()
                     } finally {

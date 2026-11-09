@@ -7,8 +7,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 
-class StaffAuthentication(val identity: StaffIdentity) :
-    AbstractAuthenticationToken(listOf(SimpleGrantedAuthority("ROLE_OWNER"))) {
+class StaffAuthentication(val identity: StaffSessionIdentity) :
+    AbstractAuthenticationToken(listOf(SimpleGrantedAuthority("ROLE_STAFF"))) {
     init {
         isAuthenticated = true
     }
@@ -20,14 +20,32 @@ class StaffAuthentication(val identity: StaffIdentity) :
     override fun getName(): String = identity.id
 
     companion object {
-        private const val serialVersionUID = 1L
+        private const val serialVersionUID = 2L
     }
 }
 
 @Component
 class CurrentStaff {
     fun optional(): StaffIdentity? =
+        (SecurityContextHolder.getContext().authentication as? StaffAuthentication)
+            ?.identity
+            ?.let { login ->
+                login.memberships[com.villarosa.service.PropertyScope.ID]?.copy(
+                    personId = login.id,
+                    personVersion = login.securityVersion,
+                )
+            }
+
+    fun optionalSession(): StaffSessionIdentity? =
         (SecurityContextHolder.getContext().authentication as? StaffAuthentication)?.identity
+
+    fun session(): StaffSessionIdentity =
+        optionalSession()
+            ?: throw DomainException(
+                "AUTHENTICATION_REQUIRED",
+                HttpStatus.UNAUTHORIZED,
+                "Sign in to continue.",
+            )
 
     fun identity(): StaffIdentity =
         optional()

@@ -319,6 +319,13 @@ constructor(
             )
             .isEqualTo("STAFF_ALREADY_ACTIVE")
         TestData.registerBusiness(jdbc, "other")
+        TestData.registerIdentity(
+            jdbc,
+            "synthetic-other-person",
+            "https://accounts.google.com",
+            "synthetic-other",
+            "other@example.test",
+        )
         val other =
             staff.saveAndFlush(
                 StaffAccount(

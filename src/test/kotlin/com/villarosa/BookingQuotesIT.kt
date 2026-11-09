@@ -3,7 +3,6 @@ package com.villarosa
 import com.villarosa.exception.DomainException
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
-import com.villarosa.security.StaffAuthentication
 import com.villarosa.service.*
 import java.time.*
 import java.util.UUID
@@ -618,14 +617,14 @@ constructor(
     fun otherOwnersCannotReadOrConfirmAnUnacceptedQuoteButCanReadAcceptedPropertyPrices() {
         val quote = quote()
         SecurityContextHolder.getContext().authentication =
-            StaffAuthentication(TestData.ownerIdentity(1))
+            TestData.authentication(TestData.ownerIdentity(1))
         assertThat(failure { quotes.get(quote.id) }.code).isEqualTo("NOT_FOUND")
         assertThat(failure { confirm(quote) }.code).isEqualTo("NOT_FOUND")
         SecurityContextHolder.getContext().authentication =
-            StaffAuthentication(TestData.ownerIdentity())
+            TestData.authentication(TestData.ownerIdentity())
         val booking = confirm(quote)
         SecurityContextHolder.getContext().authentication =
-            StaffAuthentication(TestData.ownerIdentity(1))
+            TestData.authentication(TestData.ownerIdentity(1))
         assertThat(quotes.currentPrice(booking.resourceId)!!.quote.price.totalCents)
             .isEqualTo(10002)
         jdbc.update(
@@ -694,7 +693,7 @@ constructor(
             val reserve =
                 executor.submit<String> {
                     SecurityContextHolder.getContext().authentication =
-                        StaffAuthentication(TestData.ownerIdentity())
+                        TestData.authentication(TestData.ownerIdentity())
                     try {
                         check(start.await(10, TimeUnit.SECONDS))
                         confirm(quote)
@@ -708,7 +707,7 @@ constructor(
             val update =
                 executor.submit<Unit> {
                     SecurityContextHolder.getContext().authentication =
-                        StaffAuthentication(TestData.ownerIdentity(1))
+                        TestData.authentication(TestData.ownerIdentity(1))
                     try {
                         check(start.await(10, TimeUnit.SECONDS))
                         rates.update(room.id!!, 1, "EUR", 6001, emptyList())

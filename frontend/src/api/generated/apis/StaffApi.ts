@@ -15,6 +15,7 @@
 
 import * as runtime from '../runtime';
 import type {
+  BusinessMembershipView,
   ErrorResponse,
   InvitationView,
   InviteOwnerRequest,
@@ -23,6 +24,8 @@ import type {
   StaffView,
 } from '../models/index';
 import {
+    BusinessMembershipViewFromJSON,
+    BusinessMembershipViewToJSON,
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
     InvitationViewFromJSON,
@@ -231,6 +234,35 @@ export class StaffApi extends runtime.BaseAPI {
      */
     async logoutStaff(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<void> {
         await this.logoutStaffRaw(initOverrides);
+    }
+
+    /**
+     * Read only the caller\'s current authorized business memberships
+     */
+    async myBusinessMembershipsRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<BusinessMembershipView>>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/auth/memberships`;
+
+        const response = await this.request({
+            path: urlPath,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(BusinessMembershipViewFromJSON));
+    }
+
+    /**
+     * Read only the caller\'s current authorized business memberships
+     */
+    async myBusinessMemberships(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<BusinessMembershipView>> {
+        const response = await this.myBusinessMembershipsRaw(initOverrides);
+        return await response.value();
     }
 
     /**

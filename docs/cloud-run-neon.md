@@ -6,8 +6,9 @@ separate, and ABL remains a separate app with its own resources. Use the same
 personal Google/Neon accounts as ABL, never employer credentials or ABL secrets/state.
 
 The conversion is in progress under [#44-#49](contracts/multi-tenancy.md). The current
-app still serves its configured business. Shared Google identity, request/database
-isolation, browser switching and shared cloud resources are not yet implemented.
+business-data workflows still serve the configured workspace. Shared Google identity
+and explicitly scoped staff membership management are implemented in #45; domain
+request/database isolation, browser switching and shared cloud resources remain pending.
 Do not deploy this intermediate revision as a shared service.
 
 The earlier per-business Terraform modules remain a locally tested reference until
@@ -55,7 +56,7 @@ The full gate covers the existing staff workflows and the new native schema test
 Cloud tests currently validate the legacy modules with mock providers and backend
 initialization disabled. They do not prove that shared resources are implemented or
 that actual provider IAM/configuration works. The image rehearsal currently uses
-the configured single-business app. Complete two-business image/restore qualification
+the configured-business console. Complete two-business image/restore qualification
 is required in #49.
 
 The first migration adds a registry and parent/actor constraints while retaining

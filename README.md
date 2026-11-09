@@ -1,6 +1,6 @@
 # Villas
 
-Staff management for Villa Rosa, starting in North Macedonia with EUR and the
+Staff management for accommodation businesses, starting in North Macedonia with EUR and the
 `Europe/Skopje` property timezone. The application uses Kotlin/Spring, Java 21,
 React/TypeScript/Vite, and PostgreSQL.
 
@@ -25,8 +25,9 @@ Release work starts in the [deployment guide](docs/deployment.md),
 Milestone 10 is active. The approved target is one shared app and PostgreSQL database
 per environment in Frankfurt, with independent accommodation businesses. The
 [shared-tenancy rollout](docs/contracts/multi-tenancy.md) is in progress under #44-#49.
-The current runtime still serves one configured business; shared login, database
-row security and business switching are not yet implemented. Live deployment is blocked. [Cloud Run + Neon setup and updates](docs/cloud-run-neon.md)
+[Shared identity and staff memberships](docs/contracts/shared-identity.md) are implemented.
+Business-data workflows and the console still serve one configured business until
+#46/#47 add domain isolation, row security and browser switching. Live deployment is blocked. [Cloud Run + Neon setup and updates](docs/cloud-run-neon.md)
 contains the prepared Terraform, keyless image publication and operator rollout.
 See [the PostgreSQL transition](docs/postgresql-transition.md).
 
@@ -72,7 +73,8 @@ Work in a fresh standalone Villas checkout for PostgreSQL. Legacy MariaDB volume
 and their path-bound state remain intact; the launcher refuses their old project
 identity. During the first tenancy step, `VILLAS_PROPERTY_ID` and
 `VILLAS_PROPERTY_NAME` still configure the local compatibility business. This is
-not shared runtime routing or the new hosting topology. From the checkout root:
+not shared domain routing or the new hosting topology. The name seeds the saved
+registry label and does not rename an already registered business. From the checkout root:
 
 ```sh
 cp .env.local.example .env.local

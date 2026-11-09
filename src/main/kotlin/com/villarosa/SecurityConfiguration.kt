@@ -70,7 +70,7 @@ class SecurityConfiguration {
         http: HttpSecurity,
         settings: AuthenticationSettings,
         access: StaffAccess,
-        directory: StaffDirectory,
+        shared: SharedIdentities,
         clock: Clock,
         contexts: DelegatingSecurityContextRepository,
         csrf: HttpSessionCsrfTokenRepository,
@@ -123,7 +123,7 @@ class SecurityConfiguration {
                 if (settings.mode != "production")
                     it.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                         .permitAll()
-                it.anyRequest().hasRole("OWNER")
+                it.anyRequest().hasRole("STAFF")
             }
             .oauth2Login {
                 it.loginPage("${settings.publicOrigin}/login")
@@ -139,8 +139,8 @@ class SecurityConfiguration {
                             oauth.name,
                         )
                         try {
-                            val account =
-                                directory.accept(
+                            val identity =
+                                shared.signIn(
                                     VerifiedStaffIdentity(
                                         user.idToken.issuer.toString(),
                                         user.subject.orEmpty(),
@@ -149,7 +149,7 @@ class SecurityConfiguration {
                                     )
                                 )
                             val context = SecurityContextHolder.createEmptyContext()
-                            context.authentication = StaffAuthentication(account.identity())
+                            context.authentication = StaffAuthentication(identity)
                             SecurityContextHolder.setContext(context)
                             val session = request.getSession(true)
                             session.maxInactiveInterval =

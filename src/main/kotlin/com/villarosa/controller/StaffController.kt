@@ -27,8 +27,10 @@ data class SessionView(
     val permissions: List<String> = emptyList(),
     val provider: String = "google",
     val generation: String? = null,
-    val propertyId: String = com.villarosa.service.PropertyScope.ID,
-    val propertyName: String = com.villarosa.service.PropertyScope.NAME,
+    val propertyId: String? = null,
+    val propertyName: String? = null,
+    val identity: IdentityView? = null,
+    val memberships: List<BusinessMembershipView> = emptyList(),
 )
 
 data class InviteOwnerRequest(@field:NotBlank @field:Email @field:Size(max = 254) val email: String)
@@ -49,48 +51,63 @@ class StaffController(
     @Operation(operationId = "staffSession", summary = "Read the current server-side staff session")
     fun session(request: HttpServletRequest): SessionView {
         val identity =
-            current.optional()
+            current.optionalSession()
                 ?: return SessionView(
                     false,
                     provider = if (settings.synthetic) "synthetic" else "google",
                 )
-        val account = access.current(identity)
+        val person = access.person(identity)
+        val memberships = access.memberships(identity)
+        val workspace = memberships.find { it.businessId == com.villarosa.service.PropertyScope.ID }
         val authenticatedAt =
             request.getSession(false).getAttribute(StaffSessionFilter.AUTHENTICATED_AT) as Long
         val csrf = request.getAttribute(CsrfToken::class.java.name) as CsrfToken
         return SessionView(
             true,
-            account.view(),
+            workspace?.staff,
             csrf.token,
             Instant.ofEpochMilli(authenticatedAt).plus(AuthenticationSettings.ABSOLUTE_LIMIT),
-            listOf(
-                "guests:read",
-                "guests:write",
-                "rooms:read",
-                "rooms:write",
-                "rates:read",
-                "rates:write",
-                "reservations:read",
-                "reservations:write",
-                "maintenance:read",
-                "maintenance:write",
-                "audit:read",
-                "staff:manage",
-            ),
+            if (workspace == null) emptyList()
+            else
+                listOf(
+                    "guests:read",
+                    "guests:write",
+                    "rooms:read",
+                    "rooms:write",
+                    "rates:read",
+                    "rates:write",
+                    "reservations:read",
+                    "reservations:write",
+                    "maintenance:read",
+                    "maintenance:write",
+                    "audit:read",
+                    "staff:manage",
+                ),
             if (settings.synthetic) "synthetic" else "google",
             request.getSession(false).getAttribute(StaffSessionFilter.GENERATION) as String,
+            workspace?.businessId,
+            workspace?.businessName,
+            IdentityView(person.id, person.email),
+            memberships,
         )
     }
 
     @PostMapping("/api/v1/auth/logout")
     @Operation(operationId = "logoutStaff", summary = "Invalidate the current staff session")
     fun logout(request: HttpServletRequest, response: HttpServletResponse): ResponseEntity<Void> {
-        current.identity()
+        current.session()
         SecurityContextLogoutHandler()
             .apply { setSecurityContextRepository(contexts) }
             .logout(request, response, SecurityContextHolder.getContext().authentication)
         return ResponseEntity.noContent().build()
     }
+
+    @GetMapping("/api/v1/auth/memberships")
+    @Operation(
+        operationId = "myBusinessMemberships",
+        summary = "Read only the caller's current authorized business memberships",
+    )
+    fun memberships() = access.memberships(current.session())
 
     @GetMapping("/api/v1/staff")
     @Operation(operationId = "listStaff", summary = "Read Owner accounts")

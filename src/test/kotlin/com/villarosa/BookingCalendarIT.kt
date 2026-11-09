@@ -4,7 +4,6 @@ import com.villarosa.exception.DomainException
 import com.villarosa.exception.ExceptionHandler.ClientException
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
-import com.villarosa.security.StaffAuthentication
 import com.villarosa.service.*
 import java.time.LocalDate
 import java.util.UUID
@@ -165,7 +164,7 @@ constructor(
                     pool
                         .submit {
                             SecurityContextHolder.getContext().authentication =
-                                StaffAuthentication(TestData.ownerIdentity())
+                                TestData.authentication(TestData.ownerIdentity())
                             try {
                                 service.cancel(original.resourceId, 0, key())
                             } finally {

@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { refreshSession, startSignIn, useStaffSession } from "../api/session";
+import {
+  logout,
+  refreshSession,
+  startSignIn,
+  useStaffSession,
+} from "../api/session";
 export function Login() {
   const session = useStaffSession();
   const [error, setError] = useState("");
@@ -30,7 +35,8 @@ export function Login() {
                   leaving this browser.
                 </p>
               )}
-            {session.status === "unavailable" && (
+            {(session.status === "unavailable" ||
+              session.status === "restricted") && (
               <p role="alert">{session.reason}</p>
             )}
             {new URLSearchParams(window.location.search).has("error") && (
@@ -68,6 +74,11 @@ export function Login() {
             >
               Check session
             </button>
+            {session.status === "restricted" && (
+              <button className="btn" onClick={() => void logout()}>
+                Sign out
+              </button>
+            )}
             {error && (
               <p role="alert">
                 {error}{" "}

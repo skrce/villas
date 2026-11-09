@@ -6,7 +6,8 @@ export type Staff = Required<Pick<StaffView, 'id' | 'email' | 'role' | 'active' 
 export type SessionState =
   | { status: 'loading' }
   | { status: 'anonymous' | 'unavailable'; reason?: string; provider: 'google' | 'synthetic' }
-  | { status: 'authenticated'; staff: Staff; generation: string; expiresAt: Date; permissions: string[]; propertyName?: string; provider: 'google' | 'synthetic' };
+  | { status: 'restricted'; reason: string; identityId: string; provider: 'google' | 'synthetic' }
+  | { status: 'authenticated'; identityId?: string; staff: Staff; generation: string; expiresAt: Date; permissions: string[]; propertyName?: string; provider: 'google' | 'synthetic' };
 
 let state: SessionState = { status: 'loading' };
 let csrf: string | undefined;
@@ -15,11 +16,18 @@ let refreshSequence = 0;
 let logoutInProgress = false;
 let locallyLocked = false;
 let ownerKey = 'anonymous';
+let identityKey: string | undefined;
 const listeners = new Set<() => void>();
 const notify = (next: SessionState) => {
   const previousId = state.status === 'authenticated' ? state.staff.id : undefined;
   const nextId = next.status === 'authenticated' ? next.staff.id : undefined;
-  if (nextId) ownerKey = nextId;
+  if (next.status === 'authenticated') {
+    ownerKey = next.staff.id;
+    identityKey = next.identityId;
+  } else if (next.status === 'restricted') {
+    if (!identityKey || identityKey !== next.identityId) ownerKey = `identity:${next.identityId}`;
+    identityKey = next.identityId;
+  }
   const changedGeneration = state.status === 'authenticated' && next.status === 'authenticated' && state.generation !== next.generation;
   if (previousId !== nextId || next.status !== 'authenticated' || changedGeneration) epoch++;
   state = next;
@@ -82,14 +90,21 @@ export const refreshSession = async (options?: { explicit: boolean }) => {
     if (sequence !== refreshSequence) return;
     const provider = body.provider === 'synthetic' ? 'synthetic' : 'google';
     if (!body.authenticated) { csrf = undefined; notify({ status: 'anonymous', provider }); return; }
-    const staff = body.staff as Partial<Staff> | null;
     const expiry = new Date(String(body.expiresAt));
+    if (body.staff === null && typeof body.csrfToken === 'string' && body.csrfToken && typeof body.generation === 'string' && body.generation && !Number.isNaN(expiry.getTime())
+      && body.identity && typeof body.identity === 'object' && 'id' in body.identity && typeof body.identity.id === 'string' && body.identity.id
+      && 'email' in body.identity && typeof body.identity.email === 'string' && body.identity.email) {
+      csrf = body.csrfToken;
+      notify({ status: 'restricted', identityId: body.identity.id, reason: 'This workspace is unavailable for your account. Ask an Owner for access or sign in with another account.', provider });
+      return;
+    }
+    const staff = body.staff as Partial<Staff> | null;
     if (typeof body.generation !== 'string' || !body.generation || !staff || typeof staff.id !== 'string' || !staff.id || typeof staff.email !== 'string' || staff.role !== 'OWNER' || staff.active !== true
       || typeof staff.version !== 'number' || !Number.isSafeInteger(staff.version) || staff.version < 0
       || typeof body.csrfToken !== 'string' || !body.csrfToken || Number.isNaN(expiry.getTime())
       || !Array.isArray(body.permissions) || !body.permissions.every((permission) => typeof permission === 'string')) throw new Error('The session response could not be confirmed.');
     csrf = body.csrfToken;
-    notify({ status: 'authenticated', staff: staff as Staff, generation: body.generation, expiresAt: expiry, permissions: body.permissions, propertyName: typeof body.propertyName === 'string' ? body.propertyName : undefined, provider });
+    notify({ status: 'authenticated', identityId: body.identity && typeof body.identity === 'object' && 'id' in body.identity && typeof body.identity.id === 'string' ? body.identity.id : undefined, staff: staff as Staff, generation: body.generation, expiresAt: expiry, permissions: body.permissions, propertyName: typeof body.propertyName === 'string' ? body.propertyName : undefined, provider });
   } catch (error) {
     if (sequence !== refreshSequence) return;
     csrf = undefined;

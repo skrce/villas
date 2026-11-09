@@ -8,53 +8,14 @@ All URIs are relative to */api/v1*
 
 
 
+<a id="bookingcalendar"></a>
 ## bookingCalendar
 
 > BookingCalendarPage bookingCalendar(startDate, endDate, afterRoomId, limit, includeArchived)
 
 Read a bounded consistent room calendar of active stays and maintenance
 
-### Example
-
-```ts
-import {
-  Configuration,
-  CalendarApi,
-} from '';
-import type { BookingCalendarRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new CalendarApi(config);
-
-  const body = {
-    // string
-    startDate: startDate_example,
-    // string
-    endDate: endDate_example,
-    // number (optional)
-    afterRoomId: 56,
-    // number (optional)
-    limit: 56,
-    // boolean (optional)
-    includeArchived: true,
-  } satisfies BookingCalendarRequest;
-
-  try {
-    const data = await api.bookingCalendar(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 

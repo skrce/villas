@@ -7,8 +7,9 @@ with independent business memberships. Staging, production and ABL remain separa
 The same personal accounts as ABL may own Villas resources. Daily encrypted backups
 retain seven days, with 24-hour loss/recovery targets.
 
-The engine transition below remains in use. Shared identity, request/database isolation,
-browser switching and shared hosting are pending under [the tenancy contract](contracts/multi-tenancy.md).
+The engine transition below remains in use. Shared identity/staff membership management
+is implemented in V17. Domain request/database isolation, browser switching and shared
+hosting remain pending under [the tenancy contract](contracts/multi-tenancy.md).
 Live deployment is blocked; use [the current hosting guide](cloud-run-neon.md).
 
 ## Existing data and schema history
@@ -41,8 +42,9 @@ and a `VILLAS_PROPERTY_NAME` of at most 100 characters. The default local busine
 `villa-rosa` / `Villa Rosa`. Flyway initializes matching defaults and the staff lock.
 `property_identity` binds the database to that ID; application startup rejects a
 mismatch. V16 registers that business and requires it to be active at startup.
-The compatibility runtime still serves its configured business. Shared identity,
-authorization, row security and a business switcher remain later implementation steps.
+The compatibility domain workflows still serve their configured business. V17 provides
+shared identity and explicit staff membership authorization; domain row security and
+a business switcher remain later implementation steps.
 
 The browser gate runs the entire workflow with a non-default business ID and name.
 Native checks cover booking races, exact prices/ledger balances, Unicode contacts,

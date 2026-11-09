@@ -323,7 +323,7 @@ constructor(
             val results = actions.mapIndexed { index, action ->
                 executor.submit<String> {
                     SecurityContextHolder.getContext().authentication =
-                        StaffAuthentication(TestData.ownerIdentity(index))
+                        TestData.authentication(TestData.ownerIdentity(index))
                     try {
                         check(start.await(10, TimeUnit.SECONDS))
                         action()
@@ -359,7 +359,7 @@ constructor(
     fun everyReadAndWriteRejectsAnUnrecognizedStaffIdentityWithoutLeakingContacts() {
         val id = guest(phone = "070123456")
         SecurityContextHolder.getContext().authentication =
-            StaffAuthentication(StaffIdentity(UUID.randomUUID().toString(), 0))
+            TestData.authentication(StaffIdentity(UUID.randomUUID().toString(), 0))
         val profile = GuestProfile("Private", "Guest", null, null, null, null)
         for (action in
             listOf<() -> Unit>(

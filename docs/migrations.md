@@ -11,6 +11,12 @@ migrations. Hibernate uses `validate`; automatic SQL/Flyway initialization is di
 Use `postgres-image.txt` for native development, CI and backup clients. The approved
 hosted database is Neon PostgreSQL 17 in Frankfurt.
 
+V17 backfills identities by provider issuer/subject, preserves all existing membership
+and actor IDs, adds identity/onboarding constraints and purges incompatible JDBC
+sessions atomically. Staff must sign in again after this upgrade. The
+[shared-identity contract](contracts/shared-identity.md) records the new session and
+membership rules. Existing V1-V16 migrations are unchanged.
+
 ## Apply locally
 
 Use a fresh checkout for the PostgreSQL transition. From its root:
@@ -29,9 +35,9 @@ Fixtures require an explicit local command and refuse existing business data.
 
 ## Histories and business binding
 
-Active migrations are V1 through V16 under `src/main/resources/db/postgresql/`.
+Active migrations are V1 through V17 under `src/main/resources/db/postgresql/`.
 They cover inventory, staff, JDBC sessions, audit, guest/room profiles, rates, quotes,
-stay operations, manual settlement, dated allocations, recovery audit and the business registry. The old
+stay operations, manual settlement, dated allocations, recovery audit, the business registry and shared identity. The old
 MariaDB history under `db/migration/` is preserved byte-for-byte and is never selected
 by the PostgreSQL runtime. No adoption or automatic cross-engine import is offered.
 See [the transition](postgresql-transition.md).

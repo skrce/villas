@@ -21,49 +21,14 @@ All URIs are relative to */api/v1*
 
 
 
+<a id="cancelstay"></a>
 ## cancelStay
 
 > OperationResult cancelStay(id, idempotencyKey, stayReasonRequest)
 
 Record a reasoned cancellation without an automatic refund
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { CancelStayRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // StayReasonRequest
-    stayReasonRequest: ...,
-  } satisfies CancelStayRequest;
-
-  try {
-    const data = await api.cancelStay(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -97,49 +62,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="changeroomreadiness"></a>
 ## changeRoomReadiness
 
 > OperationResult changeRoomReadiness(roomId, idempotencyKey, readinessChangeRequest)
 
 Record a reviewed room-readiness transition
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { ChangeRoomReadinessRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    roomId: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // ReadinessChangeRequest
-    readinessChangeRequest: ...,
-  } satisfies ChangeRoomReadinessRequest;
-
-  try {
-    const data = await api.changeRoomReadiness(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -173,49 +103,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="changestay"></a>
 ## changeStay
 
 > OperationResult changeStay(id, idempotencyKey, operationalChangeRequest)
 
 Accept a new whole-stay quote and change reviewed dates or party size
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { ChangeStayRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // OperationalChangeRequest
-    operationalChangeRequest: ...,
-  } satisfies ChangeStayRequest;
-
-  try {
-    const data = await api.changeStay(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -249,49 +144,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="checkinstay"></a>
 ## checkInStay
 
 > OperationResult checkInStay(id, idempotencyKey, checkInRequest)
 
 Record arrival within the booked dates into a reviewed clean room
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { CheckInStayRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // CheckInRequest
-    checkInRequest: ...,
-  } satisfies CheckInStayRequest;
-
-  try {
-    const data = await api.checkInStay(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -325,49 +185,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="checkoutstay"></a>
 ## checkOutStay
 
 > OperationResult checkOutStay(id, idempotencyKey, checkOutRequest)
 
 Record departure and mark its room dirty in one transaction
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { CheckOutStayRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // CheckOutRequest
-    checkOutRequest: ...,
-  } satisfies CheckOutStayRequest;
-
-  try {
-    const data = await api.checkOutStay(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -401,49 +226,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="correctstaytimes"></a>
 ## correctStayTimes
 
 > OperationResult correctStayTimes(id, idempotencyKey, actualTimesRequest)
 
 Correct actual arrival/departure times with a retained Owner reason
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { CorrectStayTimesRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // ActualTimesRequest
-    actualTimesRequest: ...,
-  } satisfies CorrectStayTimesRequest;
-
-  try {
-    const data = await api.correctStayTimes(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -477,51 +267,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="frontdesk"></a>
 ## frontDesk
 
 > FrontDeskPage frontDesk(list, afterId, limit, expectedDate)
 
 Read bounded arrival, departure, in-house and attention lists for the property day
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { FrontDeskRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // 'ARRIVALS' | 'DEPARTURES' | 'IN_HOUSE' | 'ATTENTION' (optional)
-    list: list_example,
-    // number (optional)
-    afterId: 56,
-    // number (optional)
-    limit: 56,
-    // string (optional)
-    expectedDate: expectedDate_example,
-  } satisfies FrontDeskRequest;
-
-  try {
-    const data = await api.frontDesk(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -556,51 +309,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="housekeeping"></a>
 ## housekeeping
 
 > HousekeepingPage housekeeping(afterId, limit, state, expectedDate)
 
 Read room readiness, physical occupancy and dated maintenance without guest or financial data
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { HousekeepingRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number (optional)
-    afterId: 56,
-    // number (optional)
-    limit: 56,
-    // 'DIRTY' | 'IN_PROGRESS' | 'INSPECTION' | 'CLEAN' (optional)
-    state: state_example,
-    // string (optional)
-    expectedDate: expectedDate_example,
-  } satisfies HousekeepingRequest;
-
-  try {
-    const data = await api.housekeeping(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -635,49 +351,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="movestay"></a>
 ## moveStay
 
 > OperationResult moveStay(id, idempotencyKey, operationalMoveRequest)
 
 Accept a new whole-stay quote and move a confirmed or in-house stay
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { MoveStayRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // OperationalMoveRequest
-    operationalMoveRequest: ...,
-  } satisfies MoveStayRequest;
-
-  try {
-    const data = await api.moveStay(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -711,45 +392,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="propertytimeoptions"></a>
 ## propertyTimeOptions
 
 > PropertyTimeOptions propertyTimeOptions(propertyTimeRequest)
 
 Resolve a Skopje time to explicit UTC choices, including repeated or missing daylight-saving times
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { PropertyTimeOptionsRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // PropertyTimeRequest
-    propertyTimeRequest: ...,
-  } satisfies PropertyTimeOptionsRequest;
-
-  try {
-    const data = await api.propertyTimeOptions(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -781,49 +431,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="recordnoshow"></a>
 ## recordNoShow
 
 > OperationResult recordNoShow(id, idempotencyKey, stayReasonRequest)
 
 Record a reasoned no-show after the arrival day
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { RecordNoShowRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // StayReasonRequest
-    stayReasonRequest: ...,
-  } satisfies RecordNoShowRequest;
-
-  try {
-    const data = await api.recordNoShow(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -857,51 +472,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="reservationallocations"></a>
 ## reservationAllocations
 
 > RoomAllocationPage reservationAllocations(id, afterId, limit, expectedVersion)
 
 Read versioned dated room allocations without changing the whole-stay price
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { ReservationAllocationsRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string (optional)
-    afterId: afterId_example,
-    // number (optional)
-    limit: 56,
-    // number (optional)
-    expectedVersion: 789,
-  } satisfies ReservationAllocationsRequest;
-
-  try {
-    const data = await api.reservationAllocations(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -936,45 +514,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="roomreadiness"></a>
 ## roomReadiness
 
 > ReadinessView roomReadiness(roomId)
 
 Read current room readiness without guest or financial data
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { RoomReadinessRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    roomId: 56,
-  } satisfies RoomReadinessRequest;
-
-  try {
-    const data = await api.roomReadiness(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -1006,49 +553,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="roomreadinesshistory"></a>
 ## roomReadinessHistory
 
 > ReadinessHistory roomReadinessHistory(roomId, afterId, limit)
 
 Read bounded room-readiness history
 
-### Example
-
-```ts
-import {
-  Configuration,
-  OperationsApi,
-} from '';
-import type { RoomReadinessHistoryRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new OperationsApi(config);
-
-  const body = {
-    // number
-    roomId: 56,
-    // string (optional)
-    afterId: afterId_example,
-    // number (optional)
-    limit: 56,
-  } satisfies RoomReadinessHistoryRequest;
-
-  try {
-    const data = await api.roomReadinessHistory(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 

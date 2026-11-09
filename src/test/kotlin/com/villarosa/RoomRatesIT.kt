@@ -3,7 +3,6 @@ package com.villarosa
 import com.villarosa.exception.DomainException
 import com.villarosa.repository.ApartmentRepository
 import com.villarosa.repository.model.Apartment
-import com.villarosa.security.StaffAuthentication
 import com.villarosa.service.RateService
 import com.villarosa.service.SeasonRate
 import java.util.concurrent.CountDownLatch
@@ -161,7 +160,7 @@ constructor(
                 (0..1).map { index ->
                     executor.submit<String> {
                         SecurityContextHolder.getContext().authentication =
-                            StaffAuthentication(TestData.ownerIdentity(index))
+                            TestData.authentication(TestData.ownerIdentity(index))
                         try {
                             check(start.await(10, TimeUnit.SECONDS))
                             rates.update(id, 0, "EUR", 5000L + index, listOf(season()))
