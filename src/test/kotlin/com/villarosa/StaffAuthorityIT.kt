@@ -55,7 +55,7 @@ constructor(
                 result =
                     executor.submit<String> {
                         SecurityContextHolder.getContext().authentication =
-                            StaffAuthentication(TestData.ownerIdentity())
+                            TestData.authentication(TestData.ownerIdentity())
                         ready.countDown()
                         try {
                             customers.createCustomer("Test", "Synthetic", "000", "Synthetic")

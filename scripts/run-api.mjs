@@ -5,12 +5,13 @@ import { localDatabase, root } from './local-db.mjs';
 
 if (!process.env.VILLAS_LOCAL_INSTANCE && existsSync(`${root}/.env.local`)) loadEnvFile(`${root}/.env.local`);
 const migrate = process.argv.includes('--migrate');
+const onboard = process.argv.includes('--onboard-business');
 const recovery = process.argv.includes('--recover-owner');
 const bootstrap = process.argv.includes('--bootstrap-owner') || recovery;
 if (recovery && process.argv.includes('--replace-pending')) throw new Error('Recovery does not replace pending invitations.');
-if (migrate && bootstrap) throw new Error('Run migration and owner setup as separate commands.');
+if ((migrate && (bootstrap || onboard)) || (onboard && bootstrap)) throw new Error('Run migration and owner setup as separate commands.');
 if (process.argv.includes('--replace-pending') && !bootstrap) throw new Error('--replace-pending requires --bootstrap-owner.');
-if (!migrate && !bootstrap && (!process.env.VILLAS_GOOGLE_CLIENT_ID || !process.env.VILLAS_GOOGLE_CLIENT_SECRET)) {
+if (!migrate && !bootstrap && !onboard && (!process.env.VILLAS_GOOGLE_CLIENT_ID || !process.env.VILLAS_GOOGLE_CLIENT_SECRET)) {
   throw new Error('Configure the private Villas Google client, or use the explicit local demo.');
 }
 const database = localDatabase();
@@ -25,18 +26,18 @@ Object.assign(environment, {
   VILLAS_DB_USERNAME: 'villas_local',
   VILLAS_DB_PASSWORD: database.password,
 });
-const packaged = migrate || bootstrap || process.argv.includes('--packaged');
+const packaged = migrate || bootstrap || onboard || process.argv.includes('--packaged');
 const jars = packaged ? readdirSync(`${root}/target`).filter((name) => name.endsWith('.jar')) : [];
 if (packaged && jars.length !== 1) throw new Error('Run ./mvnw verify before starting the packaged API.');
 const executable = packaged ? (process.env.JAVA_HOME ? `${process.env.JAVA_HOME}/bin/java` : 'java') : './mvnw';
 const browserClock = process.argv.includes('--browser-clock');
-if (browserClock && (!packaged || migrate || bootstrap || !/^e2e-[a-f0-9]{12}$/.test(process.env.VILLAS_LOCAL_INSTANCE ?? '') || process.env.VILLAS_AUTH_PROVIDER !== 'synthetic')) {
+if (browserClock && (!packaged || migrate || bootstrap || onboard || !/^e2e-[a-f0-9]{12}$/.test(process.env.VILLAS_LOCAL_INSTANCE ?? '') || process.env.VILLAS_AUTH_PROVIDER !== 'synthetic')) {
   throw new Error('The test clock is available only to the disposable synthetic browser runner.');
 }
 const launch = browserClock
   ? [`-Dloader.path=${root}/.local-state/${process.env.VILLAS_LOCAL_INSTANCE}/browser-clock/browser-clock.jar`, '-cp', `${root}/target/${jars[0]}`, 'org.springframework.boot.loader.launch.PropertiesLauncher']
   : ['-jar', `${root}/target/${jars[0]}`];
-const args = packaged ? [...launch, ...(migrate ? ['migrate'] : bootstrap ? [recovery ? 'recover-owner' : 'bootstrap-owner', ...(process.argv.includes('--replace-pending') ? ['--replace-pending'] : [])] : ['--spring.profiles.active=local'])] : ['--batch-mode', 'spring-boot:run', '-Dspring-boot.run.profiles=local'];
+const args = packaged ? [...launch, ...(migrate ? ['migrate'] : onboard ? ['onboard-business'] : bootstrap ? [recovery ? 'recover-owner' : 'bootstrap-owner', ...(process.argv.includes('--replace-pending') ? ['--replace-pending'] : [])] : ['--spring.profiles.active=local'])] : ['--batch-mode', 'spring-boot:run', '-Dspring-boot.run.profiles=local'];
 const child = spawn(executable, args, {
   cwd: root,
   env: environment,

@@ -10,6 +10,8 @@ Name | Type
 `csrfToken` | string
 `expiresAt` | Date
 `generation` | string
+`identity` | [IdentityView](IdentityView.md)
+`memberships` | [Array&lt;BusinessMembershipView&gt;](BusinessMembershipView.md)
 `permissions` | Array&lt;string&gt;
 `propertyId` | string
 `propertyName` | string
@@ -27,6 +29,8 @@ const example = {
   "csrfToken": null,
   "expiresAt": null,
   "generation": null,
+  "identity": null,
+  "memberships": null,
   "permissions": null,
   "propertyId": null,
   "propertyName": null,

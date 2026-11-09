@@ -14,49 +14,14 @@ All URIs are relative to */api/v1*
 
 
 
+<a id="changereservationwithquote"></a>
 ## changeReservationWithQuote
 
 > ReservationInfo changeReservationWithQuote(reservationId, idempotencyKey, quotedStayChange)
 
 Accept a new whole-stay price and change dates or party size atomically
 
-### Example
-
-```ts
-import {
-  Configuration,
-  QuotesApi,
-} from '';
-import type { ChangeReservationWithQuoteRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new QuotesApi(config);
-
-  const body = {
-    // number
-    reservationId: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // QuotedStayChange
-    quotedStayChange: ...,
-  } satisfies ChangeReservationWithQuoteRequest;
-
-  try {
-    const data = await api.changeReservationWithQuote(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -90,47 +55,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="confirmreservationquote"></a>
 ## confirmReservationQuote
 
 > number confirmReservationQuote(idempotencyKey, quoteConfirmationRequest)
 
 Accept a saved quote and atomically create its priced reservation with a stable operation key
 
-### Example
-
-```ts
-import {
-  Configuration,
-  QuotesApi,
-} from '';
-import type { ConfirmReservationQuoteRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new QuotesApi(config);
-
-  const body = {
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // QuoteConfirmationRequest
-    quoteConfirmationRequest: ...,
-  } satisfies ConfirmReservationQuoteRequest;
-
-  try {
-    const data = await api.confirmReservationQuote(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -163,45 +95,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="createbookingquote"></a>
 ## createBookingQuote
 
 > BookingQuote createBookingQuote(quoteRequest)
 
 Save an Owner-scoped EUR accommodation quote without holding inventory
 
-### Example
-
-```ts
-import {
-  Configuration,
-  QuotesApi,
-} from '';
-import type { CreateBookingQuoteRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new QuotesApi(config);
-
-  const body = {
-    // QuoteRequest
-    quoteRequest: ...,
-  } satisfies CreateBookingQuoteRequest;
-
-  try {
-    const data = await api.createBookingQuote(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -233,45 +134,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="getbookingquote"></a>
 ## getBookingQuote
 
 > BookingQuote getBookingQuote(quoteId)
 
 Read this Owner\&#39;s saved historical quote
 
-### Example
-
-```ts
-import {
-  Configuration,
-  QuotesApi,
-} from '';
-import type { GetBookingQuoteRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new QuotesApi(config);
-
-  const body = {
-    // string
-    quoteId: quoteId_example,
-  } satisfies GetBookingQuoteRequest;
-
-  try {
-    const data = await api.getBookingQuote(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -303,49 +173,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="movereservationwithquote"></a>
 ## moveReservationWithQuote
 
 > ReservationInfo moveReservationWithQuote(reservationId, idempotencyKey, quotedRoomChange)
 
 Accept a new whole-stay price and move the reservation atomically
 
-### Example
-
-```ts
-import {
-  Configuration,
-  QuotesApi,
-} from '';
-import type { MoveReservationWithQuoteRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new QuotesApi(config);
-
-  const body = {
-    // number
-    reservationId: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // QuotedRoomChange
-    quotedRoomChange: ...,
-  } satisfies MoveReservationWithQuoteRequest;
-
-  try {
-    const data = await api.moveReservationWithQuote(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -379,45 +214,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="reservationprice"></a>
 ## reservationPrice
 
 > ReservationPriceView reservationPrice(reservationId)
 
 Read the accepted price or explicit unrecorded historical state
 
-### Example
-
-```ts
-import {
-  Configuration,
-  QuotesApi,
-} from '';
-import type { ReservationPriceRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new QuotesApi(config);
-
-  const body = {
-    // number
-    reservationId: 56,
-  } satisfies ReservationPriceRequest;
-
-  try {
-    const data = await api.reservationPrice(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -449,49 +253,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="reservationpricehistory"></a>
 ## reservationPriceHistory
 
 > PriceHistory reservationPriceHistory(reservationId, beforeVersion, limit)
 
 Read bounded immutable accepted price history
 
-### Example
-
-```ts
-import {
-  Configuration,
-  QuotesApi,
-} from '';
-import type { ReservationPriceHistoryRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new QuotesApi(config);
-
-  const body = {
-    // number
-    reservationId: 56,
-    // number (optional)
-    beforeVersion: 789,
-    // number (optional)
-    limit: 56,
-  } satisfies ReservationPriceHistoryRequest;
-
-  try {
-    const data = await api.reservationPriceHistory(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 

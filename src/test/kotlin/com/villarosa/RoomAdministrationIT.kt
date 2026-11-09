@@ -294,7 +294,7 @@ constructor(
             val futures = actions.mapIndexed { index, run ->
                 executor.submit<String> {
                     SecurityContextHolder.getContext().authentication =
-                        StaffAuthentication(TestData.ownerIdentity(index))
+                        TestData.authentication(TestData.ownerIdentity(index))
                     try {
                         check(start.await(10, TimeUnit.SECONDS))
                         run()
@@ -362,7 +362,7 @@ constructor(
     fun allRoomAdministrationRejectsAnUnrecognizedStaffIdentity() {
         val room = service.create(profile())
         SecurityContextHolder.getContext().authentication =
-            StaffAuthentication(StaffIdentity(UUID.randomUUID().toString(), 0))
+            TestData.authentication(StaffIdentity(UUID.randomUUID().toString(), 0))
         for (action in
             listOf<() -> Unit>(
                 { service.directory(null, true, 0, 10) },

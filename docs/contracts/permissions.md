@@ -1,10 +1,10 @@
 # Staff permissions
 
-For the approved shared target, Owners have independent memberships per business.
-[Shared tenancy](multi-tenancy.md) and #45-#47 add shared identity, request/database
-isolation and browser scope. The implementation below currently verifies the
-configured single-business boundary and does not grant cross-business access.
-
+Owners have independent memberships per business under [shared identity](shared-identity.md).
+Canonical Google sessions do not carry a mutable active business. Staff routes name
+the business explicitly and resolve its current membership. Business-data routes
+still enforce the configured compatibility workspace until #46; switching/browser
+separation remains #47. [Shared tenancy](multi-tenancy.md) owns the complete rollout.
 
 The owner confirmed an Owner-only initial release. Every invitation grants Owner
 access. Front desk and housekeeping roles are not available. Adding them later
@@ -38,10 +38,12 @@ the server session. Unsafe requests require CSRF and a matching Origin.
 
 First sign-in requires an unexpired invitation matching a verified email exactly
 after trimming and case normalization. Dots and plus aliases remain significant.
-The resulting canonical account binds the provider issuer and subject. An accepted
+The canonical identity binds provider issuer/subject; each business membership keeps
+its own staff ID used in immutable history. An accepted
 invitation cannot reactivate a deactivated account; a new invitation is required.
 The same email cannot silently bind a different provider account. A verified email
-change for the same subject retains the canonical staff ID and revokes older sessions.
+change for the same subject retains canonical and membership IDs and revokes older
+logins. Membership revocation affects only that business's grants.
 
 Owner bootstrap is an explicit offline command that creates a pending invitation.
 It creates no authenticated account and grants no password or HTTP bypass. See

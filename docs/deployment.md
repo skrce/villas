@@ -2,8 +2,9 @@
 
 The Owner superseded the per-business layout with a shared app and database per
 environment. Follow [the tenancy contract](contracts/multi-tenancy.md) and #44-#49.
-The current runtime and operational reference remain single-business during this
-conversion. Live Terraform commands are blocked before authentication until #48
+Business-data workflows and the operational reference remain bound to the configured
+compatibility business. Shared identity/staff membership management is implemented;
+domain isolation and browser switching remain #46/#47. Live Terraform commands are blocked before authentication until #48
 replaces the topology. Do not use the earlier setup instructions below to provision
 resources or treat them as shared-tenancy qualification.
 

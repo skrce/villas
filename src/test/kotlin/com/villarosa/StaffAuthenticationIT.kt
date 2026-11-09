@@ -36,6 +36,7 @@ constructor(
     private val jdbc: JdbcTemplate,
     private val staff: StaffRepository,
     private val clock: StaffTestClock,
+    private val onboarding: BusinessOnboarding,
 ) {
     private lateinit var cookies: CookieManager
     private lateinit var http: HttpClient
@@ -47,11 +48,13 @@ constructor(
         body: String? = null,
         csrf: String? = null,
         origin: String? = BASE,
+        businessHeader: String? = null,
     ): HttpResponse<String> {
         val builder = HttpRequest.newBuilder(URI(BASE + path)).timeout(Duration.ofSeconds(10))
         if (method != "GET" && origin != null) builder.header("Origin", origin)
         if (body != null) builder.header("Content-Type", "application/json")
         if (csrf != null) builder.header("X-CSRF-TOKEN", csrf)
+        if (businessHeader != null) builder.header("X-Villas-Business", businessHeader)
         builder.method(
             method,
             if (body == null) HttpRequest.BodyPublishers.noBody()
@@ -385,6 +388,90 @@ constructor(
         assertThat(signIn("second").second.headers().firstValue("Location").get())
             .isEqualTo("$BASE/auth/complete")
         assertThat(staff.count()).isEqualTo(2)
+    }
+
+    @Test
+    fun oneValidatedGoogleLoginManagesTwoExplicitBusinessesWithoutExposingUnrelatedNames() {
+        val business = "lake-${java.util.UUID.randomUUID().toString().take(8)}"
+        val unrelated = "other-${java.util.UUID.randomUUID().toString().take(8)}"
+        onboarding.create(business, "Authorized synthetic lake", "owner@example.test")
+        onboarding.create(unrelated, "Unrelated private label", "different@example.test")
+        signIn()
+        val memberships = request("/api/v1/auth/memberships")
+        assertThat(memberships.statusCode()).isEqualTo(200)
+        assertThat(memberships.body())
+            .contains("Authorized synthetic lake", "villa-rosa")
+            .doesNotContain("Unrelated private label", unrelated)
+        assertThat(request("/api/v1/businesses/$business/staff").statusCode()).isEqualTo(200)
+        assertThat(request("/api/v1/businesses/villa-rosa/staff").statusCode()).isEqualTo(200)
+        assertThat(request("/api/v1/businesses/$unrelated/staff").statusCode()).isEqualTo(403)
+        assertThat(request("/api/v1/businesses/INVALID/staff").statusCode()).isEqualTo(400)
+        assertThat(request("/api/v1/businesses/staff").statusCode()).isEqualTo(404)
+        assertThat(request("/api/v1/apartments", businessHeader = business).statusCode())
+            .isEqualTo(403)
+        assertThat(
+                request(
+                        "/api/v1/businesses/$business/staff/invitations",
+                        "POST",
+                        """{"email":"new@example.test"}""",
+                    )
+                    .statusCode()
+            )
+            .isEqualTo(403)
+        assertThat(
+                request(
+                        "/api/v1/businesses/$business/staff/invitations",
+                        "POST",
+                        """{"email":"new@example.test"}""",
+                        csrf(),
+                    )
+                    .statusCode()
+            )
+            .isEqualTo(200)
+        assertThat(request("/api/v1/businesses/villa-rosa/staff/invitations").body())
+            .doesNotContain("new@example.test")
+    }
+
+    @Test
+    fun revokingOneBusinessGrantKeepsTheSameCookieUsableInTheOtherBusiness() {
+        val business = "lake-${java.util.UUID.randomUUID().toString().take(8)}"
+        onboarding.create(business, "Authorized synthetic lake", "owner@example.test")
+        signIn()
+        val owner = checkNotNull(staff.findByPropertyIdAndEmail("villa-rosa", "owner@example.test"))
+        directory.invite(owner.identity(), "second-owner@example.test", "villa-rosa")
+        val second =
+            directory.accept(
+                VerifiedStaffIdentity(
+                    provider.issuer,
+                    "synthetic-second-owner",
+                    "second-owner@example.test",
+                    true,
+                )
+            )
+        directory.revokeSessions(second.identity(), owner.id, owner.version)
+        assertThat(request("/api/v1/businesses/villa-rosa/staff").statusCode()).isEqualTo(403)
+        assertThat(request("/api/v1/businesses/$business/staff").statusCode()).isEqualTo(200)
+        assertThat(request("/api/v1/auth/memberships").body()).doesNotContain("villa-rosa")
+        assertThat(request("/api/v1/auth/logout", "POST", csrf = csrf()).statusCode())
+            .isEqualTo(204)
+        assertThat(request("/api/v1/businesses/$business/staff").statusCode()).isEqualTo(401)
+    }
+
+    @Test
+    fun anAccountInvitedOnlyToAnotherBusinessCannotEnterTheConfiguredLegacyWorkspace() {
+        jdbc.update("DELETE FROM staff_invitations WHERE property_id='villa-rosa'")
+        val business = "lake-${java.util.UUID.randomUUID().toString().take(8)}"
+        onboarding.create(business, "Authorized synthetic lake", "owner@example.test")
+        assertThat(signIn().second.headers().firstValue("Location").get())
+            .isEqualTo("$BASE/auth/complete")
+        val session = json.readTree(request("/api/v1/auth/session").body())
+        assertThat(session.get("authenticated").asBoolean()).isTrue()
+        assertThat(session.get("staff").isNull).isTrue()
+        assertThat(session.get("propertyName").isNull).isTrue()
+        assertThat(request("/api/v1/apartments").statusCode()).isEqualTo(401)
+        assertThat(request("/api/v1/businesses/$business/staff").statusCode()).isEqualTo(200)
+        assertThat(request("/api/v1/auth/logout", "POST", csrf = csrf()).statusCode())
+            .isEqualTo(204)
     }
 
     companion object {

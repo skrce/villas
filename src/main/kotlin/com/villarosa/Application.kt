@@ -25,6 +25,10 @@ private fun execute(args: Array<String>) {
     if (args.contentEquals(arrayOf("healthcheck"))) {
         kotlin.system.exitProcess(HealthProbe.check())
     }
+    if (args.contentEquals(arrayOf("onboard-business"))) {
+        com.villarosa.security.BusinessOnboardingCommand.run()
+        return
+    }
     if (args.contentEquals(arrayOf("recover-owner"))) {
         OwnerBootstrap.run(false, recovery = true)
         return

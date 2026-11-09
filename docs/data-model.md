@@ -2,19 +2,24 @@
 
 V16 begins the [shared-tenancy conversion](contracts/multi-tenancy.md) with a business
 registry, parent references on tenant-owned tables and composite staff-actor references.
-The runtime remains bound to its configured business until #45/#46 implement shared
-identity and authorized tenant context. Registration alone grants no web access.
+V17 adds canonical Google identities and independent staff membership grants without
+rewriting the old staff/actor IDs. Domain services remain bound to the compatibility
+business until #46. Registration alone grants no web access.
 
 The compatibility runtime serves one configured business, defaulting to `villa-rosa` locally.
 `VILLAS_PROPERTY_ID` is a validated deployment setting, not a client-selected tenant.
 `property_identity` binds an initialized database to that ID and startup refuses a
-mismatch. `VILLAS_PROPERTY_NAME` supplies its workspace label. Rooms, guests, and bookings
+mismatch. `VILLAS_PROPERTY_NAME` seeds its initial registry label; the saved name is authoritative. Rooms, guests, and bookings
 carry a server-owned property ID. Composite foreign keys prevent linking bookings
 to another property's guest or room. API IDs retain their existing integer shape.
 Property IDs are not client-controlled fields in the console.
 
 | Table | Main fields and invariants |
 | --- | --- |
+| `staff_identities` | Global issuer/subject identity, verified email and security generation; email is not the identity key. |
+| `staff_accounts` | Per-business Owner membership retaining the original staff/actor ID, active state and independent security generation; issuer/subject references the canonical identity. |
+| `staff_identity_lock` | Global sign-in/onboarding coordination only. |
+| `business_onboarding` | Per-business setup hash and scoped first-invitation receipt for operator retries; runtime cannot insert it. |
 | `businesses` | Stable tenant ID, validated display name, active state, EUR, Europe/Skopje, version and UTC creation instant. Runtime cannot create or change registry entries. |
 | `apartments` | Named room with a property-unique uppercase reference, capacity, orientation/view/bed/features/floor, optional legacy test price integers, active/archive flag, optimistic version, and property scope |
 | `customers` | Required first/last names, optional phone/email/address/notes, active/archive flag, optimistic version, and property scope. No uniqueness claim on shared contacts. |

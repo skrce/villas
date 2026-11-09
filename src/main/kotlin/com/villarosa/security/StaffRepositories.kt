@@ -14,6 +14,14 @@ interface StaffLockRepository : JpaRepository<StaffPropertyLock, String> {
 }
 
 interface StaffRepository : JpaRepository<StaffAccount, String> {
+    @Query("select s.propertyId from StaffAccount s where s.issuer=:issuer and s.subject=:subject")
+    fun businessIds(issuer: String, subject: String): List<String>
+
+    fun findByIssuerAndSubjectOrderByPropertyIdAsc(
+        issuer: String,
+        subject: String,
+    ): List<StaffAccount>
+
     fun findByPropertyIdAndId(propertyId: String, id: String): StaffAccount?
 
     fun findByPropertyIdAndIssuerAndSubject(
@@ -39,6 +47,11 @@ interface StaffRepository : JpaRepository<StaffAccount, String> {
 }
 
 interface InvitationRepository : JpaRepository<StaffInvitation, String> {
+    @Query(
+        "select distinct i.propertyId from StaffInvitation i where i.email=:email and i.state=com.villarosa.security.InvitationState.PENDING"
+    )
+    fun businessIds(email: String): List<String>
+
     fun findByPropertyIdAndStateAndExpiresAtAfter(
         propertyId: String,
         state: InvitationState,

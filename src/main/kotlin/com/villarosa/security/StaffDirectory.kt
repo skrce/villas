@@ -7,6 +7,7 @@ import com.villarosa.exception.missing
 import com.villarosa.service.PropertyScope
 import java.time.Clock
 import java.time.Duration
+import java.time.temporal.ChronoUnit
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.domain.PageRequest
@@ -30,166 +31,160 @@ class StaffDirectory(
     private val events: StaffEventRepository,
     private val access: StaffAccess,
     private val clock: Clock,
+    private val shared: SharedIdentities,
 ) {
-    fun bootstrap(email: String, replacePending: Boolean = false): InvitationView {
-        propertyLock()
-        if (staff.countByPropertyId(PropertyScope.ID) != 0L)
+    fun bootstrap(
+        email: String,
+        replacePending: Boolean = false,
+        businessId: String = PropertyScope.ID,
+    ): InvitationView {
+        propertyLock(businessId)
+        if (!access.lockBusiness(businessId))
+            throw DomainException(
+                "BUSINESS_ACCESS_DENIED",
+                HttpStatus.FORBIDDEN,
+                "This business is unavailable.",
+            )
+        if (staff.countByPropertyId(businessId) != 0L)
             conflict("OWNER_ALREADY_CONFIGURED", "Initial owner setup is already complete.")
         val normalized = email(email)
-        val pending = pending(normalized)
+        val pending = pending(normalized, businessId)
         if (pending != null) return pending.view()
         if (
             !replacePending &&
                 invitations.existsByPropertyIdAndStateAndExpiresAtAfter(
-                    PropertyScope.ID,
+                    businessId,
                     InvitationState.PENDING,
-                    clock.instant(),
+                    clock.instant().truncatedTo(ChronoUnit.MICROS),
                 )
         )
             conflict("OWNER_ALREADY_CONFIGURED", "An initial owner invitation already exists.")
         if (replacePending) {
             val pending =
                 invitations.findByPropertyIdAndStateAndExpiresAtAfter(
-                    PropertyScope.ID,
+                    businessId,
                     InvitationState.PENDING,
-                    clock.instant(),
+                    clock.instant().truncatedTo(ChronoUnit.MICROS),
                     PageRequest.of(0, 100),
                 )
             for (previous in pending) {
                 previous.state = InvitationState.REVOKED
                 invitations.saveAndFlush(previous)
-                audit(null, "BOOTSTRAP_REPLACED", "INVITATION", previous.id)
+                audit(null, "BOOTSTRAP_REPLACED", "INVITATION", previous.id, businessId)
             }
         }
-        return inviteRecord(normalized, null, "OWNER_BOOTSTRAP").view()
+        return inviteRecord(normalized, null, "OWNER_BOOTSTRAP", businessId).view()
     }
 
-    fun recover(suppliedEmail: String): InvitationView {
-        propertyLock()
+    fun recover(suppliedEmail: String, businessId: String = PropertyScope.ID): InvitationView {
+        propertyLock(businessId)
+        if (!access.lockBusiness(businessId))
+            throw DomainException(
+                "BUSINESS_ACCESS_DENIED",
+                HttpStatus.FORBIDDEN,
+                "This business is unavailable.",
+            )
         val normalized = email(suppliedEmail)
-        if (staff.findByPropertyIdAndEmail(PropertyScope.ID, normalized)?.active == true)
+        if (staff.findByPropertyIdAndEmail(businessId, normalized)?.active == true)
             conflict("STAFF_ALREADY_ACTIVE", "This active account can sign in through Google.")
-        return (pending(normalized) ?: inviteRecord(normalized, null, "OWNER_RECOVERY")).view()
+        return (pending(normalized, businessId)
+                ?: inviteRecord(normalized, null, "OWNER_RECOVERY", businessId))
+            .view()
     }
 
-    fun invite(actor: StaffIdentity, suppliedEmail: String): InvitationView {
-        propertyLock()
-        val owner = access.lockOwner(actor)
+    fun invite(
+        actor: StaffIdentity,
+        suppliedEmail: String,
+        businessId: String = PropertyScope.ID,
+    ): InvitationView {
+        propertyLock(businessId)
+        val owner = access.lockOwner(actor, businessId)
         val email = email(suppliedEmail)
-        if (staff.findByPropertyIdAndEmail(PropertyScope.ID, email)?.active == true)
+        if (staff.findByPropertyIdAndEmail(businessId, email)?.active == true)
             conflict("STAFF_ALREADY_ACTIVE", "An active staff account already uses this email.")
-        val pending = pending(email)
+        val pending = pending(email, businessId)
         if (pending != null) return pending.view()
-        return inviteRecord(email, owner.id, "INVITED").view()
+        return inviteRecord(email, owner.id, "INVITED", businessId).view()
     }
 
-    fun revokeInvitation(actor: StaffIdentity, id: String, expected: Long): InvitationView {
-        propertyLock()
-        access.lockOwner(actor)
+    fun revokeInvitation(
+        actor: StaffIdentity,
+        id: String,
+        expected: Long,
+        businessId: String = PropertyScope.ID,
+    ): InvitationView {
+        propertyLock(businessId)
+        access.lockOwner(actor, businessId)
         val invite =
-            invitations.findByPropertyIdAndId(PropertyScope.ID, id)
+            invitations.findByPropertyIdAndId(businessId, id)
                 ?: missing("Invitation does not exist.")
         version(invite.version, expected)
         if (invite.state == InvitationState.PENDING) {
             invite.state = InvitationState.REVOKED
             invitations.saveAndFlush(invite)
-            audit(actor.id, "INVITATION_REVOKED", "INVITATION", invite.id)
+            audit(actor.id, "INVITATION_REVOKED", "INVITATION", invite.id, businessId)
         }
         return invite.view()
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     fun accept(verified: VerifiedStaffIdentity): StaffAccount {
-        if (
-            !verified.emailVerified ||
-                verified.issuer.isBlank() ||
-                verified.issuer.length > 255 ||
-                verified.subject.isBlank() ||
-                verified.subject.length > 255
-        )
-            denied()
-        val email = email(verified.email)
-        propertyLock()
-        val existing =
-            staff.findByPropertyIdAndIssuerAndSubject(
-                PropertyScope.ID,
-                verified.issuer,
-                verified.subject,
-            )
-        if (existing != null && existing.active) {
-            if (existing.email != email) {
-                if (staff.findByPropertyIdAndEmail(PropertyScope.ID, email) != null) denied()
-                existing.email = email
-                existing.securityVersion = Math.incrementExact(existing.securityVersion)
-                staff.saveAndFlush(existing)
-                audit(existing.id, "STAFF_EMAIL_CHANGED", "STAFF", existing.id)
-            }
-            return existing
-        }
-        val emailAccount = staff.findByPropertyIdAndEmail(PropertyScope.ID, email)
-        if (emailAccount != null && emailAccount.id != existing?.id) denied()
-        val invitation = pending(email) ?: denied()
-        val account =
-            if (existing == null) {
-                staff.saveAndFlush(
-                    StaffAccount(
-                        issuer = verified.issuer,
-                        subject = verified.subject,
-                        email = email,
-                        createdAt = clock.instant(),
-                    )
-                )
-            } else {
-                existing.active = true
-                existing.email = email
-                existing.securityVersion = Math.incrementExact(existing.securityVersion)
-                staff.saveAndFlush(existing)
-            }
-        invitation.state = InvitationState.ACCEPTED
-        invitation.acceptedBy = account.id
-        invitations.saveAndFlush(invitation)
-        audit(account.id, "INVITATION_ACCEPTED", "INVITATION", invitation.id)
-        return account
+        val session = shared.signIn(verified, requiredBusiness = PropertyScope.ID)
+        return access.current(access.resolve(session, PropertyScope.ID))
     }
 
-    fun deactivate(actor: StaffIdentity, id: String, expected: Long): StaffView {
-        propertyLock()
-        access.lockOwner(actor)
-        val target = staff.locked(PropertyScope.ID, id) ?: missing("Staff account does not exist.")
+    fun deactivate(
+        actor: StaffIdentity,
+        id: String,
+        expected: Long,
+        businessId: String = PropertyScope.ID,
+    ): StaffView {
+        propertyLock(businessId)
+        access.lockOwner(actor, businessId)
+        val target = staff.locked(businessId, id) ?: missing("Staff account does not exist.")
         version(target.version, expected)
         if (target.active) {
-            if (staff.countByPropertyIdAndActiveTrue(PropertyScope.ID) <= 1L)
+            if (staff.countByPropertyIdAndActiveTrue(businessId) <= 1L)
                 conflict("LAST_OWNER", "At least one active owner must remain.")
             target.active = false
             target.securityVersion = Math.incrementExact(target.securityVersion)
             staff.saveAndFlush(target)
-            audit(actor.id, "STAFF_DEACTIVATED", "STAFF", target.id)
+            audit(actor.id, "STAFF_DEACTIVATED", "STAFF", target.id, businessId)
         }
         return target.view()
     }
 
-    fun revokeSessions(actor: StaffIdentity, id: String, expected: Long): StaffView {
-        propertyLock()
-        access.lockOwner(actor)
-        val target = staff.locked(PropertyScope.ID, id) ?: missing("Staff account does not exist.")
+    fun revokeSessions(
+        actor: StaffIdentity,
+        id: String,
+        expected: Long,
+        businessId: String = PropertyScope.ID,
+    ): StaffView {
+        propertyLock(businessId)
+        access.lockOwner(actor, businessId)
+        val target = staff.locked(businessId, id) ?: missing("Staff account does not exist.")
         version(target.version, expected)
         target.securityVersion = Math.incrementExact(target.securityVersion)
         staff.saveAndFlush(target)
-        audit(actor.id, "SESSIONS_REVOKED", "STAFF", target.id)
+        audit(actor.id, "SESSIONS_REVOKED", "STAFF", target.id, businessId)
         return target.view()
     }
 
-    fun accounts(actor: StaffIdentity): List<StaffView> {
-        access.current(actor)
+    fun accounts(actor: StaffIdentity, businessId: String = PropertyScope.ID): List<StaffView> {
+        access.current(actor, businessId)
         return staff
-            .findByPropertyIdOrderByCreatedAtAscIdAsc(PropertyScope.ID, PageRequest.of(0, 100))
+            .findByPropertyIdOrderByCreatedAtAscIdAsc(businessId, PageRequest.of(0, 100))
             .map { it.view() }
     }
 
-    fun pendingInvitations(actor: StaffIdentity): List<InvitationView> {
-        access.current(actor)
+    fun pendingInvitations(
+        actor: StaffIdentity,
+        businessId: String = PropertyScope.ID,
+    ): List<InvitationView> {
+        access.current(actor, businessId)
         return invitations
             .findByPropertyIdAndStateOrderByCreatedAtDescIdDesc(
-                PropertyScope.ID,
+                businessId,
                 InvitationState.PENDING,
                 PageRequest.of(0, 100),
             )
@@ -197,10 +192,10 @@ class StaffDirectory(
             .map { it.view() }
     }
 
-    private fun pending(email: String): StaffInvitation? {
+    private fun pending(email: String, businessId: String): StaffInvitation? {
         val matches =
             invitations.findByPropertyIdAndEmailAndStateOrderByCreatedAtDesc(
-                PropertyScope.ID,
+                businessId,
                 email,
                 InvitationState.PENDING,
             )
@@ -212,35 +207,43 @@ class StaffDirectory(
         return null
     }
 
-    private fun inviteRecord(email: String, actor: String?, kind: String): StaffInvitation {
-        val now = clock.instant()
+    private fun inviteRecord(
+        email: String,
+        actor: String?,
+        kind: String,
+        businessId: String,
+    ): StaffInvitation {
+        val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
         val saved =
             invitations.saveAndFlush(
                 StaffInvitation(
+                    propertyId = businessId,
                     email = email,
                     createdBy = actor,
                     createdAt = now,
                     expiresAt = now.plus(INVITATION_TTL),
                 )
             )
-        audit(actor, kind, "INVITATION", saved.id)
+        audit(actor, kind, "INVITATION", saved.id, businessId)
         return saved
     }
 
-    private fun audit(actor: String?, kind: String, type: String, id: String) {
+    private fun audit(actor: String?, kind: String, type: String, id: String, businessId: String) {
         events.saveAndFlush(
             StaffEvent(
+                propertyId = businessId,
                 actorId = actor,
                 kind = kind,
                 subjectType = type,
                 subjectId = id,
-                occurredAt = clock.instant(),
+                occurredAt = clock.instant().truncatedTo(ChronoUnit.MICROS),
             )
         )
     }
 
-    private fun propertyLock() {
-        checkNotNull(locks.locked(PropertyScope.ID)) {
+    private fun propertyLock(businessId: String) {
+        BusinessIds.requireValid(businessId)
+        checkNotNull(locks.locked(businessId)) {
             "Staff metadata requires an explicit schema migration."
         }
     }
@@ -250,13 +253,6 @@ class StaffDirectory(
         if (actual != expected)
             conflict("STALE_VERSION", "The record changed. Reload it before editing.")
     }
-
-    private fun denied(): Nothing =
-        throw DomainException(
-            "STAFF_NOT_ALLOWED",
-            HttpStatus.FORBIDDEN,
-            "This Google account is not permitted to sign in.",
-        )
 
     companion object {
         val INVITATION_TTL: Duration = Duration.ofDays(3)

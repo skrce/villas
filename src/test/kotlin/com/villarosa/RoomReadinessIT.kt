@@ -3,7 +3,6 @@ package com.villarosa
 import com.villarosa.exception.DomainException
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
-import com.villarosa.security.StaffAuthentication
 import com.villarosa.service.ApartmentService
 import com.villarosa.service.CustomerService
 import com.villarosa.service.ReadinessService
@@ -190,7 +189,7 @@ constructor(
                 (0..1).map { owner ->
                     pool.submit<String> {
                         SecurityContextHolder.getContext().authentication =
-                            StaffAuthentication(TestData.ownerIdentity(owner))
+                            TestData.authentication(TestData.ownerIdentity(owner))
                         try {
                             gate.await(10, TimeUnit.SECONDS)
                             change(ReadinessState.IN_PROGRESS, 0)

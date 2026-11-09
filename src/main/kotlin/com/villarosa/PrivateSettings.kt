@@ -12,6 +12,9 @@ object PrivateSettings {
             "VILLAS_GOOGLE_CLIENT_ID",
             "VILLAS_GOOGLE_CLIENT_SECRET",
             "VILLAS_INITIAL_OWNER_EMAIL",
+            "VILLAS_NEW_BUSINESS_ID",
+            "VILLAS_NEW_BUSINESS_NAME",
+            "VILLAS_OWNER_BUSINESS_ID",
         )
 
     fun resolve(environment: Map<String, String> = System.getenv()): Map<String, String> =

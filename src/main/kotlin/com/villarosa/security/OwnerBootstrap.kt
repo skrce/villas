@@ -13,13 +13,18 @@ object OwnerBootstrap {
                     "Set VILLAS_INITIAL_OWNER_EMAIL in the private local configuration before owner setup."
                 )
         StaffDirectory.email(email)
+        val businessId =
+            BusinessIds.requireValid(
+                PrivateSettings.resolve()["VILLAS_OWNER_BUSINESS_ID"]
+                    ?: com.villarosa.service.PropertyScope.ID
+            )
         SpringApplicationBuilder(Application::class.java)
             .web(WebApplicationType.NONE)
             .run("--villas.mode=production")
             .use { context ->
                 val directory = context.getBean(StaffDirectory::class.java)
-                if (recovery) directory.recover(email)
-                else directory.bootstrap(email, replacePending)
+                if (recovery) directory.recover(email, businessId)
+                else directory.bootstrap(email, replacePending, businessId)
                 println(
                     "Owner invitation is ready. Google verification is required to activate the account."
                 )

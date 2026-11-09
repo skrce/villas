@@ -14,7 +14,7 @@ branch. Then read:
 2. [Release decisions](decisions.md): confirmed business policies and open inputs.
 3. [Implementation tracker](implementation.md): ten milestones and recorded evidence.
    Check the linked issue and current PRs before starting work.
-4. [Shared tenancy](contracts/multi-tenancy.md) and the relevant [API](contracts/api.md), [reservations](contracts/reservations.md),
+4. [Shared tenancy](contracts/multi-tenancy.md), [shared identity](contracts/shared-identity.md) and the relevant [API](contracts/api.md), [reservations](contracts/reservations.md),
    [pricing](contracts/pricing.md), [payments](contracts/payments.md),
    [front-desk](contracts/front-desk.md), [housekeeping](contracts/housekeeping.md),
    [reporting](contracts/reporting.md) or [permissions](contracts/permissions.md) contract.
@@ -32,9 +32,11 @@ test counts or an earlier "in progress" paragraph do not verify a new revision.
 ## Product and release status
 
 Villas is a responsive staff app for accommodation businesses, initially in North Macedonia.
-The Owner approved a shared app/database per environment. The current runtime remains
-single-business during [the six-step tenancy conversion](contracts/multi-tenancy.md),
-tracked in #44-#49. The #44 schema foundation precedes shared login, request/RLS and browser work.
+The Owner approved a shared app/database per environment. The registry and
+[shared Google identity/staff memberships](contracts/shared-identity.md) implement
+#44/#45. Booking, guest, room and financial services still use the configured
+compatibility business. Next is #46 domain request/database isolation, followed by
+#47 browser switching and #48/#49 hosting/release qualification.
 Owners are the only implemented role. Public booking, guest accounts, online payment
 processing and additional staff roles are outside the initial plan.
 
@@ -77,6 +79,9 @@ gate even when all implementation PRs are merged.
 
 ## Rules that must survive a refactor
 
+- A canonical Google identity creates server-side sessions with independent business
+  membership grants. Financial/audit actors keep their membership IDs. No mutable
+  session-wide active business or automatic grant upgrade is allowed.
 - Invited Google identity creates server-side sessions. No production password login,
   public signup or fallback administrator password. Accounts can invite more Owners.
   Sessions expire after at most seven days or three inactive days; revocation applies
@@ -143,6 +148,7 @@ map proves the current filename.
 
 | Change | Regression starting points |
 | --- | --- |
+| Shared identity, onboarding and migration | `SharedIdentitiesIT`, `SharedIdentityMigrationIT`, `StaffAuthenticationIT`, `BusinessStaffController`, `BusinessOnboarding` and the shared-identity contract |
 | Sessions, staff and revocation | [StaffAuthenticationIT](../src/test/kotlin/com/villarosa/StaffAuthenticationIT.kt), [StaffAuthorityIT](../src/test/kotlin/com/villarosa/StaffAuthorityIT.kt), [session tests](../frontend/src/api/session.test.ts) |
 | Inventory, calendar and pricing | [InventoryIT](../src/test/kotlin/com/villarosa/InventoryIT.kt), [BookingCalendarIT](../src/test/kotlin/com/villarosa/BookingCalendarIT.kt), [BookingQuotesIT](../src/test/kotlin/com/villarosa/BookingQuotesIT.kt), [staff browser workflows](../frontend/e2e/staff-workflow.spec.ts) |
 | Payments and financial recovery | [ManualLedgerIT](../src/test/kotlin/com/villarosa/ManualLedgerIT.kt), [payment interactions](../frontend/src/features/reservations/payments.test.tsx), [payment browser workflows](../frontend/e2e/payments.spec.ts) |

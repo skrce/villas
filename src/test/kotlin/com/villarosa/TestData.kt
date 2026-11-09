@@ -7,11 +7,47 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.security.core.context.SecurityContextHolder
 
 object TestData {
+    fun authentication(identity: StaffIdentity = ownerIdentity()) =
+        StaffAuthentication(
+            com.villarosa.security.StaffSessionIdentity(
+                identity.id,
+                0,
+                mapOf("villa-rosa" to identity),
+            )
+        )
+
+    fun hasTable(jdbc: JdbcTemplate, name: String): Boolean =
+        jdbc.execute(
+            ConnectionCallback { connection ->
+                connection.metaData.getTables(null, null, name, arrayOf("TABLE")).use { it.next() }
+            }
+        ) == true
+
+    fun registerIdentity(
+        jdbc: JdbcTemplate,
+        id: String,
+        issuer: String,
+        subject: String,
+        email: String,
+    ) {
+        if (hasTable(jdbc, "staff_identities"))
+            jdbc.update(
+                "INSERT INTO staff_identities(id,issuer,subject,email,security_version,version,created_at) SELECT ?,?,?,?,0,0,CURRENT_TIMESTAMP(6) WHERE NOT EXISTS (SELECT 1 FROM staff_identities WHERE issuer=? AND subject=?)",
+                id,
+                issuer,
+                subject,
+                email,
+                issuer,
+                subject,
+            )
+    }
+
     fun registerBusiness(jdbc: JdbcTemplate, id: String) {
         jdbc.update(
-            "INSERT INTO businesses(id,name) VALUES(?,?) ON CONFLICT DO NOTHING",
+            "INSERT INTO businesses(id,name,active,currency,property_timezone,version,created_at) SELECT ?,?,TRUE,'EUR','Europe/Skopje',0,CURRENT_TIMESTAMP(6) WHERE NOT EXISTS (SELECT 1 FROM businesses WHERE id=?)",
             id,
             "Synthetic $id",
+            id,
         )
     }
 
@@ -36,6 +72,13 @@ object TestData {
             "Refusing to clear an unexpected test database."
         }
         SecurityContextHolder.clearContext()
+        registerBusiness(jdbc, "villa-rosa")
+        if (hasTable(jdbc, "staff_identity_lock"))
+            jdbc.update(
+                "INSERT INTO staff_identity_lock(singleton,lock_token) SELECT 1,0 WHERE NOT EXISTS (SELECT 1 FROM staff_identity_lock WHERE singleton=1)"
+            )
+        if (hasTable(jdbc, "business_onboarding"))
+            jdbc.update("DELETE FROM business_onboarding WHERE property_id IS NOT NULL")
         val hasSessions =
             jdbc.execute(
                 ConnectionCallback { connection ->
@@ -81,9 +124,12 @@ object TestData {
             )) {
             jdbc.update("DELETE FROM $table WHERE id IS NOT NULL")
         }
+        if (hasTable(jdbc, "staff_identities"))
+            jdbc.update("DELETE FROM staff_identities WHERE id IS NOT NULL")
         if (authenticatedOwner) {
             seedOwner(jdbc, ownerIssuer, 0)
-            SecurityContextHolder.getContext().authentication = StaffAuthentication(ownerIdentity())
+            SecurityContextHolder.getContext().authentication =
+                TestData.authentication(ownerIdentity())
         }
     }
 
@@ -91,6 +137,13 @@ object TestData {
         StaffIdentity("00000000-0000-0000-0000-${(index + 1).toString().padStart(12, '0')}", 0)
 
     fun seedOwner(jdbc: JdbcTemplate, issuer: String = "http://127.0.0.1:19099", index: Int = 0) {
+        registerIdentity(
+            jdbc,
+            ownerIdentity(index).id,
+            issuer,
+            if (index == 0) "synthetic-owner" else "synthetic-owner-$index",
+            if (index == 0) "owner@example.test" else "owner-$index@example.test",
+        )
         jdbc.update(
             "INSERT INTO staff_accounts (id, property_id, issuer, subject, email, role, active, security_version, version, created_at) VALUES (?, 'villa-rosa', ?, ?, ?, 'OWNER', TRUE, 0, 0, CURRENT_TIMESTAMP(6))",
             ownerIdentity(index).id,

@@ -226,6 +226,20 @@
         },
         "type": "object"
       },
+      "BusinessMembershipView": {
+        "properties": {
+          "businessId": {
+            "type": "string"
+          },
+          "businessName": {
+            "type": "string"
+          },
+          "staff": {
+            "$ref": "#/components/schemas/StaffView"
+          }
+        },
+        "type": "object"
+      },
       "CalendarMaintenance": {
         "properties": {
           "endDate": {
@@ -815,6 +829,17 @@
         "required": [
           "maintenance"
         ],
+        "type": "object"
+      },
+      "IdentityView": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "InventoryEventInfo": {
@@ -2413,6 +2438,20 @@
             "nullable": true,
             "type": "string"
           },
+          "identity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IdentityView"
+              }
+            ],
+            "nullable": true
+          },
+          "memberships": {
+            "items": {
+              "$ref": "#/components/schemas/BusinessMembershipView"
+            },
+            "type": "array"
+          },
           "permissions": {
             "items": {
               "type": "string"
@@ -2420,9 +2459,11 @@
             "type": "array"
           },
           "propertyId": {
+            "nullable": true,
             "type": "string"
           },
           "propertyName": {
+            "nullable": true,
             "type": "string"
           },
           "provider": {
@@ -3327,6 +3368,40 @@
         ]
       }
     },
+    "/auth/memberships": {
+      "get": {
+        "operationId": "myBusinessMemberships",
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BusinessMembershipView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read only the caller's current authorized business memberships",
+        "tags": [
+          "Staff"
+        ]
+      }
+    },
     "/auth/session": {
       "get": {
         "operationId": "staffSession",
@@ -3437,6 +3512,320 @@
         "summary": "Read this Owner's saved historical quote",
         "tags": [
           "Quotes"
+        ]
+      }
+    },
+    "/businesses/{businessId}/staff": {
+      "get": {
+        "operationId": "businessStaff",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StaffView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read Owner memberships in an explicitly authorized business",
+        "tags": [
+          "Business staff"
+        ]
+      }
+    },
+    "/businesses/{businessId}/staff/invitations": {
+      "get": {
+        "operationId": "businessStaffInvitations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Read invitations in an explicitly authorized business",
+        "tags": [
+          "Business staff"
+        ]
+      },
+      "post": {
+        "operationId": "inviteBusinessOwner",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteOwnerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Invite an Owner to an explicitly authorized business",
+        "tags": [
+          "Business staff"
+        ]
+      }
+    },
+    "/businesses/{businessId}/staff/invitations/{invitationId}": {
+      "delete": {
+        "operationId": "revokeBusinessInvitation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invitationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Revoke an invitation in an explicitly authorized business",
+        "tags": [
+          "Business staff"
+        ]
+      }
+    },
+    "/businesses/{businessId}/staff/{staffId}/deactivate": {
+      "post": {
+        "operationId": "deactivateBusinessOwner",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "staffId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Deactivate an Owner membership in one business",
+        "tags": [
+          "Business staff"
+        ]
+      }
+    },
+    "/businesses/{businessId}/staff/{staffId}/revoke-sessions": {
+      "post": {
+        "operationId": "revokeBusinessSessions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "businessId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "staffId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffView"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          }
+        },
+        "summary": "Revoke existing session grants for one business membership",
+        "tags": [
+          "Business staff"
         ]
       }
     },

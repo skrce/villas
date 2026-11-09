@@ -1,0 +1,30 @@
+# Villas generated API client
+
+This client is bundled with the Villas frontend. Regenerate it from the backend
+contract with `npm run generate:api`; do not edit generated files.
+
+Use the session-aware clients in `frontend/src/api/client.ts`. Browser requests use
+same-origin credentials. Unsafe requests also require the current CSRF header.
+Never read, copy or configure the HttpOnly session cookie as a JavaScript API key.
+Business-scoped staff operations require an explicit authorized `businessId`.
+
+## API endpoints
+
+| Class | Method | HTTP request | Description |
+| --- | --- | --- | --- |
+{{#apiInfo}}{{#apis}}{{#operations}}{{#operation}}| {{classname}} | [{{operationId}}]({{apiDocPath}}/{{classname}}.md#{{operationIdLowerCase}}) | {{httpMethod}} {{path}} | {{summary}} |
+{{/operation}}{{/operations}}{{/apis}}{{/apiInfo}}
+
+## Models
+
+{{#models}}{{#model}}- [{{{classname}}}]({{modelDocPath}}/{{{classname}}}.md)
+{{/model}}{{/models}}
+
+## Authorization
+
+{{#authMethods}}
+<a id="{{name}}{{#isOAuth}}-{{flow}}{{/isOAuth}}"></a>
+### {{name}}
+
+{{{description}}}
+{{/authMethods}}

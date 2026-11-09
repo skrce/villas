@@ -1,5 +1,6 @@
-.openapi-generator-ignore
+README.md
 apis/ApartmentApi.ts
+apis/BusinessStaffApi.ts
 apis/CalendarApi.ts
 apis/CustomerApi.ts
 apis/InventoryApi.ts
@@ -19,6 +20,8 @@ docs/ApartmentApi.md
 docs/BalanceRow.md
 docs/BookingCalendarPage.md
 docs/BookingQuote.md
+docs/BusinessMembershipView.md
+docs/BusinessStaffApi.md
 docs/CalendarApi.md
 docs/CalendarMaintenance.md
 docs/CalendarRoom.md
@@ -39,6 +42,7 @@ docs/GuestQueryRequest.md
 docs/GuestUpdateRequest.md
 docs/HousekeepingPage.md
 docs/HousekeepingRoom.md
+docs/IdentityView.md
 docs/InventoryApi.md
 docs/InventoryEventInfo.md
 docs/InventoryEventPage.md
@@ -112,6 +116,7 @@ models/Apartment.ts
 models/BalanceRow.ts
 models/BookingCalendarPage.ts
 models/BookingQuote.ts
+models/BusinessMembershipView.ts
 models/CalendarMaintenance.ts
 models/CalendarRoom.ts
 models/CalendarStay.ts
@@ -130,6 +135,7 @@ models/GuestQueryRequest.ts
 models/GuestUpdateRequest.ts
 models/HousekeepingPage.ts
 models/HousekeepingRoom.ts
+models/IdentityView.ts
 models/InventoryEventInfo.ts
 models/InventoryEventPage.ts
 models/InvitationView.ts

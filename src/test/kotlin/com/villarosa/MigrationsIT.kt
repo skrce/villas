@@ -25,7 +25,7 @@ class MigrationsIT {
     @Test
     fun offlineCheckRejectsANewerAppliedSchemaWithoutChangingIt() {
         Files.writeString(
-            recovery.resolve("V17__future_probe.sql"),
+            recovery.resolve("V18__future_probe.sql"),
             "CREATE TABLE future_probe(id INTEGER)",
         )
         Flyway.configure()
@@ -48,7 +48,7 @@ class MigrationsIT {
                 sql.executeQuery("SELECT MAX(version::integer) FROM flyway_schema_history").use {
                     rows ->
                     rows.next()
-                    assertThat(rows.getInt(1)).isEqualTo(17)
+                    assertThat(rows.getInt(1)).isEqualTo(18)
                 }
             }
         }
@@ -70,7 +70,7 @@ class MigrationsIT {
                     .info()
                     .pending()
             )
-            .hasSize(2)
+            .hasSize(3)
         DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
         connection().use {
             it.createStatement().use { sql ->
@@ -157,7 +157,7 @@ class MigrationsIT {
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
         val flyway =
             DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(16)
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(17)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
         connection().use { connection ->
@@ -210,7 +210,7 @@ class MigrationsIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(15)
+            .isEqualTo(16)
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 statement
@@ -271,6 +271,21 @@ class MigrationsIT {
     @Test
     fun staffSchemaRejectsUnapprovedRolesNoncanonicalEmailsAndBrokenReferences() {
         DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        val jdbc =
+            org.springframework.jdbc.core.JdbcTemplate(
+                org.springframework.jdbc.datasource.DriverManagerDataSource(
+                    database.jdbcUrl,
+                    database.username,
+                    database.password,
+                )
+            )
+        TestData.registerIdentity(
+            jdbc,
+            "00000000-0000-0000-0000-000000000001",
+            "https://accounts.google.com",
+            "synthetic-owner",
+            "owner@example.test",
+        )
         connection().use { connection ->
             connection.createStatement().use { statement ->
                 val id = "00000000-0000-0000-0000-000000000001"

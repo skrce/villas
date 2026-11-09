@@ -71,6 +71,21 @@ class RecoveryMigrationIT {
 
     private fun seed(version: Long) {
         DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        val jdbc =
+            org.springframework.jdbc.core.JdbcTemplate(
+                org.springframework.jdbc.datasource.DriverManagerDataSource(
+                    database.jdbcUrl,
+                    database.username,
+                    database.password,
+                )
+            )
+        TestData.registerIdentity(
+            jdbc,
+            "00000000-0000-0000-0000-000000000001",
+            "https://accounts.google.com",
+            "synthetic-owner",
+            "owner@example.test",
+        )
         connection().use { connection ->
             connection.createStatement().use { sql ->
                 sql.executeUpdate(

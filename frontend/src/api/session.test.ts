@@ -8,6 +8,29 @@ beforeEach(() => { vi.resetModules(); fetchMock.mockReset(); vi.stubGlobal('fetc
 afterEach(() => vi.unstubAllGlobals());
 
 describe('staff session boundaries', () => {
+  it.each([true, false])("separates restricted identities while retaining the same identity draft key: same=%s", async (same) => {
+    const session = await import('./session');
+    fetchMock.mockResolvedValueOnce(json({ ...payload(), identity: { id: 'person-one', email: 'owner@example.test' } }));
+    await session.refreshSession();
+    const old = session.scopedSessionFetch('owner-one', session.getSessionEpoch());
+    fetchMock.mockResolvedValueOnce(json({ ...payload(), staff: null, identity: { id: same ? 'person-one' : 'person-two', email: 'owner@example.test' } }));
+    await session.refreshSession();
+    expect(session.getSessionOwnerKey()).toBe(same ? 'owner-one' : 'identity:person-two');
+    await expect(old('/api/v1/apartments')).rejects.toThrow('session changed');
+  });
+
+  it('keeps identity-only sessions out of the workspace and still supports confirmed logout', async () => {
+    const session = await import('./session');
+    fetchMock.mockResolvedValueOnce(json({ ...payload(), staff: null, propertyId: null, propertyName: null, identity: { id: 'global-user', email: 'owner@example.test' }, memberships: [] }));
+    await session.refreshSession();
+    expect(session.getSession()).toMatchObject({ status: 'restricted' });
+    await expect(session.scopedSessionFetch('owner-one', session.getSessionEpoch())('/api/v1/apartments')).rejects.toThrow('session changed');
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 })).mockResolvedValueOnce(json({ authenticated: false }));
+    await session.logout();
+    expect(session.getSession()).toMatchObject({ status: 'anonymous', reason: 'logout' });
+    expect(localStorage.length).toBe(0);
+  });
+
   it('adds CSRF only to writes and persists no session or staff data', async () => {
     const session = await load();
     fetchMock.mockResolvedValueOnce(json([]));

@@ -46,11 +46,29 @@ class StaffSessionFilter(
                 return failure(response, 401, "SESSION_EXPIRED")
             }
             try {
-                access.current(authentication.identity)
+                access.person(authentication.identity)
             } catch (_: DomainException) {
                 session.invalidate()
                 SecurityContextHolder.clearContext()
                 return failure(response, 401, "SESSION_REVOKED")
+            }
+            val path = request.requestURI.removePrefix(request.contextPath)
+            if (
+                !path.startsWith("/api/v1/auth/") &&
+                    !path.startsWith("/api/v1/businesses/") &&
+                    path !in setOf("/oauth2/authorization/google", "/login/oauth2/code/google")
+            ) {
+                if (
+                    request.getHeader("X-Villas-Business")?.let {
+                        it != com.villarosa.service.PropertyScope.ID
+                    } == true
+                )
+                    return failure(response, 403, "BUSINESS_ACCESS_DENIED")
+                try {
+                    access.resolve(authentication.identity, com.villarosa.service.PropertyScope.ID)
+                } catch (_: DomainException) {
+                    return failure(response, 401, "SESSION_REVOKED")
+                }
             }
             if (
                 request.method !in SAFE_METHODS &&

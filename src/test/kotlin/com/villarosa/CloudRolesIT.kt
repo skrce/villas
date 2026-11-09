@@ -64,6 +64,19 @@ class CloudRolesIT {
                 it.createStatement().use { sql ->
                     sql.executeQuery("SELECT property_id FROM staff_property_lock FOR UPDATE")
                         .use { rows -> assertThat(rows.next()).isTrue() }
+                    sql.executeQuery("SELECT singleton FROM staff_identity_lock FOR UPDATE").use {
+                        rows ->
+                        assertThat(rows.next()).isTrue()
+                    }
+                    for (forbidden in
+                        listOf(
+                            "INSERT INTO staff_property_lock(property_id) VALUES('foreign')",
+                            "INSERT INTO business_onboarding(property_id,request_hash,invitation_id) VALUES('foreign','${"a".repeat(64)}','unclaimed')",
+                            "DELETE FROM staff_identities WHERE id='unclaimed'",
+                        )) assertThat(
+                            assertThrows<SQLException> { sql.execute(forbidden) }.sqlState
+                        )
+                        .isEqualTo("42501")
                     assertThrows<SQLException> { sql.execute("CREATE TABLE forbidden(id INTEGER)") }
                     assertThrows<SQLException> {
                         sql.execute("INSERT INTO businesses(id,name) VALUES('foreign','Synthetic')")
@@ -90,7 +103,7 @@ class CloudRolesIT {
                 it.createStatement().use { sql ->
                     sql.executeQuery("SELECT COUNT(*) FROM flyway_schema_history").use { rows ->
                         rows.next()
-                        assertThat(rows.getInt(1)).isEqualTo(16)
+                        assertThat(rows.getInt(1)).isEqualTo(17)
                     }
                     assertThrows<SQLException> {
                         sql.executeUpdate("DELETE FROM customers WHERE id=1")

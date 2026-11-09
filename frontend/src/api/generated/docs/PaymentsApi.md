@@ -13,49 +13,14 @@ All URIs are relative to */api/v1*
 
 
 
+<a id="recordpayment"></a>
 ## recordPayment
 
 > OperationResult recordPayment(id, idempotencyKey, paymentRequest)
 
 Record a payment already completed outside Villas
 
-### Example
-
-```ts
-import {
-  Configuration,
-  PaymentsApi,
-} from '';
-import type { RecordPaymentRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new PaymentsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // PaymentRequest
-    paymentRequest: ...,
-  } satisfies RecordPaymentRequest;
-
-  try {
-    const data = await api.recordPayment(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -89,49 +54,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="recordrefund"></a>
 ## recordRefund
 
 > OperationResult recordRefund(id, idempotencyKey, refundRequest)
 
 Record an externally completed refund against one receipt
 
-### Example
-
-```ts
-import {
-  Configuration,
-  PaymentsApi,
-} from '';
-import type { RecordRefundRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new PaymentsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // RefundRequest
-    refundRequest: ...,
-  } satisfies RecordRefundRequest;
-
-  try {
-    const data = await api.recordRefund(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -165,49 +95,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="refundablepayments"></a>
 ## refundablePayments
 
 > RefundablePayments refundablePayments(id, beforeId, limit)
 
 Read receipt allocations available for manual refund
 
-### Example
-
-```ts
-import {
-  Configuration,
-  PaymentsApi,
-} from '';
-import type { RefundablePaymentsRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new PaymentsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string (optional)
-    beforeId: beforeId_example,
-    // number (optional)
-    limit: 56,
-  } satisfies RefundablePaymentsRequest;
-
-  try {
-    const data = await api.refundablePayments(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -241,45 +136,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="reservationledger"></a>
 ## reservationLedger
 
 > LedgerSummary reservationLedger(id)
 
 Read agreed accommodation and externally received funds
 
-### Example
-
-```ts
-import {
-  Configuration,
-  PaymentsApi,
-} from '';
-import type { ReservationLedgerRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new PaymentsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-  } satisfies ReservationLedgerRequest;
-
-  try {
-    const data = await api.reservationLedger(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -311,49 +175,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="reservationledgerhistory"></a>
 ## reservationLedgerHistory
 
 > LedgerHistory reservationLedgerHistory(id, beforeId, limit)
 
 Read immutable payment, refund and correction history
 
-### Example
-
-```ts
-import {
-  Configuration,
-  PaymentsApi,
-} from '';
-import type { ReservationLedgerHistoryRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new PaymentsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string (optional)
-    beforeId: beforeId_example,
-    // number (optional)
-    limit: 56,
-  } satisfies ReservationLedgerHistoryRequest;
-
-  try {
-    const data = await api.reservationLedgerHistory(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -387,51 +216,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="reverseledgerentry"></a>
 ## reverseLedgerEntry
 
 > OperationResult reverseLedgerEntry(id, entryId, idempotencyKey, reversalRequest)
 
 Retain and correct a mistaken payment or refund with a reason
 
-### Example
-
-```ts
-import {
-  Configuration,
-  PaymentsApi,
-} from '';
-import type { ReverseLedgerEntryRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new PaymentsApi(config);
-
-  const body = {
-    // number
-    id: 56,
-    // string
-    entryId: entryId_example,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // ReversalRequest
-    reversalRequest: ...,
-  } satisfies ReverseLedgerEntryRequest;
-
-  try {
-    const data = await api.reverseLedgerEntry(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 

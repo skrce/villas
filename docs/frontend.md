@@ -255,3 +255,21 @@ The generated export helper has a text response type. Download through
 report validation checks phase/agreement rules, ledger effects, accepted quote
 references, date quantities, applied room filters and period capacity before totals
 can appear or a download can be enabled. Invalid source payloads are explicit errors.
+
+## Shared identity compatibility
+
+The console still uses its configured business until #46/#47. The workspace Owner
+key is the membership's `staff.id`, not the canonical identity ID. The new server
+session can hold independent business grants, but the console does not select the
+first available business or mix business state. Without the configured grant it
+hides protected views, shows a workspace-access message and allows sign-out.
+A restricted session retains a draft key only for the same canonical identity;
+a different identity changes the workspace key and invalidates old continuations.
+The [shared-identity contract](contracts/shared-identity.md) records the API boundary;
+#47 supplies explicit business URLs, switching and browser namespaces.
+
+API generation uses the pinned CLI plus `openapi-client-config.json` and the project
+README template. It exports the pinned API-doc template, supplies stable operation
+anchors and removes generic API-key examples that do not apply to HttpOnly cookies.
+Every generated local documentation link/anchor is checked before replacing the
+client. Fix templates/configuration, regenerate and commit the complete output.

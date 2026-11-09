@@ -3,7 +3,6 @@ package com.villarosa
 import com.villarosa.exception.DomainException
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
-import com.villarosa.security.StaffAuthentication
 import com.villarosa.service.*
 import java.time.LocalDate
 import java.util.UUID
@@ -213,7 +212,7 @@ constructor(
                 (0..1).map { owner ->
                     pool.submit<String> {
                         SecurityContextHolder.getContext().authentication =
-                            StaffAuthentication(TestData.ownerIdentity(owner))
+                            TestData.authentication(TestData.ownerIdentity(owner))
                         try {
                             gate.await(10, TimeUnit.SECONDS)
                             refund(payment.id, 7000, expected)
@@ -245,7 +244,7 @@ constructor(
                 (0..1).map {
                     pool.submit<OperationResult> {
                         SecurityContextHolder.getContext().authentication =
-                            StaffAuthentication(TestData.ownerIdentity())
+                            TestData.authentication(TestData.ownerIdentity())
                         try {
                             gate.await(10, TimeUnit.SECONDS)
                             pay(2501, 0, stable)

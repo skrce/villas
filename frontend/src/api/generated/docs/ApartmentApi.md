@@ -14,51 +14,14 @@ All URIs are relative to */api/v1*
 
 
 
+<a id="apartmentdirectory"></a>
 ## apartmentDirectory
 
 > RoomPage apartmentDirectory(name, includeArchived, afterId, limit)
 
 Read a bounded room directory by name or reference
 
-### Example
-
-```ts
-import {
-  Configuration,
-  ApartmentApi,
-} from '';
-import type { ApartmentDirectoryRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new ApartmentApi(config);
-
-  const body = {
-    // string (optional)
-    name: name_example,
-    // boolean (optional)
-    includeArchived: true,
-    // number (optional)
-    afterId: 56,
-    // number (optional)
-    limit: 56,
-  } satisfies ApartmentDirectoryRequest;
-
-  try {
-    const data = await api.apartmentDirectory(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -93,49 +56,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="blockapartment"></a>
 ## blockApartment
 
 > MaintenanceBlock blockApartment(apartmentId, idempotencyKey, roomBlockRequest)
 
 Add a dated maintenance block using a private JSON body
 
-### Example
-
-```ts
-import {
-  Configuration,
-  ApartmentApi,
-} from '';
-import type { BlockApartmentRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new ApartmentApi(config);
-
-  const body = {
-    // number
-    apartmentId: 56,
-    // string
-    idempotencyKey: idempotencyKey_example,
-    // RoomBlockRequest
-    roomBlockRequest: ...,
-  } satisfies BlockApartmentRequest;
-
-  try {
-    const data = await api.blockApartment(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -169,45 +97,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="createapartment"></a>
 ## createApartment
 
 > Apartment createApartment(roomCreateRequest)
 
 Add a named room with a unique property reference
 
-### Example
-
-```ts
-import {
-  Configuration,
-  ApartmentApi,
-} from '';
-import type { CreateApartmentRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new ApartmentApi(config);
-
-  const body = {
-    // RoomCreateRequest
-    roomCreateRequest: ...,
-  } satisfies CreateApartmentRequest;
-
-  try {
-    const data = await api.createApartment(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -239,45 +136,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="getapartment"></a>
 ## getApartment
 
 > Apartment getApartment(apartmentId)
 
 Read a property-scoped current or archived room
 
-### Example
-
-```ts
-import {
-  Configuration,
-  ApartmentApi,
-} from '';
-import type { GetApartmentRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new ApartmentApi(config);
-
-  const body = {
-    // number
-    apartmentId: 56,
-  } satisfies GetApartmentRequest;
-
-  try {
-    const data = await api.getApartment(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -309,40 +175,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="listapartments"></a>
 ## listApartments
 
 > Array&lt;Apartment&gt; listApartments()
 
 List rooms for compatibility and booking selectors
 
-### Example
-
-```ts
-import {
-  Configuration,
-  ApartmentApi,
-} from '';
-import type { ListApartmentsRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new ApartmentApi(config);
-
-  try {
-    const data = await api.listApartments();
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -371,47 +211,14 @@ This endpoint does not need any parameter.
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="setapartmentstatus"></a>
 ## setApartmentStatus
 
 > Apartment setApartmentStatus(apartmentId, recordStatusRequest)
 
 Archive or restore a room while retaining its history
 
-### Example
-
-```ts
-import {
-  Configuration,
-  ApartmentApi,
-} from '';
-import type { SetApartmentStatusRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new ApartmentApi(config);
-
-  const body = {
-    // number
-    apartmentId: 56,
-    // RecordStatusRequest
-    recordStatusRequest: ...,
-  } satisfies SetApartmentStatusRequest;
-
-  try {
-    const data = await api.setApartmentStatus(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 
@@ -444,47 +251,14 @@ example().catch(console.error);
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
+<a id="updateapartment"></a>
 ## updateApartment
 
 > Apartment updateApartment(apartmentId, roomUpdateRequest)
 
 Edit a reviewed room without invalidating current or future stays
 
-### Example
-
-```ts
-import {
-  Configuration,
-  ApartmentApi,
-} from '';
-import type { UpdateApartmentRequest } from '';
-
-async function example() {
-  console.log("🚀 Testing  SDK...");
-  const config = new Configuration({ 
-    // To configure API key authorization: staffSession
-    apiKey: "YOUR API KEY",
-  });
-  const api = new ApartmentApi(config);
-
-  const body = {
-    // number
-    apartmentId: 56,
-    // RoomUpdateRequest
-    roomUpdateRequest: ...,
-  } satisfies UpdateApartmentRequest;
-
-  try {
-    const data = await api.updateApartment(body);
-    console.log(data);
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-// Run the test
-example().catch(console.error);
-```
+Use the Villas session-aware clients described in [client configuration](../README.md#authorization).
 
 ### Parameters
 

@@ -122,9 +122,7 @@ constructor(
                         org.springframework.security.core.context.SecurityContextHolder
                             .createEmptyContext()
                     context.authentication =
-                        com.villarosa.security.StaffAuthentication(
-                            TestData.ownerIdentity(if (sameOwner) 0 else index)
-                        )
+                        TestData.authentication(TestData.ownerIdentity(if (sameOwner) 0 else index))
                     org.springframework.security.core.context.SecurityContextHolder.setContext(
                         context
                     )
@@ -689,7 +687,7 @@ constructor(
         val operation = key()
         val committed = create(operation = operation)
         org.springframework.security.core.context.SecurityContextHolder.getContext()
-            .authentication = com.villarosa.security.StaffAuthentication(TestData.ownerIdentity(1))
+            .authentication = TestData.authentication(TestData.ownerIdentity(1))
         assertThat(
                 assertThrows<DomainException> { service.operation(OperationKind.CREATE, operation) }
                     .code
@@ -716,8 +714,7 @@ constructor(
                 future =
                     executor.submit<String> {
                         org.springframework.security.core.context.SecurityContextHolder.getContext()
-                            .authentication =
-                            com.villarosa.security.StaffAuthentication(TestData.ownerIdentity())
+                            .authentication = TestData.authentication(TestData.ownerIdentity())
                         ready.countDown()
                         try {
                             create()
