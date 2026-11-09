@@ -310,7 +310,7 @@ try {
   } finally { await restoredBrowser.close(); }
   await compose(['run', '--rm', '--no-deps', 'monitor-check']);
   console.log(`Isolated encrypted restore and reconciliation passed in ${((Date.now() - startedAt) / 1000).toFixed(1)} seconds. This is local rehearsal evidence, not an off-server RPO/RTO guarantee.`);
-  console.log('Release container checks passed: empty initialization, restricted runtime, TLS/Google authorization setup, outage readiness, 24 synthetic staff browser workflows, encrypted restore/reconciliation and stale-session rejection. Live Google and deployed acceptance remain open.');
+  console.log('Release container checks passed: empty initialization, restricted runtime, TLS/Google authorization setup, outage readiness, synthetic staff browser workflows, encrypted restore/reconciliation and stale-session rejection. Live Google and deployed acceptance remain open.');
   passed = true;
 } catch (error) {
   if (config) {
