@@ -1,0 +1,11 @@
+{
+  "projectId": "villas-example-staging",
+  "environment": "staging",
+  "account": "owner@gmail.com",
+  "configuration": "villas-personal",
+  "gcloudConfigDir": "/absolute/private/villas-gcloud",
+  "stateBucket": "villas-example-staging-state",
+  "variablesFile": "/absolute/private/staging.tfvars.json",
+  "terraformBinary": "/absolute/tools/terraform",
+  "gcloudBinary": "/absolute/tools/gcloud"
+}

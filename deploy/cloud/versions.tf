@@ -1,0 +1,16 @@
+terraform {
+  required_version = "= 1.15.9"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "= 7.30.0"
+    }
+  }
+  backend "gcs" {}
+}
+
+provider "google" {
+  project      = var.project_id
+  region       = "europe-west3"
+  access_token = var.personal_access_token
+}

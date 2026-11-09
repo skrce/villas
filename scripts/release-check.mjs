@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 import { directoryDigest, git, sha256, treeDigest } from './release-artifacts.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+const verification = join(root, 'target/release/verified.json');
+rmSync(verification, { force: true });
 const build = JSON.parse(readFileSync(join(root, 'target/release/build.json'), 'utf8'));
 if (build.source !== git(root, 'rev-parse', 'HEAD') || build.sourceTree !== treeDigest(root) ||
     !/^villarosa-[-A-Za-z0-9.]+\.jar$/.test(build.jar ?? '') || build.jarSha256 !== sha256(join(root, 'target', build.jar)) ||
@@ -40,6 +42,7 @@ const environment = {
 let child;
 let interrupted;
 let cleaning = false;
+let passed = false;
 const stop = signal => { interrupted ??= signal; child?.kill('SIGTERM'); };
 const onInt = () => stop('SIGINT');
 const onTerm = () => stop('SIGTERM');
@@ -70,7 +73,7 @@ const sql = async (input, user = 'root', allowFailure = false, service = 'db') =
   return compose(['exec', '-T', service, 'sh', '-c', `PGPASSWORD="$(cat /run/secrets/${secret})" exec psql --username=${user === 'root' ? 'villas_root' : user} --dbname=villarosa --no-psqlrc --quiet --tuples-only --no-align --field-separator='	' --set=ON_ERROR_STOP=1`], { input, capture: true, allowFailure });
 };
 const checkPorts = async () => {
-  for (const port of [15073, 19108, 19443]) await new Promise((resolve, reject) => {
+  for (const port of [15073, 19108, 19443, 19453]) await new Promise((resolve, reject) => {
     const socket = createServer(); socket.once('error', () => reject(new Error(`Release check requires an unused loopback port ${port}.`)));
     socket.listen(port, '127.0.0.1', () => socket.close(resolve));
   });
@@ -95,6 +98,12 @@ try {
   const resolved = await run('docker', ['compose', '--project-name', project, '--env-file', join(state, 'env'), '--file', join(root, 'deploy/compose.yaml'), '--profile', 'operations', 'config', '--format', 'json'], { capture: true });
   config = JSON.parse(resolved.output);
   delete config.name;
+  config.services.maintenance = {
+    image: build.proxyId,
+    entrypoint: ['caddy'],
+    command: ['run', '--config', '/etc/caddy/maintenance.Caddyfile', '--adapter', 'caddyfile'],
+    ports: [{ target: 8080, published: '19453', host_ip: '127.0.0.1' }],
+  };
   config.services.db.volumes = config.services.db.volumes.map(volume => volume.type === 'bind' ? { ...volume, source: join(root, 'deploy/init-db.sh') } : volume);
   config.services.api.ports = [{ target: 8443, published: '19443', host_ip: '127.0.0.1' }, { target: 8080, published: '15073', host_ip: '127.0.0.1' }, { target: 19108, published: '19108', host_ip: '127.0.0.1' }];
   config.services.proxy.network_mode = 'service:api'; delete config.services.proxy.networks; delete config.services.proxy.ports;
@@ -104,6 +113,17 @@ try {
   config.services.api.environment.VILLAS_PUBLIC_URL = apiBase;
   config.services.api.environment.VILLAS_BIND_ADDRESS = '127.0.0.1';
   saveConfig();
+  await compose(['up', '--detach', '--wait', 'maintenance']);
+  let maintenance;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try { maintenance = await fetch('http://127.0.0.1:19453/health', { signal: AbortSignal.timeout(1000) }); if (maintenance.ok) break; } catch { /* The owned static server is starting. */ }
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  assert.equal(maintenance?.status, 200);
+  const paused = await fetch('http://127.0.0.1:19453/api/v1/apartments', { signal: AbortSignal.timeout(2000) });
+  assert.equal(paused.status, 503);
+  assert.equal(paused.headers.get('cache-control'), 'no-store');
+  await compose(['stop', 'maintenance']);
   await compose(['up', '--detach', '--wait', '--wait-timeout', '120', 'db']);
   await compose(['run', '--rm', 'migrate']);
   await compose(['run', '--rm', 'migrate']);
@@ -247,9 +267,11 @@ try {
   config.services.restore.volumes = [{ type: 'volume', source: 'repository', target: '/repo' }];
   saveConfig();
   await compose(['up', '--detach', '--wait', '--wait-timeout', '120', 'restored-db']);
+  await sql('ALTER SCHEMA public OWNER TO villas_root; GRANT USAGE,CREATE ON SCHEMA public TO villas_migration;', 'root', false, 'restored-db');
   const restoreArguments = ['run', '--rm', 'restore'];
   const startedAt = Date.now();
   await compose(restoreArguments);
+  assert.equal((await sql("SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname='public';", 'root', false, 'restored-db')).output, 'villas_root');
   assert.deepEqual(await fingerprint('restored-db', snapshot), original, 'Restore must preserve every business/configuration/operation/history row byte-for-byte.');
   const restoredGenerations = (await sql('SELECT id,security_version FROM staff_accounts ORDER BY id;', 'root', false, 'restored-db')).output;
   const expectedGenerations = generations.split('\n').map(row => { const [id, version] = row.split('\t'); return `${id}\t${BigInt(version) + 1n}`; }).join('\n');
@@ -275,6 +297,7 @@ try {
   await compose(['run', '--rm', '--no-deps', 'monitor-check']);
   console.log(`Isolated encrypted restore and reconciliation passed in ${((Date.now() - startedAt) / 1000).toFixed(1)} seconds. This is local rehearsal evidence, not an off-server RPO/RTO guarantee.`);
   console.log('Release container checks passed: empty initialization, restricted runtime, TLS/Google authorization setup, outage readiness, 24 synthetic staff browser workflows, encrypted restore/reconciliation and stale-session rejection. Live Google and deployed acceptance remain open.');
+  passed = true;
 } catch (error) {
   if (config) {
     try {
@@ -295,4 +318,8 @@ try {
     catch { console.error(`Release cleanup failed. Private recovery configuration remains at ${state}.`); process.exitCode = 1; }
   } else rmSync(state, { recursive: true, force: true });
   process.off('SIGINT', onInt); process.off('SIGTERM', onTerm);
+}
+if (passed && !process.exitCode) {
+  if (build.sourceTree !== treeDigest(root) || build.jarSha256 !== sha256(join(root, 'target', build.jar)) || build.webSha256 !== directoryDigest(join(root, 'frontend/dist'))) throw new Error('Release inputs changed during verification.');
+  writeFileSync(verification, `${JSON.stringify({ source: build.source, buildSha256: sha256(join(root, 'target/release/build.json')), verifiedAt: new Date().toISOString() })}\n`);
 }

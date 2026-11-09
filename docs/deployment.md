@@ -22,7 +22,7 @@ node scripts/release-check.mjs
 ```
 
 The release rehearsal owns a random Docker Compose project, private temporary files
-and loopback ports 15073, 19108 and 19443. Run it separately from the regular browser
+and loopback ports 15073, 19108, 19443 and 19453. Run it separately from the regular browser
 gate. It deletes only its own volumes/files and preserves private recovery settings
 if cleanup fails. It never reads `.env.local`, copies `.local-state`, uses a cloud
 account or changes a retained demo.
@@ -45,7 +45,7 @@ owned, removed and checked after cleanup.
 
 CI's `release-package` job consumes backend/frontend artifacts after their checks
 succeed, builds all three images and runs the rehearsal. These are not deployed images.
-A registry, provider credentials and environment deployment jobs require the selected personal resource configuration.
+The dispatch publication workflow and Frankfurt Terraform templates require actual personal resources and live qualification; see [Cloud Run + Neon](cloud-run-neon.md).
 Record registry digests and artifact checksums before deployment. Never deploy
 mutable tags such as `latest`.
 
@@ -57,34 +57,19 @@ and are identified in the manifest. Use a clean committed revision for a release
 
 ## Releasing a later change
 
-The repository currently runs checks, builds images and rehearses them locally in
-CI. It does not publish images to a registry or deploy to staging/production. Prepare
-those jobs for the confirmed D04 architecture, with this delivery sequence:
+The prepared [Cloud Run + Neon procedure](cloud-run-neon.md#deploying-a-later-change)
+publishes verified exact-master images through keyless GitHub identity, then uses
+an explicit personal operator for staging/production rollout. The publisher has no
+deployment, migration, recovery or secret-reading authority. Deploy the same digest
+receipt through both environments. Close public access, pause schedules, switch to
+the static maintenance revision without DB credentials, fence runtime logins/drain
+old revisions, take a verified backup, migrate, and validate the new app privately
+before reopening. Follow the linked procedure for the exact setup and failure gates.
 
-1. Merge a reviewed PR and require successful checks for the exact `master` commit.
-2. Publish the verified images for that commit and record immutable registry digests.
-   Promote the same images between environments; do not rebuild for production.
-3. Deploy to separate staging and verify the changed workflow with synthetic data,
-   real Google access and the applicable browser checks.
-4. Require an explicit production release. Close public writes, stop the app and
-   backup scheduler, and wait for every in-flight scheduled/manual backup to exit.
-   Take and verify a controlled off-server backup and record previous images/schema
-   as described in [controlled startup and upgrades](#controlled-startup-and-upgrades).
-5. Apply pending migrations and reviewed runtime grants, then start the selected
-   images against the retained production database. Owner bootstrap and empty
-   database initialization are first-install operations, not routine upgrade steps.
-6. Recreate the monitor with the replaced app as described in [operations](operations.md).
-   Verify readiness, actual HTTPS/login, protected access and operational signals.
-   Resume the backup scheduler and confirm protection before reopening writes.
-   Record results and image/schema versions. Follow the compatibility and recovery
-   rules below if verification fails.
-
-Use separate staging/production configuration, serialize releases per environment
-and give deployment jobs restricted, short-lived credentials where supported.
-GitHub's intended operator flow is to select a verified release for staging, inspect
-it, then explicitly promote it to production. Those release controls still need
-implementation. Until then, the reference below is an operator runbook, not a
-working GitHub deployment action.
+The remaining sections document the portable Docker Compose reference. Cloud Run
+uses managed TLS, separate jobs and provider monitoring instead of this Caddy/monitor
+network topology. Actual provider setup, Google, off-server restore, delivered alerts
+and staff acceptance remain required before launch.
 
 ## Reference environment
 

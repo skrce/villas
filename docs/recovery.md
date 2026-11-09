@@ -1,5 +1,11 @@
 # Backups and recovery
 
+For the selected Frankfurt hosting, use [Cloud Run + Neon](cloud-run-neon.md#backups-recovery-and-signals):
+per-business GCS repositories, attached identities, seven daily snapshots, durable
+protected-time checks and an operator-only isolated Neon restore target. The Docker
+Compose procedure below is the portable local reference. A local restore is separate
+from a timed off-server qualification.
+
 The Owner confirmed daily encrypted backups retained seven days, at most 24 hours
 of lost data and a 24-hour recovery-time target. Cloud Run + Neon in Frankfurt is
 approved. Actual off-server storage, credentials, alert delivery and timed hosted

@@ -80,7 +80,7 @@ jobs:
       - run: npm run lint
       - run: npm run test:coverage
       - run: npm run build
-      - run: node --test scripts/e2e.test.mjs scripts/demo.test.mjs scripts/release-artifacts.test.mjs scripts/operations.test.mjs scripts/backup-process.test.mjs scripts/recovery-policy.test.mjs
+      - run: node --test scripts/e2e.test.mjs scripts/demo.test.mjs scripts/release-artifacts.test.mjs scripts/operations.test.mjs scripts/backup-process.test.mjs scripts/recovery-policy.test.mjs scripts/cloud-release.test.mjs scripts/cloud-operator.test.mjs scripts/cloud-publish.test.mjs
         working-directory: .
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run test:e2e
@@ -124,3 +124,15 @@ jobs:
         working-directory: frontend
       - run: node scripts/build-release.mjs
       - run: node scripts/release-check.mjs
+
+  cloud-preparation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: { node-version-file: .node-version }
+      - run: node scripts/install-terraform.mjs "$RUNNER_TEMP/villas-terraform"
+      - run: node scripts/cloud-check.mjs
+        env:
+          VILLAS_TERRAFORM_BINARY: ${{ runner.temp }}/villas-terraform/terraform

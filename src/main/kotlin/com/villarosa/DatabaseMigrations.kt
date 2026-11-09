@@ -9,6 +9,7 @@ object DatabaseMigrations {
         username: String,
         password: String,
         target: String = "latest",
+        exact: Boolean = false,
     ): Flyway =
         Flyway.configure()
             .dataSource(url, username, password)
@@ -19,6 +20,7 @@ object DatabaseMigrations {
             .baselineOnMigrate(false)
             .outOfOrder(false)
             .validateMigrationNaming(true)
+            .apply { if (exact) ignoreMigrationPatterns(*emptyArray<String>()) }
             .load()
 
     fun migrate(url: String, username: String, password: String): MigrateResult {
@@ -47,8 +49,43 @@ object DatabaseMigrations {
                 required("VILLAS_DB_USERNAME"),
                 required("VILLAS_DB_PASSWORD"),
             )
+        if (System.getenv("VILLAS_CLOUD_RUN") == "1")
+            grantRuntime(
+                required("VILLAS_DB_URL"),
+                required("VILLAS_DB_USERNAME"),
+                required("VILLAS_DB_PASSWORD"),
+            )
         println(
             "Villas schema migration completed: ${result.migrationsExecuted} migrations applied."
         )
+    }
+
+    fun check(url: String, username: String, password: String) {
+        val flyway = configured(url, username, password, exact = true)
+        flyway.validate()
+        require(flyway.info().pending().isEmpty() && flyway.info().applied().isNotEmpty()) {
+            "The database must match the complete bundled schema."
+        }
+        java.sql.DriverManager.getConnection(url, username, password).use {
+            PropertyDatabaseBinding.verify(it)
+        }
+    }
+
+    fun grantRuntime(url: String, username: String, password: String) {
+        val sql =
+            requireNotNull(
+                    DatabaseMigrations::class.java.getResource("/release/runtime-grants.sql")
+                )
+                .readText()
+        java.sql.DriverManager.getConnection(url, username, password).use { connection ->
+            connection.autoCommit = false
+            try {
+                connection.createStatement().use { it.execute(sql) }
+                connection.commit()
+            } catch (failure: Exception) {
+                connection.rollback()
+                throw failure
+            }
+        }
     }
 }

@@ -1,0 +1,8 @@
+:8080 {
+    @health path /health
+    respond @health "UP" 200
+    header Cache-Control "no-store"
+    header Referrer-Policy "no-referrer"
+    header Strict-Transport-Security "max-age=31536000"
+    respond "Villas is being updated. Please try again shortly." 503
+}

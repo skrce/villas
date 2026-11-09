@@ -23,6 +23,76 @@ class MigrationsIT {
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
 
     @Test
+    fun offlineCheckRejectsANewerAppliedSchemaWithoutChangingIt() {
+        Files.writeString(
+            recovery.resolve("V16__future_probe.sql"),
+            "CREATE TABLE future_probe(id INTEGER)",
+        )
+        Flyway.configure()
+            .configuration(
+                DatabaseMigrations.configured(
+                        database.jdbcUrl,
+                        database.username,
+                        database.password,
+                    )
+                    .configuration
+            )
+            .locations("classpath:db/postgresql", "filesystem:$recovery")
+            .load()
+            .migrate()
+        assertThrows<FlywayException> {
+            DatabaseMigrations.check(database.jdbcUrl, database.username, database.password)
+        }
+        connection().use {
+            it.createStatement().use { sql ->
+                sql.executeQuery("SELECT MAX(version::integer) FROM flyway_schema_history").use {
+                    rows ->
+                    rows.next()
+                    assertThat(rows.getInt(1)).isEqualTo(16)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun offlineCheckRequiresTheWholeSchemaAndMatchingBusinessWithoutApplyingPendingMigrations() {
+        DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "14")
+            .migrate()
+        assertThrows<FlywayException> {
+            DatabaseMigrations.check(database.jdbcUrl, database.username, database.password)
+        }
+        assertThat(
+                DatabaseMigrations.configured(
+                        database.jdbcUrl,
+                        database.username,
+                        database.password,
+                    )
+                    .info()
+                    .pending()
+            )
+            .hasSize(1)
+        DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        connection().use {
+            it.createStatement().use { sql ->
+                sql.execute(
+                    "CREATE ROLE schema_check LOGIN PASSWORD 'synthetic'; GRANT CONNECT ON DATABASE ${database.databaseName} TO schema_check; GRANT USAGE ON SCHEMA public TO schema_check; GRANT SELECT ON ALL TABLES IN SCHEMA public TO schema_check"
+                )
+            }
+        }
+        DatabaseMigrations.check(database.jdbcUrl, "schema_check", "synthetic")
+        connection().use {
+            it.createStatement().use { sql ->
+                sql.executeUpdate(
+                    "UPDATE property_identity SET property_id='other-business' WHERE singleton=1"
+                )
+            }
+        }
+        assertThrows<IllegalArgumentException> {
+            DatabaseMigrations.check(database.jdbcUrl, "schema_check", "synthetic")
+        }
+    }
+
+    @Test
     fun anotherBusinessBindingRejectsTheUpgradeBeforeAnyDdl() {
         DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "14")
             .migrate()

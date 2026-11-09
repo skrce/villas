@@ -34,13 +34,13 @@ Neon projects/databases and backup repositories.
 
 ## Checks and contracts
 
-Use the pinned Java/Node versions, npm 11.6.2, the Maven wrapper, and `npm ci`.
+Use the pinned Java/Node/Terraform versions, npm 11.6.2, the Maven wrapper, and `npm ci`.
 Run `node scripts/check.mjs` from the root for the complete check. It requires Docker
 and the Playwright Chromium installation described in the README.
 Release changes also require `node scripts/build-release.mjs` and
 `node scripts/release-check.mjs` from a clean committed revision. Run the container
 rehearsal separately from the regular browser gate because their ports overlap.
-Read `docs/deployment.md`, `docs/recovery.md` and `docs/operations.md` for release
+Read `docs/cloud-run-neon.md`, `docs/deployment.md`, `docs/recovery.md` and `docs/operations.md` for release
 changes. Keep source fixed during an exact-revision gate. Cleanup verifies owned
 volumes are gone before deleting private recovery settings.
 
@@ -83,3 +83,9 @@ tracker, contracts, issue checklist, and setup docs with the code they describe.
 Resolve material review findings before merge. Keep local automation, browser tests,
 real Google verification, deployed checks, and owner acceptance as separate statuses.
 Do not mark an unverified production gate complete because local checks pass.
+
+Cloud preparation tests use mock providers with no backend. Actual Terraform uses
+`scripts/cloud-terraform.mjs` and explicit private personal configuration outside
+git. Do not use ambient gcloud/ADC, ABL state/secrets or employer projects. GitHub
+publishes verified digests only; follow the maintenance and database fencing
+procedure before migrations. Default services are private and schedules paused.

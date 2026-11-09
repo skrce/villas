@@ -1,0 +1,34 @@
+{
+  "template": {
+    "taskCount": 1,
+    "parallelism": 1,
+    "template": {
+      "serviceAccount": "RESTORE_ONLY_ACCOUNT@VILLAS_PROJECT.iam.gserviceaccount.com",
+      "timeout": "1800s",
+      "maxRetries": 0,
+      "containers": [{
+        "image": "europe-west3-docker.pkg.dev/VILLAS_REGISTRY_PROJECT/villas/backup@sha256:RELEASE_DIGEST",
+        "args": ["restore", "EXACT_64_CHARACTER_SNAPSHOT_ID"],
+        "env": [
+          {"name":"VILLAS_CLOUD_RUN","value":"1"},
+          {"name":"VILLAS_GOOGLE_PROJECT_ID","value":"VILLAS_PROJECT"},
+          {"name":"VILLAS_BACKUP_READ_ONLY","value":"1"},
+          {"name":"VILLAS_BACKUP_REPOSITORY","value":"gs:SOURCE_BUSINESS_BUCKET:/repository"},
+          {"name":"VILLAS_BACKUP_HOST","value":"villas-SOURCE_ENVIRONMENT-BUSINESS_ID"},
+          {"name":"VILLAS_BACKUP_DB_HOST","value":"ISOLATED_TARGET.eu-central-1.aws.neon.tech"},
+          {"name":"VILLAS_BACKUP_DB_PASSWORD_FILE","value":"/run/secrets/target/value"},
+          {"name":"VILLAS_BACKUP_PASSWORD_FILE","value":"/run/secrets/archive/value"}
+        ],
+        "volumeMounts": [
+          {"name":"target","mountPath":"/run/secrets/target"},
+          {"name":"archive","mountPath":"/run/secrets/archive"}
+        ],
+        "resources":{"limits":{"cpu":"1","memory":"1Gi"}}
+      }],
+      "volumes": [
+        {"name":"target","secret":{"secret":"ISOLATED_TARGET_MIGRATION_PASSWORD_SECRET","items":[{"version":"NUMERIC_VERSION","path":"value","mode":292}]}},
+        {"name":"archive","secret":{"secret":"SOURCE_BACKUP_PASSWORD_SECRET","items":[{"version":"NUMERIC_VERSION","path":"value","mode":292}]}}
+      ]
+    }
+  }
+}

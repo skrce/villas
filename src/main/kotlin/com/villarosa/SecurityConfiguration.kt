@@ -108,6 +108,8 @@ class SecurityConfiguration {
                 }
             }
             .authorizeHttpRequests {
+                if (environment.getProperty("villas.cloud-run", "0") == "1")
+                    it.requestMatchers("/internal/**").denyAll()
                 it.dispatcherTypeMatchers(DispatcherType.ERROR)
                     .permitAll()
                     .requestMatchers(ReleasePaths)
@@ -197,6 +199,8 @@ class SecurityConfiguration {
                     )
                 }
                 headers.addHeaderWriter { _, response ->
+                    if (settings.secureCookie)
+                        response.setHeader("Strict-Transport-Security", "max-age=31536000")
                     response.setHeader("Referrer-Policy", "no-referrer")
                     response.setHeader(
                         "Permissions-Policy",

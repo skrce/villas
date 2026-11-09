@@ -23,7 +23,9 @@ Release work starts in the [deployment guide](docs/deployment.md),
 [recovery procedure](docs/recovery.md), [operations](docs/operations.md) and
 [release checklist](docs/release-checklist.md).
 Milestone 10 is active. Cloud Run + Neon in Frankfurt is approved; resource setup
-and live acceptance remain open. See [the PostgreSQL transition](docs/postgresql-transition.md).
+and live acceptance remain open. [Cloud Run + Neon setup and updates](docs/cloud-run-neon.md)
+contains the prepared Terraform, keyless image publication and operator rollout.
+See [the PostgreSQL transition](docs/postgresql-transition.md).
 
 ## Requirements
 
@@ -33,6 +35,9 @@ and live acceptance remain open. See [the PostgreSQL transition](docs/postgresql
 - Node from `.node-version` and npm 11.6.2. Use `npm install --global npm@11.6.2` if needed.
 - Docker Engine or Docker Desktop with Docker Compose v2 running locally.
 - Git and the checked-in Maven wrapper. A system Maven installation is unnecessary.
+- Terraform from `terraform-version.txt` for the full check. Install it with
+  `node scripts/install-terraform.mjs /absolute/tools/villas-terraform` and set
+  `VILLAS_TERRAFORM_BINARY=/absolute/tools/villas-terraform/terraform`. Cloud tests use mock providers, not a live account.
 
 The Maven wrapper verifies its pinned distribution checksum. npm dependencies have
 exact direct versions and a checked-in lockfile. CI uses `npm ci`. Client generation

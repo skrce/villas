@@ -31,7 +31,12 @@ class SignalRegistry {
         counts.incrementAndGet(signal.ordinal)
         if (
             signal in
-                setOf(Signal.DATABASE_FAILURES, Signal.SERVICE_FAILURES, Signal.BOOKING_FAILURES)
+                setOf(
+                    Signal.DATABASE_FAILURES,
+                    Signal.SERVICE_FAILURES,
+                    Signal.BOOKING_FAILURES,
+                    Signal.AUTH_FAILURES,
+                )
         ) {
             val now = System.currentTimeMillis()
             val last = loggedAt.get(signal.ordinal)
@@ -72,7 +77,7 @@ class OperationalHttpFilter : OncePerRequestFilter() {
         response: HttpServletResponse,
         chain: FilterChain,
     ) {
-        if (request.requestURI.startsWith("/internal/")) {
+        if (request.requestURI == "/health" || request.requestURI.startsWith("/internal/")) {
             chain.doFilter(request, response)
             return
         }
