@@ -30,6 +30,7 @@ const json = (body: unknown, status = 200) =>
   });
 const session = () => ({
   authenticated,
+  propertyId: "villa-rosa",
   propertyName,
   generation: "test-login",
   staff: {

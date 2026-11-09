@@ -1152,6 +1152,42 @@
         },
         "type": "object"
       },
+      "MaintenanceInfo": {
+        "properties": {
+          "endDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "id": {
+            "format": "int32",
+            "nullable": true,
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "roomId": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "startDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "MaintenancePage": {
         "properties": {
           "items": {
@@ -1248,7 +1284,7 @@
           "maintenance": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MaintenanceBlock"
+                "$ref": "#/components/schemas/MaintenanceInfo"
               }
             ],
             "nullable": true
@@ -2677,6 +2713,12 @@
       }
     },
     "securitySchemes": {
+      "businessSelection": {
+        "description": "Required explicit business ID for domain requests. This is a selector, not a credential. The server verifies current session membership and active business on every operation.",
+        "in": "header",
+        "name": "X-Villas-Business",
+        "type": "apiKey"
+      },
       "staffSession": {
         "description": "HttpOnly, host-scoped session cookie. Local HTTP uses VILLAS_LOCAL_SESSION. Browser requests use same-origin credentials; never read or copy this cookie in JavaScript.",
         "in": "cookie",
@@ -2720,6 +2762,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "List rooms for compatibility and booking selectors",
         "tags": [
           "Apartment"
@@ -2759,6 +2807,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Add a named room with a unique property reference",
         "tags": [
           "Apartment"
@@ -2829,6 +2883,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a bounded room directory by name or reference",
         "tags": [
           "Apartment"
@@ -2871,6 +2931,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a property-scoped current or archived room",
         "tags": [
           "Apartment"
@@ -2921,6 +2987,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Edit a reviewed room without invalidating current or future stays",
         "tags": [
           "Apartment"
@@ -2964,7 +3036,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/MaintenanceBlock"
+                  "$ref": "#/components/schemas/MaintenanceInfo"
                 }
               }
             },
@@ -2981,6 +3053,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Add a dated maintenance block using a private JSON body",
         "tags": [
           "Apartment"
@@ -3023,6 +3101,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read configured EUR rates or an explicit unconfigured state",
         "tags": [
           "Rates"
@@ -3073,6 +3157,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Replace a reviewed room's base and non-overlapping seasonal rates",
         "tags": [
           "Rates"
@@ -3125,6 +3215,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Explain the accommodation price without reserving inventory or accepting a quote",
         "tags": [
           "Rates"
@@ -3177,6 +3273,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Archive or restore a room while retaining its history",
         "tags": [
           "Apartment"
@@ -3219,6 +3321,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read current room readiness without guest or financial data",
         "tags": [
           "Operations"
@@ -3277,6 +3385,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Record a reviewed room-readiness transition",
         "tags": [
           "Operations"
@@ -3338,6 +3452,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read bounded room-readiness history",
         "tags": [
           "Operations"
@@ -3468,6 +3588,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Save an Owner-scoped EUR accommodation quote without holding inventory",
         "tags": [
           "Quotes"
@@ -3509,6 +3635,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read this Owner's saved historical quote",
         "tags": [
           "Quotes"
@@ -3901,6 +4033,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a bounded consistent room calendar of active stays and maintenance",
         "tags": [
           "Calendar"
@@ -3943,6 +4081,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Create a guest using a private JSON body",
         "tags": [
           "Customer"
@@ -3987,6 +4131,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Review possible guest matches without merging identities",
         "tags": [
           "Customer"
@@ -4028,6 +4178,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "List or search guests with private combined criteria and a bounded cursor",
         "tags": [
           "Customer"
@@ -4072,6 +4228,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Search guests without putting contact criteria in a URL",
         "tags": [
           "Customer"
@@ -4114,6 +4276,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a property-scoped guest",
         "tags": [
           "Customer"
@@ -4164,6 +4332,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Replace a guest profile using the reviewed version",
         "tags": [
           "Customer"
@@ -4238,6 +4412,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a bounded guest history including retained cancellations",
         "tags": [
           "Customer"
@@ -4290,6 +4470,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Archive or restore a guest without deleting history",
         "tags": [
           "Customer"
@@ -4366,6 +4552,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read bounded arrival, departure, in-house and attention lists for the property day",
         "tags": [
           "Operations"
@@ -4441,6 +4633,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read room readiness, physical occupancy and dated maintenance without guest or financial data",
         "tags": [
           "Operations"
@@ -4531,6 +4729,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a bounded maintenance calendar page",
         "tags": [
           "Inventory"
@@ -4587,7 +4791,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/MaintenanceBlock"
+                  "$ref": "#/components/schemas/MaintenanceInfo"
                 }
               }
             },
@@ -4604,6 +4808,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Block a room only if no active inventory overlaps",
         "tags": [
           "Maintenance"
@@ -4646,7 +4856,7 @@
             "content": {
               "*/*": {
                 "schema": {
-                  "$ref": "#/components/schemas/MaintenanceBlock"
+                  "$ref": "#/components/schemas/MaintenanceInfo"
                 }
               }
             },
@@ -4663,6 +4873,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Retain a block cancellation and release inventory",
         "tags": [
           "Maintenance"
@@ -4724,6 +4940,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a bounded maintenance event page",
         "tags": [
           "Inventory"
@@ -4789,6 +5011,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Reconcile a write using its stable operation key",
         "tags": [
           "Reservation"
@@ -4830,6 +5058,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Resolve a Skopje time to explicit UTC choices, including repeated or missing daylight-saving times",
         "tags": [
           "Operations"
@@ -4902,6 +5136,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a complete bounded report with definitions and source drill-downs",
         "tags": [
           "Reports"
@@ -4983,6 +5223,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Download a bounded UTF-8 CSV only when its source snapshot still matches the reviewed report",
         "tags": [
           "Reports"
@@ -5035,6 +5281,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Retain a cancellation and release inventory",
         "tags": [
           "Reservation"
@@ -5123,6 +5375,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a bounded overlapping-stay calendar page",
         "tags": [
           "Inventory"
@@ -5190,6 +5448,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Move a reservation using its expected version",
         "tags": [
           "Reservation"
@@ -5282,6 +5546,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Create a reservation with an accepted quote and stable operation key",
         "tags": [
           "Reservation"
@@ -5344,6 +5614,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read advisory availability using the write-side overlap rules",
         "tags": [
           "Reservation"
@@ -5389,6 +5665,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read active reservations for a guest",
         "tags": [
           "Reservation"
@@ -5441,6 +5723,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Accept a saved quote and atomically create its priced reservation with a stable operation key",
         "tags": [
           "Quotes"
@@ -5501,6 +5789,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Correct actual arrival/departure times with a retained Owner reason",
         "tags": [
           "Operations"
@@ -5571,6 +5865,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read versioned dated room allocations without changing the whole-stay price",
         "tags": [
           "Operations"
@@ -5631,6 +5931,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Record a reasoned cancellation without an automatic refund",
         "tags": [
           "Operations"
@@ -5691,6 +5997,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Accept a new whole-stay quote and change reviewed dates or party size",
         "tags": [
           "Operations"
@@ -5751,6 +6063,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Record arrival within the booked dates into a reviewed clean room",
         "tags": [
           "Operations"
@@ -5811,6 +6129,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Record departure and mark its room dirty in one transaction",
         "tags": [
           "Operations"
@@ -5853,6 +6177,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read agreed accommodation and externally received funds",
         "tags": [
           "Payments"
@@ -5914,6 +6244,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read immutable payment, refund and correction history",
         "tags": [
           "Payments"
@@ -5982,6 +6318,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Retain and correct a mistaken payment or refund with a reason",
         "tags": [
           "Payments"
@@ -6043,6 +6385,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read receipt allocations available for manual refund",
         "tags": [
           "Payments"
@@ -6101,6 +6449,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Record a payment already completed outside Villas",
         "tags": [
           "Payments"
@@ -6161,6 +6515,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Record an externally completed refund against one receipt",
         "tags": [
           "Payments"
@@ -6221,6 +6581,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Accept a new whole-stay quote and move a confirmed or in-house stay",
         "tags": [
           "Operations"
@@ -6281,6 +6647,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Record a reasoned no-show after the arrival day",
         "tags": [
           "Operations"
@@ -6323,6 +6695,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read the current reservation, including its version",
         "tags": [
           "Reservation"
@@ -6415,6 +6793,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Change stay dates and guest count",
         "tags": [
           "Reservation"
@@ -6475,6 +6859,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Accept a new whole-stay price and change dates or party size atomically",
         "tags": [
           "Quotes"
@@ -6536,6 +6926,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a bounded reservation event page",
         "tags": [
           "Inventory"
@@ -6578,6 +6974,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read the accepted price or explicit unrecorded historical state",
         "tags": [
           "Quotes"
@@ -6639,6 +7041,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read bounded immutable accepted price history",
         "tags": [
           "Quotes"
@@ -6699,6 +7107,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Accept a new whole-stay price and move the reservation atomically",
         "tags": [
           "Quotes"
@@ -6733,6 +7147,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read Owner accounts",
         "tags": [
           "Staff"
@@ -6767,6 +7187,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read unexpired Owner invitations",
         "tags": [
           "Staff"
@@ -6806,6 +7232,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Invite a Google account as an Owner",
         "tags": [
           "Staff"
@@ -6857,6 +7289,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Revoke an unclaimed invitation",
         "tags": [
           "Staff"
@@ -6908,6 +7346,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Deactivate an Owner while retaining the last active Owner",
         "tags": [
           "Staff"
@@ -6959,6 +7403,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Invalidate every current session for an Owner",
         "tags": [
           "Staff"
@@ -6990,6 +7440,12 @@
             "description": "Bad Request"
           }
         },
+        "security": [
+          {
+            "businessSelection": [],
+            "staffSession": []
+          }
+        ],
         "summary": "Read a consistent Owner-only snapshot of today's work and current balance attention",
         "tags": [
           "Reports"

@@ -164,3 +164,10 @@ The quoted JSON endpoint rejects client totals and unsupported pricing fields.
 `QUOTE_CHANGED` is a 409 containing a persisted `replacementQuote` for explicit
 review. `QUOTE_REQUIRED`, `QUOTE_MISMATCH` and `QUOTE_ALREADY_ACCEPTED` are also 409.
 `INVALID_QUOTE` is 400. No quote reserves inventory. See [pricing](pricing.md).
+
+Domain and legacy business requests require exactly one `X-Villas-Business` header.
+Explicit business staff paths select by path and reject a conflicting header.
+Global identity/session routes need no business selector. See [business request and
+database isolation](business-data-isolation.md) for errors, transaction claims and
+row-security/backup authority. The header is a selector checked against the current
+server session, never a credential or a mutable session-wide active business.

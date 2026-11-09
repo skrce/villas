@@ -5,6 +5,7 @@ import com.villarosa.exception.conflict
 import com.villarosa.exception.invalid
 import com.villarosa.repository.model.OperationKind
 import com.villarosa.repository.model.OperationResult
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import java.security.MessageDigest
@@ -59,7 +60,7 @@ class OperationCoordinator(
                     val actor = access.lockOwner(current.identity()).id
                     jdbc.update(
                         "INSERT INTO inventory_operations (property_id, actor_id, operation_kind, operation_key, request_hash, created_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6))",
-                        PropertyScope.ID,
+                        BusinessScope.id(),
                         actor,
                         kind.name,
                         key,
@@ -70,7 +71,7 @@ class OperationCoordinator(
                         jdbc.update(
                             "UPDATE inventory_operations SET result_json=? WHERE property_id=? AND actor_id=? AND operation_kind=? AND operation_key=?",
                             json.writeValueAsString(result),
-                            PropertyScope.ID,
+                            BusinessScope.id(),
                             actor,
                             kind.name,
                             key,
@@ -115,7 +116,7 @@ class OperationCoordinator(
             .query(
                 "SELECT request_hash, result_json FROM inventory_operations WHERE property_id=? AND actor_id=? AND operation_kind=? AND operation_key=?",
                 { row, _ -> row.getString(1) to row.getString(2) },
-                PropertyScope.ID,
+                BusinessScope.id(),
                 actor,
                 kind.name,
                 key,

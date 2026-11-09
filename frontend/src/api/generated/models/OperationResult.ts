@@ -48,13 +48,13 @@ import {
     InventoryEventInfoToJSON,
     InventoryEventInfoToJSONTyped,
 } from './InventoryEventInfo';
-import type { MaintenanceBlock } from './MaintenanceBlock';
+import type { MaintenanceInfo } from './MaintenanceInfo';
 import {
-    MaintenanceBlockFromJSON,
-    MaintenanceBlockFromJSONTyped,
-    MaintenanceBlockToJSON,
-    MaintenanceBlockToJSONTyped,
-} from './MaintenanceBlock';
+    MaintenanceInfoFromJSON,
+    MaintenanceInfoFromJSONTyped,
+    MaintenanceInfoToJSON,
+    MaintenanceInfoToJSONTyped,
+} from './MaintenanceInfo';
 
 /**
  * 
@@ -88,10 +88,10 @@ export interface OperationResult {
     ledgerEntry?: LedgerEntryInfo | null;
     /**
      * 
-     * @type {MaintenanceBlock}
+     * @type {MaintenanceInfo}
      * @memberof OperationResult
      */
-    maintenance?: MaintenanceBlock | null;
+    maintenance?: MaintenanceInfo | null;
     /**
      * 
      * @type {ReadinessView}
@@ -165,7 +165,7 @@ export function OperationResultFromJSONTyped(json: any, ignoreDiscriminator: boo
         'key': json['key'],
         'kind': json['kind'],
         'ledgerEntry': json['ledgerEntry'] == null ? undefined : LedgerEntryInfoFromJSON(json['ledgerEntry']),
-        'maintenance': json['maintenance'] == null ? undefined : MaintenanceBlockFromJSON(json['maintenance']),
+        'maintenance': json['maintenance'] == null ? undefined : MaintenanceInfoFromJSON(json['maintenance']),
         'readiness': json['readiness'] == null ? undefined : ReadinessViewFromJSON(json['readiness']),
         'readinessEvent': json['readinessEvent'] == null ? undefined : ReadinessEventInfoFromJSON(json['readinessEvent']),
         'reservation': json['reservation'] == null ? undefined : ReservationInfoFromJSON(json['reservation']),
@@ -188,7 +188,7 @@ export function OperationResultToJSONTyped(value?: OperationResult | null, ignor
         'key': value['key'],
         'kind': value['kind'],
         'ledgerEntry': LedgerEntryInfoToJSON(value['ledgerEntry']),
-        'maintenance': MaintenanceBlockToJSON(value['maintenance']),
+        'maintenance': MaintenanceInfoToJSON(value['maintenance']),
         'readiness': ReadinessViewToJSON(value['readiness']),
         'readinessEvent': ReadinessEventInfoToJSON(value['readinessEvent']),
         'reservation': ReservationInfoToJSON(value['reservation']),

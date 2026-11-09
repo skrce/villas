@@ -17,7 +17,7 @@ import * as runtime from '../runtime';
 import type {
   Apartment,
   ErrorResponse,
-  MaintenanceBlock,
+  MaintenanceInfo,
   RecordStatusRequest,
   RoomBlockRequest,
   RoomCreateRequest,
@@ -29,8 +29,8 @@ import {
     ApartmentToJSON,
     ErrorResponseFromJSON,
     ErrorResponseToJSON,
-    MaintenanceBlockFromJSON,
-    MaintenanceBlockToJSON,
+    MaintenanceInfoFromJSON,
+    MaintenanceInfoToJSON,
     RecordStatusRequestFromJSON,
     RecordStatusRequestToJSON,
     RoomBlockRequestFromJSON,
@@ -103,6 +103,10 @@ export class ApartmentApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/apartments/directory`;
 
@@ -127,7 +131,7 @@ export class ApartmentApi extends runtime.BaseAPI {
     /**
      * Add a dated maintenance block using a private JSON body
      */
-    async blockApartmentRaw(requestParameters: BlockApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MaintenanceBlock>> {
+    async blockApartmentRaw(requestParameters: BlockApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<MaintenanceInfo>> {
         if (requestParameters['apartmentId'] == null) {
             throw new runtime.RequiredError(
                 'apartmentId',
@@ -159,6 +163,10 @@ export class ApartmentApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/apartments/{apartmentId}/maintenance`;
         urlPath = urlPath.replace(`{${"apartmentId"}}`, encodeURIComponent(String(requestParameters['apartmentId'])));
@@ -171,13 +179,13 @@ export class ApartmentApi extends runtime.BaseAPI {
             body: RoomBlockRequestToJSON(requestParameters['roomBlockRequest']),
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => MaintenanceBlockFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response, (jsonValue) => MaintenanceInfoFromJSON(jsonValue));
     }
 
     /**
      * Add a dated maintenance block using a private JSON body
      */
-    async blockApartment(requestParameters: BlockApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MaintenanceBlock> {
+    async blockApartment(requestParameters: BlockApartmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<MaintenanceInfo> {
         const response = await this.blockApartmentRaw(requestParameters, initOverrides);
         return await response.value();
     }
@@ -198,6 +206,10 @@ export class ApartmentApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/apartments`;
@@ -236,6 +248,10 @@ export class ApartmentApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/apartments/{apartmentId}`;
         urlPath = urlPath.replace(`{${"apartmentId"}}`, encodeURIComponent(String(requestParameters['apartmentId'])));
@@ -265,6 +281,10 @@ export class ApartmentApi extends runtime.BaseAPI {
         const queryParameters: any = {};
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/apartments`;
@@ -310,6 +330,10 @@ export class ApartmentApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/apartments/{apartmentId}/status`;
@@ -357,6 +381,10 @@ export class ApartmentApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/apartments/{apartmentId}`;

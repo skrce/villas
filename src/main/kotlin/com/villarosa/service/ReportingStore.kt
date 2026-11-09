@@ -1,6 +1,7 @@
 package com.villarosa.service
 
 import com.villarosa.exception.conflict
+import com.villarosa.security.BusinessScope
 import java.math.BigDecimal
 import java.sql.ResultSet
 import java.util.Calendar
@@ -117,7 +118,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
                         r.getBoolean(5),
                     )
                 },
-                PropertyScope.ID,
+                BusinessScope.id(),
                 room,
                 room,
                 MAX_ROOMS + 1,
@@ -143,7 +144,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
                         r.getDate(4).toLocalDate().toString(),
                     )
                 },
-                *(listOf<Any>(PropertyScope.ID) + args + listOf(MAX_BOOKINGS + 1)).toTypedArray(),
+                *(listOf<Any>(BusinessScope.id()) + args + listOf(MAX_BOOKINGS + 1)).toTypedArray(),
             )
             .also { bounded(it.size, MAX_BOOKINGS) }
 
@@ -158,7 +159,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
                     r.getString("quote_json"),
                 )
             },
-            *(listOf<Any>(PropertyScope.ID) + ids).toTypedArray(),
+            *(listOf<Any>(BusinessScope.id()) + ids).toTypedArray(),
         )
     }
 
@@ -175,7 +176,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
                         r.getDate(4).toLocalDate().toString(),
                     )
                 },
-                *(listOf<Any>(PropertyScope.ID) + bookings + listOf(MAX_ALLOCATIONS + 1))
+                *(listOf<Any>(BusinessScope.id()) + bookings + listOf(MAX_ALLOCATIONS + 1))
                     .toTypedArray(),
             )
             .also { bounded(it.size, MAX_ALLOCATIONS) }
@@ -195,7 +196,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
                         r.getLong(6),
                     )
                 },
-                PropertyScope.ID,
+                BusinessScope.id(),
                 dates.end,
                 dates.start,
                 room,
@@ -234,7 +235,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
                         if (kind == "REFUND" && reversed == null) amount else 0,
                     )
                 },
-                PropertyScope.ID,
+                BusinessScope.id(),
                 dates.start,
                 dates.end,
                 MAX_ENTRIES + 1,

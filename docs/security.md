@@ -5,10 +5,10 @@ invitations grant full Owner access. Sessions have a seven-day absolute limit
 and a three-day inactivity limit. Staff identity is separate from guest records.
 
 V17 separates canonical Google identity from independent Owner memberships under
-[#45](https://github.com/skrce/villas/issues/45). Staff management can name an explicitly
-authorized business. Booking/guest/room/financial workflows and the console still use
-the configured compatibility business until #46/#47. Database row security and shared
-hosting remain pending. Read [shared identity](contracts/shared-identity.md) and
+[#45](https://github.com/skrce/villas/issues/45). V18 requires explicitly authorized
+business requests and PostgreSQL [data isolation](contracts/business-data-isolation.md).
+The current console uses its compatibility summary; switching remains #47 and shared
+hosting remains #48. Read [shared identity](contracts/shared-identity.md) and
 [the tenancy contract](contracts/multi-tenancy.md) before extending authentication.
 
 ## Account foundation
@@ -35,7 +35,7 @@ only that business's captured grants. [Google OIDC documentation](https://develo
 ## Initial owner setup
 
 First migrate the checkout's private database and build the packaged application.
-Put `VILLAS_INITIAL_OWNER_EMAIL` in the ignored `.env.local` configuration, then run:
+Put `VILLAS_INITIAL_OWNER_EMAIL` and the explicit `VILLAS_OWNER_BUSINESS_ID` in the ignored `.env.local` configuration, then run:
 
 ```sh
 node scripts/run-api.mjs --bootstrap-owner
@@ -49,7 +49,7 @@ pending invitation and records the replacement. An expired setup can be retried.
 After an account exists in that business, bootstrap cannot add or replace its Owner.
 
 The production equivalent runs the same packaged `bootstrap-owner` command with
-Villas-specific database settings and `VILLAS_INITIAL_OWNER_EMAIL`. It never uses
+privileged Villas-specific database settings, `VILLAS_INITIAL_OWNER_EMAIL` and `VILLAS_OWNER_BUSINESS_ID`. The web runtime cannot bootstrap an Owner. It never uses
 an ambient cloud login. Protect configuration files and keep secrets out of command
 arguments, source control, screenshots, and chat.
 
@@ -109,9 +109,9 @@ a new ID. An expired/revoked invitation uses explicit recovery rather than anoth
 onboarding operation.
 
 Set `VILLAS_OWNER_BUSINESS_ID` privately for `bootstrap-owner` or `recover-owner` to
-target an existing business. Omit it only for the configured compatibility business.
-It is separate from `VILLAS_PROPERTY_ID`, which still binds the legacy domain workflow
-and must not be changed to retarget that database. First-Owner recovery requires the
+target an existing business. It is required; no deployment/default business is selected.
+It is separate from the historical migration seed and the console compatibility summary.
+Domain requests always select their business explicitly. First-Owner recovery requires the
 same privileged database authority and Google verification as initial setup.
 
 ## Recovery and deferred Google setup
@@ -185,3 +185,5 @@ values. [Recovery](recovery.md) revokes restored sessions and increments staff s
 generations atomically before reopening access. Reconcile restored staff/invitations
 and post-backup external payments with the Owner. [Operations](operations.md) keeps
 real alert delivery and external availability acceptance separate from local tests.
+
+Business requests and PostgreSQL runtime/backup authority follow the [business data isolation contract](contracts/business-data-isolation.md).

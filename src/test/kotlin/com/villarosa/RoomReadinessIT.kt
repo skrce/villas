@@ -50,7 +50,12 @@ constructor(
         TestData.reset(jdbc, database.jdbcUrl)
         room =
             rooms.saveAndFlush(
-                Apartment(capacity = 4, name = "Synthetic readiness", reference = "READY")
+                Apartment(
+                    capacity = 4,
+                    name = "Synthetic readiness",
+                    reference = "READY",
+                    propertyId = "villa-rosa",
+                )
             )
     }
 
@@ -109,6 +114,7 @@ constructor(
                     "Readiness",
                     "000",
                     "Synthetic",
+                    businessId = "villa-rosa",
                 )
             )
         val booking =
@@ -120,6 +126,7 @@ constructor(
                     endDate = java.time.LocalDate.parse("2020-01-02"),
                     phase = StayPhase.CHECKED_IN,
                     checkedInAt = java.time.Instant.parse("2020-01-01T10:00:00Z"),
+                    propertyId = "villa-rosa",
                 )
             )
         assertThat(assertThrows<DomainException> { change(ReadinessState.IN_PROGRESS, 0) }.code)

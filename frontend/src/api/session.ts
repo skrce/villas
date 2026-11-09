@@ -7,7 +7,7 @@ export type SessionState =
   | { status: 'loading' }
   | { status: 'anonymous' | 'unavailable'; reason?: string; provider: 'google' | 'synthetic' }
   | { status: 'restricted'; reason: string; identityId: string; provider: 'google' | 'synthetic' }
-  | { status: 'authenticated'; identityId?: string; staff: Staff; generation: string; expiresAt: Date; permissions: string[]; propertyName?: string; provider: 'google' | 'synthetic' };
+  | { status: 'authenticated'; identityId?: string; staff: Staff; generation: string; expiresAt: Date; permissions: string[]; propertyId?: string; propertyName?: string; provider: 'google' | 'synthetic' };
 
 let state: SessionState = { status: 'loading' };
 let csrf: string | undefined;
@@ -29,7 +29,8 @@ const notify = (next: SessionState) => {
     identityKey = next.identityId;
   }
   const changedGeneration = state.status === 'authenticated' && next.status === 'authenticated' && state.generation !== next.generation;
-  if (previousId !== nextId || next.status !== 'authenticated' || changedGeneration) epoch++;
+  const changedBusiness = state.status === 'authenticated' && next.status === 'authenticated' && state.propertyId !== next.propertyId;
+  if (previousId !== nextId || next.status !== 'authenticated' || changedGeneration || changedBusiness) epoch++;
   state = next;
   for (const listener of listeners) listener();
 };
@@ -47,16 +48,22 @@ export const sessionFetch: typeof fetch = async (input, init) => {
   const started = epoch;
   const method = (init?.method ?? 'GET').toUpperCase();
   const headers = new Headers(init?.headers);
+  if (state.status !== 'authenticated' || !state.propertyId) throw new SessionChangedError();
+  headers.set('X-Villas-Business', state.propertyId);
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     if (state.status !== 'authenticated' || !csrf) throw new SessionChangedError();
     headers.set('X-CSRF-TOKEN', csrf);
   }
   const response = await fetch(input, { ...init, headers, credentials: 'same-origin' });
   if (started !== epoch) throw new SessionChangedError();
+  if (response.status === 403) {
+    const denied = await response.clone().json().catch(() => undefined) as { code?: string } | undefined;
+    if (denied?.code === 'BUSINESS_ACCESS_DENIED') await refreshSession();
+  }
   if (response.status === 401) {
     ++refreshSequence;
     csrf = undefined;
-    notify({ status: 'anonymous', reason: 'expired', provider: state.status === 'loading' ? 'google' : state.provider });
+    notify({ status: 'anonymous', reason: 'expired', provider: state.provider });
   }
   const guard = (value: unknown) => { if (started !== epoch) throw new SessionChangedError(); return value; };
   const wrap = (source: Response): Response => new Proxy(source, { get(target, property) {
@@ -101,10 +108,11 @@ export const refreshSession = async (options?: { explicit: boolean }) => {
     const staff = body.staff as Partial<Staff> | null;
     if (typeof body.generation !== 'string' || !body.generation || !staff || typeof staff.id !== 'string' || !staff.id || typeof staff.email !== 'string' || staff.role !== 'OWNER' || staff.active !== true
       || typeof staff.version !== 'number' || !Number.isSafeInteger(staff.version) || staff.version < 0
+      || typeof body.propertyId !== 'string' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(body.propertyId)
       || typeof body.csrfToken !== 'string' || !body.csrfToken || Number.isNaN(expiry.getTime())
       || !Array.isArray(body.permissions) || !body.permissions.every((permission) => typeof permission === 'string')) throw new Error('The session response could not be confirmed.');
     csrf = body.csrfToken;
-    notify({ status: 'authenticated', identityId: body.identity && typeof body.identity === 'object' && 'id' in body.identity && typeof body.identity.id === 'string' ? body.identity.id : undefined, staff: staff as Staff, generation: body.generation, expiresAt: expiry, permissions: body.permissions, propertyName: typeof body.propertyName === 'string' ? body.propertyName : undefined, provider });
+    notify({ status: 'authenticated', identityId: body.identity && typeof body.identity === 'object' && 'id' in body.identity && typeof body.identity.id === 'string' ? body.identity.id : undefined, staff: staff as Staff, generation: body.generation, expiresAt: expiry, permissions: body.permissions, propertyId: body.propertyId as string, propertyName: typeof body.propertyName === 'string' ? body.propertyName : undefined, provider });
   } catch (error) {
     if (sequence !== refreshSequence) return;
     csrf = undefined;

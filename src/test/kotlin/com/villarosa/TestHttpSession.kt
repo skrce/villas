@@ -18,11 +18,17 @@ import tools.jackson.databind.json.JsonMapper
 data class TestHttpSession(val cookie: Cookie, val csrf: String) {
     companion object {
         @Suppress("UNCHECKED_CAST")
-        fun create(repository: JdbcIndexedSessionRepository, mvc: MockMvc): TestHttpSession {
+        fun create(
+            repository: JdbcIndexedSessionRepository,
+            mvc: MockMvc,
+            principal: com.villarosa.security.StaffSessionIdentity? = null,
+        ): TestHttpSession {
             val store = repository as SessionRepository<Session>
             val context =
                 SecurityContextHolder.createEmptyContext().apply {
-                    authentication = TestData.authentication(TestData.ownerIdentity())
+                    authentication =
+                        principal?.let { com.villarosa.security.StaffAuthentication(it) }
+                            ?: TestData.authentication(TestData.ownerIdentity())
                 }
             val session = store.createSession()
             session.maxInactiveInterval = AuthenticationSettings.IDLE_LIMIT

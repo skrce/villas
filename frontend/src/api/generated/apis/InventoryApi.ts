@@ -112,6 +112,10 @@ export class InventoryApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/maintenance-blocks`;
 
@@ -179,6 +183,10 @@ export class InventoryApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations`;
 
@@ -222,6 +230,10 @@ export class InventoryApi extends runtime.BaseAPI {
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/maintenance-blocks/{blockId}/events`;
@@ -267,6 +279,10 @@ export class InventoryApi extends runtime.BaseAPI {
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/reservations/{reservationId}/events`;

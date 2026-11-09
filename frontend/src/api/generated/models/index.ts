@@ -35,6 +35,7 @@ export * from './LedgerHistory';
 export * from './LedgerSummary';
 export * from './LedgerTotals';
 export * from './MaintenanceBlock';
+export * from './MaintenanceInfo';
 export * from './MaintenancePage';
 export * from './OccupancyRow';
 export * from './OperationResult';

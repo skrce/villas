@@ -31,9 +31,7 @@ data class Reservation(
     @Column(nullable = false)
     var status: ReservationStatus = ReservationStatus.ACTIVE,
     @Version @Column(nullable = false) var version: Long = 0,
-    @JsonIgnore
-    @Column(name = "property_id", nullable = false)
-    val propertyId: String = com.villarosa.service.PropertyScope.ID,
+    @JsonIgnore @Column(name = "property_id", nullable = false) val propertyId: String,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
     @Column(name = "accepted_quote_id", length = 36) var acceptedQuoteId: String? = null,
     @Enumerated(EnumType.STRING)
@@ -75,7 +73,8 @@ data class Reservation(
             roomId: Int,
             startDate: LocalDate,
             endDate: LocalDate,
-        ) = Reservation(null, customerId, roomId, startDate, endDate)
+            businessId: String,
+        ) = Reservation(null, customerId, roomId, startDate, endDate, propertyId = businessId)
     }
 }
 

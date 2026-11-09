@@ -88,7 +88,7 @@ constructor(
             TestData.ownerIdentity().id,
         )
         mvc.perform(get("/api/v1/reports/export?$query&snapshotId=x").cookie(browser.cookie))
-            .andExpect(status().isUnauthorized)
+            .andExpect(status().isForbidden)
             .andExpect(header().doesNotExist("Content-Disposition"))
     }
 

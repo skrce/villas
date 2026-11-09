@@ -56,6 +56,17 @@ class ApiContractTest @Autowired constructor(private val mvc: MockMvc) {
                     jsonPath("$.paths['/businesses/{businessId}/staff'].get.parameters[0].required")
                         .value(true)
                 )
+                .andExpect(
+                    jsonPath("$.components.securitySchemes.businessSelection.name")
+                        .value("X-Villas-Business")
+                )
+                .andExpect(
+                    jsonPath("$.paths['/reports/export'].get.security[0].businessSelection").isArray
+                )
+                .andExpect(
+                    jsonPath("$.paths['/auth/session'].get.security[0].businessSelection")
+                        .doesNotExist()
+                )
                 .andExpect(jsonPath("$.paths['/reservation']").doesNotExist())
                 .andExpect(jsonPath("$.paths['/api/v1/reservations']").doesNotExist())
                 .andReturn()

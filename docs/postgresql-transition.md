@@ -40,11 +40,11 @@ qualified. Published migrations remain immutable; clean/baseline shortcuts stay 
 Set a stable `VILLAS_PROPERTY_ID`, using 1 to 64 lowercase letters, digits or hyphens,
 and a `VILLAS_PROPERTY_NAME` of at most 100 characters. The default local business is
 `villa-rosa` / `Villa Rosa`. Flyway initializes matching defaults and the staff lock.
-`property_identity` binds the database to that ID; application startup rejects a
-mismatch. V16 registers that business and requires it to be active at startup.
-The compatibility domain workflows still serve their configured business. V17 provides
-shared identity and explicit staff membership authorization; domain row security and
-a business switcher remain later implementation steps.
+Before V18, `property_identity` binds the database to that ID and refuses unsafe
+legacy upgrades. V16 registers the business, V17 separates Google identity and
+memberships, and V18 adds [business request/database isolation](contracts/business-data-isolation.md).
+The shared runtime does not use a configured business as request authority. The
+current console compatibility summary still uses its configured ID; switching is #47.
 
 The browser gate runs the entire workflow with a non-default business ID and name.
 Native checks cover booking races, exact prices/ledger balances, Unicode contacts,

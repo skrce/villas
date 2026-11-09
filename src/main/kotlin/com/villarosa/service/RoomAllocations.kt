@@ -6,6 +6,7 @@ import com.villarosa.exception.missing
 import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.Reservation
 import com.villarosa.repository.model.StayPhase
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import jakarta.persistence.*
@@ -20,8 +21,7 @@ import org.springframework.transaction.annotation.Transactional
 @Table(name = "reservation_allocations")
 class ReservationAllocation(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long? = null,
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "reservation_id", nullable = false) val reservationId: Int = 0,
     @Column(name = "room_id", nullable = false) val roomId: Int = 0,
     @Column(name = "start_date", nullable = false) val startDate: LocalDate = LocalDate.MIN,
@@ -65,7 +65,7 @@ class RoomAllocations(
                         row.getDate(3).toLocalDate(),
                     )
                 },
-                PropertyScope.ID,
+                BusinessScope.id(),
                 booking.id,
             )
         return rows.ifEmpty {
@@ -131,12 +131,12 @@ class RoomAllocations(
         }
         jdbc.update(
             "DELETE FROM reservation_allocations WHERE property_id=? AND reservation_id=?",
-            PropertyScope.ID,
+            BusinessScope.id(),
             booking.id,
         )
         for (row in planned) jdbc.update(
             "INSERT INTO reservation_allocations(property_id,reservation_id,room_id,start_date,end_date) VALUES(?,?,?,?,?)",
-            PropertyScope.ID,
+            BusinessScope.id(),
             booking.id,
             row.roomId,
             row.start,
@@ -163,7 +163,7 @@ class RoomAllocations(
     fun page(id: Int, after: String, limit: Int, expected: Long?): RoomAllocationPage {
         access.current(current.identity())
         val booking =
-            reservations.findByPropertyIdAndId(PropertyScope.ID, id)
+            reservations.findByPropertyIdAndId(BusinessScope.id(), id)
                 ?: missing("Reservation does not exist.")
         if (expected != null) ReadinessService.checkVersion(booking.version, expected)
         val cursor =
@@ -184,7 +184,7 @@ class RoomAllocations(
                         row.getDate(6).toLocalDate().toString(),
                     )
                 },
-                PropertyScope.ID,
+                BusinessScope.id(),
                 id,
                 cursor,
                 limit + 1,
@@ -196,14 +196,14 @@ class RoomAllocations(
                 jdbc.queryForObject(
                     "SELECT COUNT(*) FROM reservation_allocations WHERE property_id=? AND reservation_id=?",
                     Long::class.java,
-                    PropertyScope.ID,
+                    BusinessScope.id(),
                     id,
                 ) == 0L
         ) {
             val room =
                 jdbc.queryForMap(
                     "SELECT name,reference FROM apartments WHERE property_id=? AND id=?",
-                    PropertyScope.ID,
+                    BusinessScope.id(),
                     booking.roomId,
                 )
             return RoomAllocationPage(

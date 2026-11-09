@@ -12,7 +12,7 @@ All URIs are relative to */api/v1*
 <a id="cancelmaintenanceblock"></a>
 ## cancelMaintenanceBlock
 
-> MaintenanceBlock cancelMaintenanceBlock(blockId, expectedVersion, idempotencyKey)
+> MaintenanceInfo cancelMaintenanceBlock(blockId, expectedVersion, idempotencyKey)
 
 Retain a block cancellation and release inventory
 
@@ -29,11 +29,11 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Return type
 
-[**MaintenanceBlock**](MaintenanceBlock.md)
+[**MaintenanceInfo**](MaintenanceInfo.md)
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -53,7 +53,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 <a id="createmaintenanceblock"></a>
 ## createMaintenanceBlock
 
-> MaintenanceBlock createMaintenanceBlock(roomId, startDate, endDate, idempotencyKey, reason)
+> MaintenanceInfo createMaintenanceBlock(roomId, startDate, endDate, idempotencyKey, reason)
 
 Block a room only if no active inventory overlaps
 
@@ -72,11 +72,11 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Return type
 
-[**MaintenanceBlock**](MaintenanceBlock.md)
+[**MaintenanceInfo**](MaintenanceInfo.md)
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 

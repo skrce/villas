@@ -39,7 +39,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -78,7 +78,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -114,7 +114,7 @@ This endpoint does not need any parameter.
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -150,7 +150,7 @@ This endpoint does not need any parameter.
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -262,7 +262,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 
@@ -302,7 +302,7 @@ Use the Villas session-aware clients described in [client configuration](../READ
 
 ### Authorization
 
-[staffSession](../README.md#staffSession)
+[staffSession](../README.md#staffSession), [businessSelection](../README.md#businessSelection)
 
 ### HTTP request headers
 

@@ -54,8 +54,25 @@ constructor(
     fun fixtures() {
         TestData.reset(jdbc, database.jdbcUrl)
         TestData.seedOwner(jdbc, index = 1)
-        room = rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 5001, rateVersion = 1))
-        guest = guests.saveAndFlush(Customer(firstName = "Synthetic", lastName = "Ledger")).id!!
+        room =
+            rooms.saveAndFlush(
+                Apartment(
+                    capacity = 4,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                    propertyId = "villa-rosa",
+                )
+            )
+        guest =
+            guests
+                .saveAndFlush(
+                    Customer(
+                        firstName = "Synthetic",
+                        lastName = "Ledger",
+                        propertyId = "villa-rosa",
+                    )
+                )
+                .id!!
         val quote = quotes.create(room.id!!, "2030-01-01", "2030-01-03", 2)
         booking =
             inventory
@@ -370,6 +387,7 @@ constructor(
                     startDate = LocalDate.parse("2031-01-01"),
                     endDate = LocalDate.parse("2031-01-02"),
                     acceptedQuoteId = reservations.findById(booking).orElseThrow().acceptedQuoteId,
+                    propertyId = "villa-rosa",
                 )
             )
         assertThat(

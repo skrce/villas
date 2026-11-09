@@ -7,14 +7,43 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.security.core.context.SecurityContextHolder
 
 object TestData {
-    fun authentication(identity: StaffIdentity = ownerIdentity()) =
-        StaffAuthentication(
+    fun authentication(
+        identity: StaffIdentity = ownerIdentity(),
+        businessId: String = "villa-rosa",
+    ): StaffAuthentication {
+        val actor =
+            identity.copy(
+                personId = identity.personId ?: identity.id,
+                personVersion = identity.personVersion ?: 0,
+            )
+        com.villarosa.security.BusinessScope.select(
+            com.villarosa.security.AuthorizedBusiness(businessId, actor)
+        )
+        return StaffAuthentication(
             com.villarosa.security.StaffSessionIdentity(
-                identity.id,
-                0,
-                mapOf("villa-rosa" to identity),
+                actor.personId!!,
+                actor.personVersion!!,
+                mapOf(businessId to actor),
             )
         )
+    }
+
+    fun identity(jdbc: JdbcTemplate, account: com.villarosa.security.StaffAccount): StaffIdentity =
+        jdbc
+            .query(
+                "SELECT id,security_version FROM staff_identities WHERE issuer=? AND subject=?",
+                { row, _ ->
+                    StaffIdentity(
+                        account.id,
+                        account.securityVersion,
+                        row.getString(1),
+                        row.getLong(2),
+                    )
+                },
+                account.issuer,
+                account.subject,
+            )
+            .single()
 
     fun hasTable(jdbc: JdbcTemplate, name: String): Boolean =
         jdbc.execute(
@@ -72,6 +101,9 @@ object TestData {
             "Refusing to clear an unexpected test database."
         }
         SecurityContextHolder.clearContext()
+        com.villarosa.security.BusinessScope.select(
+            com.villarosa.security.AuthorizedBusiness("villa-rosa", ownerIdentity())
+        )
         registerBusiness(jdbc, "villa-rosa")
         if (hasTable(jdbc, "staff_identity_lock"))
             jdbc.update(
@@ -134,7 +166,12 @@ object TestData {
     }
 
     fun ownerIdentity(index: Int = 0) =
-        StaffIdentity("00000000-0000-0000-0000-${(index + 1).toString().padStart(12, '0')}", 0)
+        StaffIdentity(
+            "00000000-0000-0000-0000-${(index + 1).toString().padStart(12, '0')}",
+            0,
+            "00000000-0000-0000-0000-${(index + 1).toString().padStart(12, '0')}",
+            0,
+        )
 
     fun seedOwner(jdbc: JdbcTemplate, issuer: String = "http://127.0.0.1:19099", index: Int = 0) {
         registerIdentity(

@@ -19,7 +19,7 @@ No shared deployment is qualified while the following steps remain open.
 | --- | --- | --- | --- |
 | 1 | [#44](https://github.com/skrce/villas/issues/44) | Business registry, parent/actor relationships and deployment block | Implemented; review and qualification evidence in #44 |
 | 2 | [#45](https://github.com/skrce/villas/issues/45) | Shared Google identity, business memberships and controlled onboarding | Implemented; final review/qualification evidence in #45 |
-| 3 | [#46](https://github.com/skrce/villas/issues/46) | Authorized request context, scoped services and PostgreSQL row security | Planned |
+| 3 | [#46](https://github.com/skrce/villas/issues/46) | Authorized request context, scoped services and PostgreSQL row security | Implemented; final review/qualification evidence in #46 |
 | 4 | [#47](https://github.com/skrce/villas/issues/47) | Business switching, separate browser caches/drafts and safe recovery | Planned |
 | 5 | [#48](https://github.com/skrce/villas/issues/48) | Shared hosting, all-business backup and selective business recovery | Planned |
 | 6 | [#49](https://github.com/skrce/villas/issues/49) | Complete isolation, burst checks, independent review and live pilot | Planned |
@@ -130,11 +130,12 @@ actor references to the same business. The existing V1-V15 files remain unchange
 Unknown legacy business data refuses the upgrade atomically; do not adopt it by
 inventing another business. Preserve it for operator inspection.
 
-The running app still uses its configured `PropertyScope` and database binding.
-A registered business alone grants no access. V17 and [the identity implementation](shared-identity.md)
-provide shared Google sessions and explicitly scoped Owner membership management.
-Domain request context, RLS and browser switching remain #46/#47. The configured
-compatibility business must still be registered and active at startup.
+V17 provides shared Google sessions and explicitly scoped Owner membership management.
+V18 and [business data isolation](business-data-isolation.md) require explicit business
+selection for domain requests and add PostgreSQL row security. The configured
+compatibility summary remains only for the current console; it grants no data access.
+Business switching remains #47. Pre-V18 database binding is retained only for safe
+legacy upgrades, and the shared schema no longer requires a deployment-wide business.
 
 `deploy/cloud/architecture.json` marks shared hosting as pending. The operator wrapper
 blocks the earlier layout before cloud authentication and invalidates old plans.

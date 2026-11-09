@@ -1,6 +1,7 @@
 package com.villarosa.service
 
 import com.villarosa.exception.DomainException
+import com.villarosa.security.BusinessScope
 import java.time.Clock
 import java.time.LocalDate
 import java.time.ZoneId
@@ -35,7 +36,7 @@ class BookingProtection(private val jdbc: JdbcTemplate, private val clock: Clock
             jdbc.query(
                 "SELECT id FROM reservations WHERE property_id=? AND status='ACTIVE' AND (end_date>? OR stay_phase='CHECKED_IN') AND $filter ORDER BY start_date,id LIMIT 21",
                 { row, _ -> row.getInt("id") },
-                PropertyScope.ID,
+                BusinessScope.id(),
                 LocalDate.now(clock.withZone(ZoneId.of("Europe/Skopje"))),
                 *values.toTypedArray(),
             )

@@ -60,7 +60,7 @@ Missing accepted legacy EUR prices remain unknown. Their source rows and count a
 visible, known subtotals are named as such, and complete money totals are null.
 Legacy integer prices are never converted. A missing/corrupt accepted source causes
 an explicit failure. An empty room roster is reported as missing setup, not a fully
-configured property with zero activity. Missing current rates are called out on Today;
+selected business with zero activity. Missing current rates are called out on Today;
 they do not invalidate a previously saved price or a room-night count.
 
 ## Snapshot, limits and downloads

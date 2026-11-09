@@ -1,6 +1,5 @@
 package com.villarosa.security
 
-import com.villarosa.service.PropertyScope
 import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID
@@ -9,9 +8,7 @@ import org.hibernate.type.SqlTypes
 
 @Entity
 @Table(name = "staff_property_lock")
-class StaffPropertyLock(
-    @Id @Column(name = "property_id", length = 64) val propertyId: String = PropertyScope.ID
-)
+class StaffPropertyLock(@Id @Column(name = "property_id", length = 64) val propertyId: String)
 
 enum class StaffRole {
     OWNER
@@ -28,8 +25,7 @@ enum class InvitationState {
 @Table(name = "staff_accounts")
 class StaffAccount(
     @Id @Column(length = 36) val id: String = UUID.randomUUID().toString(),
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(nullable = false, length = 255) val issuer: String = "",
     @Column(nullable = false, length = 255) val subject: String = "",
     @Column(nullable = false, length = 254) var email: String = "",
@@ -51,8 +47,7 @@ class StaffAccount(
 @Table(name = "staff_invitations")
 class StaffInvitation(
     @Id @Column(length = 36) val id: String = UUID.randomUUID().toString(),
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(nullable = false, length = 254) val email: String = "",
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
@@ -72,8 +67,7 @@ class StaffInvitation(
 @Table(name = "staff_events")
 class StaffEvent(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long? = null,
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "actor_id", length = 36) val actorId: String? = null,
     @Column(nullable = false, length = 32) val kind: String = "",
     @Column(name = "subject_type", nullable = false, length = 16) val subjectType: String = "",

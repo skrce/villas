@@ -44,8 +44,14 @@ constructor(
     @BeforeEach
     fun fixtures() {
         TestData.reset(jdbc)
-        val room = rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 5001))
-        val guest = guests.saveAndFlush(Customer(firstName = "Synthetic", lastName = "Ledger"))
+        val room =
+            rooms.saveAndFlush(
+                Apartment(capacity = 4, baseRateCents = 5001, propertyId = "villa-rosa")
+            )
+        val guest =
+            guests.saveAndFlush(
+                Customer(firstName = "Synthetic", lastName = "Ledger", propertyId = "villa-rosa")
+            )
         val quote = quotes.create(room.id!!, "2030-01-01", "2030-01-03", 2)
         id =
             inventory

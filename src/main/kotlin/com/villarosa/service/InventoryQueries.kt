@@ -4,6 +4,7 @@ import com.villarosa.exception.invalid
 import com.villarosa.exception.missing
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import org.springframework.data.domain.PageRequest
@@ -33,7 +34,7 @@ class InventoryQueries(
         val dates = window(start, end)
         val rows =
             reservations.calendar(
-                PropertyScope.ID,
+                BusinessScope.id(),
                 dates.start,
                 dates.end,
                 status,
@@ -61,7 +62,7 @@ class InventoryQueries(
         val dates = window(start, end)
         val rows =
             blocks.calendar(
-                PropertyScope.ID,
+                BusinessScope.id(),
                 dates.start,
                 dates.end,
                 status,
@@ -75,20 +76,30 @@ class InventoryQueries(
 
     fun reservationEvents(id: Int, after: String, limit: Int): InventoryEventPage {
         access.current(current.identity())
-        if (reservations.findByPropertyIdAndId(PropertyScope.ID, id) == null)
+        if (reservations.findByPropertyIdAndId(BusinessScope.id(), id) == null)
             missing("Reservation does not exist.")
         return history(
-            events.reservationHistory(PropertyScope.ID, id, eventCursor(after), page(limit)),
+            events.reservationHistory(
+                BusinessScope.id(),
+                id,
+                eventCursor(after),
+                page(limit),
+            ),
             limit,
         )
     }
 
     fun maintenanceEvents(id: Int, after: String, limit: Int): InventoryEventPage {
         access.current(current.identity())
-        if (blocks.findByPropertyIdAndId(PropertyScope.ID, id) == null)
+        if (blocks.findByPropertyIdAndId(BusinessScope.id(), id) == null)
             missing("Maintenance block does not exist.")
         return history(
-            events.blockHistory(PropertyScope.ID, id, eventCursor(after), page(limit)),
+            events.blockHistory(
+                BusinessScope.id(),
+                id,
+                eventCursor(after),
+                page(limit),
+            ),
             limit,
         )
     }
@@ -108,7 +119,7 @@ class InventoryQueries(
         }
 
     private fun checkRoom(id: Int?) {
-        if (id != null && rooms.findByPropertyIdAndId(PropertyScope.ID, id) == null)
+        if (id != null && rooms.findByPropertyIdAndId(BusinessScope.id(), id) == null)
             missing("Room does not exist.")
     }
 

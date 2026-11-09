@@ -2,15 +2,16 @@
 
 The Owner superseded the per-business layout with a shared app and database per
 environment. Follow [the tenancy contract](contracts/multi-tenancy.md) and #44-#49.
-Business-data workflows and the operational reference remain bound to the configured
-compatibility business. Shared identity/staff membership management is implemented;
-domain isolation and browser switching remain #46/#47. Live Terraform commands are blocked before authentication until #48
+Shared identity, explicit business data access and PostgreSQL row security are
+implemented. Browser switching remains #47; the operational reference still has a
+configured compatibility recovery target. Live Terraform commands are blocked before authentication until #48
 replaces the topology. Do not use the earlier setup instructions below to provision
 resources or treat them as shared-tenancy qualification.
 
 
 The selected shared recovery design is in [Cloud Run + Neon](cloud-run-neon.md#backups-recovery-and-signals)
-and #48. All-tenant dumps and selective business recovery are not implemented yet.
+and #48. The local reference verifies all-tenant dumps with a dedicated read-only BYPASSRLS
+role. Provider backup authority and selective business recovery remain #48.
 The current script purges global sessions and audits its configured business; it
 must not be treated as a tenant-aware restore. The Docker Compose procedure below
 remains the single-business local reference. A local restore is separate from a
@@ -32,8 +33,9 @@ and Flyway history. Owner/grant statements are excluded; restore uses separately
 reviewed roles/grants. Stop the scheduler and drain active backup work before DDL.
 See [PostgreSQL's pg_dump contract](https://www.postgresql.org/docs/17/app-pgdump.html).
 
-The reference schema supports base tables and identity sequences. Database programs,
-views and external objects require a reviewed extension of the backup contract. The
+The reference schema supports base tables, identity sequences and the four bundled
+row-security Boolean helpers. Other database programs, views and external objects
+require a reviewed extension of the backup contract. The
 release rehearsal rejects unsupported objects. A failed producer or archiver cannot
 produce a completed snapshot. Both children cancel each other on failure, escalate
 stuck processes and have bounded execution. Default command/job budgets are 900/1800
@@ -96,7 +98,7 @@ Actual failures/outages can still breach the target and require verified alerts.
    On success, an atomic quarantine deletes restored sessions, increments staff
    security generations and appends a recovery audit event with snapshot, counts and
    UTC time. Do not serve traffic if import or quarantine fails.
-5. Validate schema and the deployment's business binding using compatible images.
+5. Validate the shared schema and the selected environment's recovery configuration using compatible images.
    Rehearse forward migrations before choosing a newer image; there are no automatic
    down migrations or schema rollback shortcuts.
 6. Reconcile room/guest/booking contents, dated assignments, accepted nightly prices,
@@ -106,7 +108,7 @@ Actual failures/outages can still breach the target and require verified alerts.
 7. Review restored staff/invitations, including revocations after the snapshot, with
    the Owner. Reconcile post-snapshot money/bookings before allowing new writes.
    Never automatically replay old operations after data loss.
-8. Apply reviewed runtime grants. Verify old cookies fail and a current invited
+8. Apply reviewed runtime grants, including the PUBLIC execution revocations on all four row-security helpers. A no-ACL restore otherwise recreates default PUBLIC function access. Apply these grants before starting any web runtime. Verify old cookies fail and a current invited
    Owner can sign in again. Synthetic-provider proof remains separate from real Google.
 9. Record measured snapshot age, total recovery/reconciliation time, known loss and
    Owner acceptance. Take and verify a new backup, resume protection/monitoring and
@@ -116,3 +118,5 @@ The 24-hour recovery target includes operator response and validation, not just 
 import. Local synthetic timing does not establish hosted/off-server performance.
 Keep dumps, credentials, cookies and real guest/financial evidence out of GitHub,
 logs, screenshots and this handoff.
+
+The [business data isolation contract](contracts/business-data-isolation.md#operator-and-backup-authority) defines runtime, operator and backup permissions. Never enable row-filtered pg_dump to make an unqualified backup role appear successful.

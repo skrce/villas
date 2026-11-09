@@ -98,11 +98,15 @@ constructor(
 
     @Test
     fun productionStartupValidatesTheEmptySchemaWithoutLoadingDemoData() {
+        jdbc.execute(
+            "CREATE ROLE villas_runtime LOGIN PASSWORD 'synthetic-startup' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; GRANT USAGE ON SCHEMA public TO villas_runtime"
+        )
+        DatabaseMigrations.grantRuntime(database.jdbcUrl, database.username, database.password)
         SpringApplicationBuilder(Application::class.java)
             .run(
                 "--spring.datasource.url=${database.jdbcUrl}",
-                "--spring.datasource.username=${database.username}",
-                "--spring.datasource.password=${database.password}",
+                "--spring.datasource.username=villas_runtime",
+                "--spring.datasource.password=synthetic-startup",
                 "--villas.mode=production",
                 "--villas.public-url=https://villas.example.test",
                 "--villas.google.client-id=123456-test.apps.googleusercontent.com",
@@ -140,8 +144,14 @@ constructor(
                     """{"firstName":"Test","lastName":"Гостин","phone":"000","address":"Synthetic"}""",
             )
         assertThat(guest.statusCode()).isEqualTo(200)
-        val first = apartments.save(Apartment(null, 2, "South", "Езеро", 100, 150))
-        val second = apartments.save(Apartment(null, 2, "East", "Garden", 100, 150))
+        val first =
+            apartments.save(
+                Apartment(null, 2, "South", "Езеро", 100, 150, propertyId = "villa-rosa")
+            )
+        val second =
+            apartments.save(
+                Apartment(null, 2, "East", "Garden", 100, 150, propertyId = "villa-rosa")
+            )
         val created =
             request(
                 "POST",
@@ -204,6 +214,7 @@ constructor(
                     "Guest",
                     "000",
                     "Synthetic",
+                    businessId = "villa-rosa",
                 )
             )
         val response =
@@ -225,10 +236,17 @@ constructor(
                     "Guest",
                     "000",
                     "Synthetic",
+                    businessId = "villa-rosa",
                 )
             )
-        val first = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
-        val second = apartments.save(Apartment(null, 2, "East", "Garden", 100, 150))
+        val first =
+            apartments.save(
+                Apartment(null, 2, "South", "Lake", 100, 150, propertyId = "villa-rosa")
+            )
+        val second =
+            apartments.save(
+                Apartment(null, 2, "East", "Garden", 100, 150, propertyId = "villa-rosa")
+            )
         val path =
             "/api/v1/reservations?customerId=${guest.id}&roomId=${first.id}&startDate=2026-11-06&endDate=2026-11-09"
         val noKey = request("POST", path, operationKey = null)
@@ -294,7 +312,10 @@ constructor(
 
     @Test
     fun maintenanceSharesBookingConflictsAndRequiresItsCurrentVersion() {
-        val room = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
+        val room =
+            apartments.save(
+                Apartment(null, 2, "South", "Lake", 100, 150, propertyId = "villa-rosa")
+            )
         val path =
             "/api/v1/maintenance-blocks?roomId=${room.id}&startDate=2026-11-06&endDate=2026-11-09"
         val invalid = request("POST", "$path&reason=%20")
@@ -331,9 +352,13 @@ constructor(
                     "Guest",
                     "000",
                     "Synthetic",
+                    businessId = "villa-rosa",
                 )
             )
-        val room = apartments.save(Apartment(null, 2, "South", "Lake", 100, 150))
+        val room =
+            apartments.save(
+                Apartment(null, 2, "South", "Lake", 100, 150, propertyId = "villa-rosa")
+            )
         val first =
             request(
                     "POST",
@@ -428,7 +453,8 @@ constructor(
         operationKey: String? = java.util.UUID.randomUUID().toString(),
         body: String? = null,
     ): HttpResponse<String> {
-        val builder = HttpRequest.newBuilder(URI("$BASE$path"))
+        val builder =
+            HttpRequest.newBuilder(URI("$BASE$path")).header("X-Villas-Business", "villa-rosa")
         if (credentials != "test:test" && credentials != null)
             builder.header("Authorization", "Basic dGVzdDppbmNvcnJlY3Q=")
         if (method in listOf("POST", "PATCH", "DELETE")) {

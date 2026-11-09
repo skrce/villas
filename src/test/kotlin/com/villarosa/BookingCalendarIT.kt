@@ -66,11 +66,18 @@ constructor(
                     reference = "LAKE",
                     baseRateCents = 5001,
                     rateVersion = 1,
+                    propertyId = "villa-rosa",
                 )
             )
         guest =
             guests.saveAndFlush(
-                Customer.buildCustomer("Synthetic", "Calendar", "+389000", "Private address")
+                Customer.buildCustomer(
+                    "Synthetic",
+                    "Calendar",
+                    "+389000",
+                    "Private address",
+                    businessId = "villa-rosa",
+                )
             )
     }
 

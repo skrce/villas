@@ -1,7 +1,6 @@
 package com.villarosa.repository.model
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.villarosa.service.PropertyScope
 import jakarta.persistence.*
 import java.time.Instant
 import org.hibernate.annotations.ColumnDefault
@@ -19,9 +18,7 @@ enum class ReadinessState {
 @Table(name = "room_readiness")
 data class RoomReadiness(
     @Id @Column(name = "room_id") val roomId: Int = 0,
-    @JsonIgnore
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @JsonIgnore @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @ColumnDefault("'DIRTY'")
@@ -42,9 +39,7 @@ data class ReadinessView(
 @Table(name = "readiness_events")
 data class ReadinessEvent(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long? = null,
-    @JsonIgnore
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @JsonIgnore @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "room_id", nullable = false) val roomId: Int = 0,
     @Column(name = "actor_id", nullable = false, length = 36) val actorId: String = "",
     @Column(name = "operation_key", nullable = false, length = 36) val operationKey: String = "",

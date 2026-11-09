@@ -5,6 +5,7 @@ import com.villarosa.exception.invalid
 import com.villarosa.exception.missing
 import com.villarosa.repository.*
 import com.villarosa.repository.model.*
+import com.villarosa.security.BusinessScope
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeParseException
@@ -201,10 +202,10 @@ class StayWriter(
 ) {
     private fun locked(id: Int, expected: Long): Pair<Apartment, Reservation> {
         val roomId =
-            reservations.roomId(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
-        val room = rooms.locked(PropertyScope.ID, roomId) ?: missing("Room does not exist.")
+            reservations.roomId(BusinessScope.id(), id) ?: missing("Reservation does not exist.")
+        val room = rooms.locked(BusinessScope.id(), roomId) ?: missing("Room does not exist.")
         val booking =
-            reservations.locked(PropertyScope.ID, id) ?: missing("Reservation does not exist.")
+            reservations.locked(BusinessScope.id(), id) ?: missing("Reservation does not exist.")
         ReadinessService.checkVersion(booking.version, expected)
         if (booking.roomId != roomId)
             conflict("RESERVATION_CHANGED", "The reservation moved. Reload it before confirming.")

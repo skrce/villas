@@ -57,10 +57,28 @@ constructor(
         TestData.reset(jdbc, database.jdbcUrl)
         TestData.seedOwner(jdbc, index = 1)
         guest =
-            guests.saveAndFlush(Customer.buildCustomer("Concurrent", "Test", "000", "Synthetic"))
+            guests.saveAndFlush(
+                Customer.buildCustomer(
+                    "Concurrent",
+                    "Test",
+                    "000",
+                    "Synthetic",
+                    businessId = "villa-rosa",
+                )
+            )
         first =
             rooms.saveAndFlush(
-                Apartment(null, 2, "South", "Lake", 100, 150, baseRateCents = 5001, rateVersion = 1)
+                Apartment(
+                    null,
+                    2,
+                    "South",
+                    "Lake",
+                    100,
+                    150,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                    propertyId = "villa-rosa",
+                )
             )
         second =
             rooms.saveAndFlush(
@@ -73,6 +91,7 @@ constructor(
                     150,
                     baseRateCents = 5001,
                     rateVersion = 1,
+                    propertyId = "villa-rosa",
                 )
             )
         third =
@@ -86,6 +105,7 @@ constructor(
                     150,
                     baseRateCents = 5001,
                     rateVersion = 1,
+                    propertyId = "villa-rosa",
                 )
             )
     }

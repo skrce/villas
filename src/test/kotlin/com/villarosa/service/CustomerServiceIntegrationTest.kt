@@ -65,8 +65,12 @@ constructor(
 
     @Test
     fun searchCustomer_returnsMatchesByFirstName() {
-        customerRepository.save(Customer.buildCustomer("Jane", "Doe", "123", "Main"))
-        customerRepository.save(Customer.buildCustomer("John", "Doe", "456", "Other"))
+        customerRepository.save(
+            Customer.buildCustomer("Jane", "Doe", "123", "Main", businessId = "villa-rosa")
+        )
+        customerRepository.save(
+            Customer.buildCustomer("John", "Doe", "456", "Other", businessId = "villa-rosa")
+        )
 
         val results = customerService.searchCustomer("Jan", null)
 
@@ -76,8 +80,12 @@ constructor(
 
     @Test
     fun searchCustomer_combinesNameAndPhoneRatherThanFallingBack() {
-        customerRepository.save(Customer.buildCustomer("Jane", "Doe", "123", "Main"))
-        customerRepository.save(Customer.buildCustomer("John", "Doe", "456", "Other"))
+        customerRepository.save(
+            Customer.buildCustomer("Jane", "Doe", "123", "Main", businessId = "villa-rosa")
+        )
+        customerRepository.save(
+            Customer.buildCustomer("John", "Doe", "456", "Other", businessId = "villa-rosa")
+        )
 
         val results = customerService.searchCustomer("Nope", "123")
 
@@ -86,7 +94,9 @@ constructor(
 
     @Test
     fun searchCustomer_returnsEmptyWhenNoMatches() {
-        customerRepository.save(Customer.buildCustomer("Jane", "Doe", "123", "Main"))
+        customerRepository.save(
+            Customer.buildCustomer("Jane", "Doe", "123", "Main", businessId = "villa-rosa")
+        )
 
         val results = customerService.searchCustomer("Nope", null)
 

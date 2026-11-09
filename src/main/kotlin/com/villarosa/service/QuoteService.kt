@@ -8,6 +8,7 @@ import com.villarosa.repository.*
 import com.villarosa.repository.model.Apartment
 import com.villarosa.repository.model.Reservation
 import com.villarosa.security.BusinessAudit
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import jakarta.persistence.EntityManager
@@ -93,6 +94,7 @@ class QuoteService(
                 priceJson = json.writeValueAsString(price),
                 createdAt = created,
                 expiresAt = created.plus(LIFETIME),
+                propertyId = BusinessScope.id(),
             )
         entities.persist(saved)
         entities.flush()
@@ -108,8 +110,11 @@ class QuoteService(
 
     @Transactional(propagation = Propagation.MANDATORY)
     fun owned(quoteId: String): StoredQuote =
-        quotes.findByPropertyIdAndIdAndActorId(PropertyScope.ID, id(quoteId), current.identity().id)
-            ?: missing("Quote does not exist.")
+        quotes.findByPropertyIdAndIdAndActorId(
+            BusinessScope.id(),
+            id(quoteId),
+            current.identity().id,
+        ) ?: missing("Quote does not exist.")
 
     @Transactional(propagation = Propagation.MANDATORY)
     fun acceptable(
@@ -126,7 +131,7 @@ class QuoteService(
                 quote.guestCount != guestCount
         )
             conflict("QUOTE_MISMATCH", "The quote does not match these stay details.")
-        val used = prices.findByPropertyIdAndId(PropertyScope.ID, quote.id)
+        val used = prices.findByPropertyIdAndId(BusinessScope.id(), quote.id)
         if (used != null)
             throw DomainException(
                 "QUOTE_ALREADY_ACCEPTED",
@@ -150,6 +155,7 @@ class QuoteService(
                 actorId = actor,
                 quoteJson = json.writeValueAsString(quote),
                 acceptedAt = clock.instant().truncatedTo(ChronoUnit.MICROS),
+                propertyId = BusinessScope.id(),
             )
         )
         entities.flush()
@@ -174,11 +180,13 @@ class QuoteService(
     fun currentPrice(reservationId: Int): AcceptedPrice? {
         access.current(current.identity())
         val reservation =
-            reservations.findByPropertyIdAndId(PropertyScope.ID, reservationId)
-                ?: missing("Reservation does not exist.")
+            reservations.findByPropertyIdAndId(
+                BusinessScope.id(),
+                reservationId,
+            ) ?: missing("Reservation does not exist.")
         val quoteId = reservation.acceptedQuoteId ?: return null
         val saved =
-            prices.findByPropertyIdAndId(PropertyScope.ID, quoteId)
+            prices.findByPropertyIdAndId(BusinessScope.id(), quoteId)
                 ?: error("Accepted reservation price is unavailable.")
         check(saved.reservationId == reservationId)
         return accepted(saved)
@@ -187,14 +195,19 @@ class QuoteService(
     @Transactional(readOnly = true)
     fun history(reservationId: Int, beforeVersion: Long?, limit: Int): PriceHistory {
         access.current(current.identity())
-        if (reservations.findByPropertyIdAndId(PropertyScope.ID, reservationId) == null)
+        if (
+            reservations.findByPropertyIdAndId(
+                BusinessScope.id(),
+                reservationId,
+            ) == null
+        )
             missing("Reservation does not exist.")
         if (beforeVersion != null && beforeVersion < 0)
             invalid("INVALID_CURSOR", "Price cursor must not be negative.")
         if (limit !in 1..100) invalid("INVALID_PAGE_SIZE", "Limit must be between 1 and 100.")
         val rows =
             prices.history(
-                PropertyScope.ID,
+                BusinessScope.id(),
                 reservationId,
                 beforeVersion,
                 PageRequest.of(0, limit + 1),

@@ -1,7 +1,6 @@
 package com.villarosa.repository
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.villarosa.service.PropertyScope
 import jakarta.persistence.*
 import java.time.LocalDate
 import java.util.UUID
@@ -13,9 +12,7 @@ import org.springframework.data.jpa.repository.Query
 @Table(name = "seasonal_rates")
 class SeasonalRate(
     @Id @Column(length = 36) val id: String = UUID.randomUUID().toString(),
-    @JsonIgnore
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @JsonIgnore @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "room_id", nullable = false) val roomId: Int = 0,
     @Column(nullable = false, length = 100) val name: String = "",
     @Column(name = "start_date", nullable = false) val startDate: LocalDate = LocalDate.MIN,

@@ -2,9 +2,9 @@
 
 The Owner superseded the per-business layout with a shared app and database per
 environment. Follow [the tenancy contract](contracts/multi-tenancy.md) and #44-#49.
-Business-data workflows and the operational reference remain bound to the configured
-compatibility business. Shared identity/staff membership management is implemented;
-domain isolation and browser switching remain #46/#47. Live Terraform commands are blocked before authentication until #48
+Shared identity, explicit business data access and PostgreSQL row security are
+implemented. Browser switching remains #47; the operational reference still has a
+configured compatibility recovery target. Live Terraform commands are blocked before authentication until #48
 replaces the topology. Do not use the earlier setup instructions below to provision
 resources or treat them as shared-tenancy qualification.
 
@@ -23,7 +23,7 @@ Custom domain remains deferred; provider HTTPS is sufficient for the first relea
 | --- | --- | --- |
 | Environment | Owner-approved personal host, domain, TLS, budget, availability and operational owner | Frankfurt Cloud Run + Neon confirmed; actual resources and live verification pending |
 | Secrets | Separate staging/production clients/accounts, private mounts and rotation/recovery access | Prepared; actual configuration pending |
-| Shared tenancy | Independent memberships, authorized request context, row security, browser switching, controlled onboarding and two-business isolation | #44 registry and #45 shared identity implemented; #46-#49 pending |
+| Shared tenancy | Independent memberships, authorized request context, row security, browser switching, controlled onboarding and two-business isolation | #44 registry, #45 shared identity and #46 data isolation implemented; #47-#49 pending |
 | Exact revision | Backend/native DB/frontend/generated/browser checks and independent review | Pending release revision |
 | Package | Verified JAR/dist, image digests, restricted runtime, routing/cookies/private health | PR #38 merged after full local/CI verification; recovery image/rehearsal evidence in #11 |
 | Deployment automation | Explicit provider/environment, tested digests, restricted/short-lived credentials where supported | Provider architecture confirmed; setup pending |

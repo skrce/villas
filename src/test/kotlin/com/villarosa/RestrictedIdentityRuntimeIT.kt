@@ -32,7 +32,10 @@ constructor(
     private val customers: CustomerService,
     private val onboarding: BusinessOnboarding,
     private val jdbc: JdbcTemplate,
+    private val scopes: DatabaseScope,
+    manager: org.springframework.transaction.PlatformTransactionManager,
 ) {
+    private val transactions = org.springframework.transaction.support.TransactionTemplate(manager)
     private val operator =
         JdbcTemplate(
             DriverManagerDataSource(database.jdbcUrl, database.username, database.password)
@@ -70,7 +73,7 @@ constructor(
         val actor = access.resolve(login, "runtime-lake")
         directory.invite(actor, "second@example.test", "runtime-lake")
         assertThat(
-                jdbc.queryForObject(
+                operator.queryForObject(
                     "SELECT COUNT(*) FROM staff_invitations WHERE property_id='runtime-lake' AND email='second@example.test'",
                     Long::class.java,
                 )
@@ -78,9 +81,13 @@ constructor(
             .isEqualTo(1)
         SecurityContextHolder.getContext().authentication = StaffAuthentication(login)
         try {
-            customers.createCustomer("Runtime", "Synthetic", null, null)
+            BusinessScope.within(
+                AuthorizedBusiness("villa-rosa", access.resolve(login, "villa-rosa"))
+            ) {
+                customers.createCustomer("Runtime", "Synthetic", null, null)
+            }
             assertThat(
-                    jdbc.queryForObject(
+                    operator.queryForObject(
                         "SELECT actor_id FROM business_events WHERE property_id='villa-rosa' AND kind='CUSTOMER_CREATED'",
                         String::class.java,
                     )
@@ -89,11 +96,19 @@ constructor(
         } finally {
             SecurityContextHolder.clearContext()
         }
-        assertThat(jdbc.update("UPDATE businesses SET lock_token=0 WHERE id='runtime-lake'"))
+        assertThat(
+                transactions.execute {
+                    scopes.business("runtime-lake", actor)
+                    jdbc.update("UPDATE businesses SET lock_token=0 WHERE id='runtime-lake'")
+                }
+            )
             .isEqualTo(1)
         val invalidToken =
             assertThrows<DataAccessException> {
-                jdbc.update("UPDATE businesses SET lock_token=1 WHERE id='runtime-lake'")
+                transactions.execute {
+                    scopes.business("runtime-lake", actor)
+                    jdbc.update("UPDATE businesses SET lock_token=1 WHERE id='runtime-lake'")
+                }
             }
         assertThat((invalidToken.rootCause as java.sql.SQLException).sqlState).isEqualTo("23514")
         for (column in

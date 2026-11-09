@@ -1,7 +1,6 @@
 package com.villarosa.security
 
 import com.villarosa.exception.DomainException
-import com.villarosa.service.PropertyScope
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
@@ -13,13 +12,17 @@ class StaffAccess(
     private val people: GoogleIdentityRepository,
     private val businesses: BusinessRepository,
     private val entities: jakarta.persistence.EntityManager,
+    private val database: DatabaseScope,
 ) {
     @Transactional(propagation = Propagation.MANDATORY)
-    fun lockOwner(identity: StaffIdentity, businessId: String = PropertyScope.ID): StaffAccount {
-        val person = identity.personId?.let { people.locked(it) ?: revoked() }
+    fun lockOwner(identity: StaffIdentity, businessId: String = BusinessScope.id()): StaffAccount {
+        database.business(businessId, identity)
+        val person = people.locked(identity.personId ?: revoked()) ?: revoked()
         validatePerson(person, identity.personVersion)
         if (!lockBusiness(businessId)) revoked()
-        return validate(staff.locked(businessId, identity.id), identity, businessId, person)
+        return validate(staff.locked(businessId, identity.id), identity, businessId, person).also {
+            database.admitLockedWrite()
+        }
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -30,8 +33,9 @@ class StaffAccess(
     }
 
     @Transactional(readOnly = true)
-    fun current(identity: StaffIdentity, businessId: String = PropertyScope.ID): StaffAccount {
-        val person = identity.personId?.let { people.findById(it).orElse(null) ?: revoked() }
+    fun current(identity: StaffIdentity, businessId: String = BusinessScope.id()): StaffAccount {
+        database.business(businessId, identity)
+        val person = people.findById(identity.personId ?: revoked()).orElse(null) ?: revoked()
         validatePerson(person, identity.personVersion)
         return validate(
             staff.findByPropertyIdAndId(businessId, identity.id),
@@ -41,27 +45,34 @@ class StaffAccess(
         )
     }
 
-    @Transactional(readOnly = true)
-    fun person(session: StaffSessionIdentity): GoogleIdentity =
-        (people.findById(session.id).orElse(null) ?: revoked()).also {
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    fun person(session: StaffSessionIdentity): GoogleIdentity {
+        database.identity(session)
+        return (people.findById(session.id).orElse(null) ?: revoked()).also {
             if (it.securityVersion != session.securityVersion) revoked()
         }
+    }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     fun resolve(session: StaffSessionIdentity, businessId: String): StaffIdentity {
         BusinessIds.requireValid(businessId)
-        person(session)
+        val person = person(session)
         val grant = session.memberships[businessId] ?: denied()
         val identity = grant.copy(personId = session.id, personVersion = session.securityVersion)
         try {
-            current(identity, businessId)
+            validate(
+                staff.findByPropertyIdAndId(businessId, identity.id),
+                identity,
+                businessId,
+                person,
+            )
         } catch (_: DomainException) {
             denied()
         }
         return identity
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     fun memberships(session: StaffSessionIdentity): List<BusinessMembershipView> {
         person(session)
         return session.memberships.keys.sorted().mapNotNull { businessId ->
@@ -71,7 +82,7 @@ class StaffAccess(
                 BusinessMembershipView(
                     business.id,
                     business.name,
-                    current(identity, businessId).view(),
+                    (staff.findByPropertyIdAndId(businessId, identity.id) ?: denied()).view(),
                 )
             } catch (_: DomainException) {
                 null

@@ -1,6 +1,5 @@
 package com.villarosa.repository.model
 
-import com.villarosa.service.PropertyScope
 import jakarta.persistence.*
 import java.time.Instant
 import java.time.LocalDate
@@ -25,8 +24,7 @@ enum class PaymentMethod {
 @Table(name = "ledger_entries")
 class LedgerEntry(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long? = null,
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "reservation_id", nullable = false) val reservationId: Int = 0,
     @Column(name = "reservation_version", nullable = false) val reservationVersion: Long = 0,
     @Column(name = "actor_id", nullable = false, length = 36) val actorId: String = "",

@@ -6,6 +6,7 @@ import com.villarosa.repository.ApartmentRepository
 import com.villarosa.repository.InventoryAvailability
 import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.*
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import java.util.UUID
@@ -159,7 +160,7 @@ class ReservationService(
     @Transactional(readOnly = true)
     fun reservation(id: Int): ReservationInfo {
         access.current(current.identity())
-        return (reservations.findByPropertyIdAndId(PropertyScope.ID, id)
+        return (reservations.findByPropertyIdAndId(BusinessScope.id(), id)
                 ?: missing("Reservation does not exist."))
             .toReservationInfo()
     }
@@ -173,7 +174,7 @@ class ReservationService(
         access.current(current.identity())
         val dates = StayDates.parse(startDateString, endDateString)
         if (guestCount <= 0) invalid("INVALID_GUEST_COUNT", "Guest count must be positive.")
-        return rooms.findByPropertyId(PropertyScope.ID).filter {
+        return rooms.findByPropertyId(BusinessScope.id()).filter {
             it.active && (it.capacity ?: 0) >= guestCount && availability.available(it.id!!, dates)
         }
     }
@@ -183,7 +184,7 @@ class ReservationService(
         access.current(current.identity())
         return reservations
             .findByPropertyIdAndCustomerIdAndStatus(
-                PropertyScope.ID,
+                BusinessScope.id(),
                 customerId,
                 ReservationStatus.ACTIVE,
                 PageRequest.of(

@@ -69,7 +69,7 @@ const run = (command, args, { input, capture = false, allowFailure = false, env 
 const configFile = join(state, 'compose.json');
 const compose = (args, options) => run('docker', ['compose', '--project-name', project, '--env-file', join(state, 'env'), '--file', configFile, '--profile', 'operations', ...args], options);
 const sql = async (input, user = 'root', allowFailure = false, service = 'db') => {
-  const secret = user === 'root' ? 'db_root' : user === 'villas_runtime' ? 'db_runtime' : 'db_migration';
+  const secret = user === 'root' ? 'db_root' : user === 'villas_runtime' ? 'db_runtime' : user === 'villas_backup' ? 'db_backup' : 'db_migration';
   return compose(['exec', '-T', service, 'sh', '-c', `PGPASSWORD="$(cat /run/secrets/${secret})" exec psql --username=${user === 'root' ? 'villas_root' : user} --dbname=villarosa --no-psqlrc --quiet --tuples-only --no-align --field-separator='	' --set=ON_ERROR_STOP=1`], { input, capture: true, allowFailure });
 };
 const checkPorts = async () => {
@@ -190,15 +190,20 @@ try {
   config.services.api.user = `${uid}:${process.getgid()}`;
   config.services.api.entrypoint = ['java', '-Dloader.path=/clock/clock.jar', '-cp', '/app/villas.jar', 'org.springframework.boot.loader.launch.PropertiesLauncher'];
   config.services.api.volumes = [{ type: 'bind', source: clock, target: '/clock', read_only: true }];
-  config.services.api.secrets = [{ source: 'db_runtime' }, { source: 'initial_owner' }];
-  config.services.api.environment.VILLAS_INITIAL_OWNER_EMAIL_FILE = '/run/secrets/initial_owner';
+  config.services.api.secrets = [{ source: 'db_runtime' }];
+  config.services.owner = {
+    ...config.services.migrate,
+    command: ['bootstrap-owner'],
+    environment: { ...config.services.migrate.environment, VILLAS_OWNER_BUSINESS_ID: 'rehearsal-garden', VILLAS_INITIAL_OWNER_EMAIL_FILE: '/run/secrets/initial_owner' },
+    secrets: [{ source: 'db_migration' }, { source: 'initial_owner' }],
+  };
   config.secrets.initial_owner = { file: join(secrets, 'initial_owner') };
   config.services.proxy.environment.VILLAS_SITE = 'http://127.0.0.1:8080';
   config.services.proxy.volumes = config.services.proxy.volumes.filter(volume => volume.target !== '/etc/caddy/Caddyfile');
   config.services.identity = { image: pins.testNode, network_mode: 'service:api', user: `${uid}:${process.getgid()}`, environment: { ...synthetic, VILLAS_CONTAINER_REHEARSAL: '1' }, volumes: [{ type: 'bind', source: join(root, 'scripts/test-identity-provider.mjs'), target: '/fixture.mjs', read_only: true }], command: ['node', '/fixture.mjs'], logging: config.services.api.logging };
   saveConfig();
   await sql(readFileSync(join(root, 'dev/fixtures.sql'), 'utf8'));
-  await compose(['run', '--rm', 'api', 'bootstrap-owner']);
+  await compose(['run', '--rm', 'owner']);
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy', 'identity']);
   await run(process.execPath, ['frontend/node_modules/@playwright/test/cli.js', 'test', '--config', 'frontend/playwright.release.config.ts', '--max-failures=1'], { env: { ...cleanEnvironment, ...synthetic, VILLAS_PROPERTY_ID: 'rehearsal-garden', VILLAS_PROPERTY_NAME: 'Rehearsal Garden', VILLAS_BROWSER_CLOCK_FILE: join(clock, 'instant.txt') }, timeout: 600_000 });
   const signedIn = await chromium.launch({ headless: true });
@@ -212,8 +217,10 @@ try {
     savedCookies = await page.context().cookies();
   } finally { await signedIn.close(); }
   await compose(['stop', 'proxy', 'identity', 'api']);
-  const unsupported = await sql("SELECT (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='public')+(SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='public')+(SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type<>'BASE TABLE'); ");
-  assert.equal(unsupported.output, '0', 'The supported logical backup schema contains PostgreSQL base tables without database programs.');
+  const unsupported = await sql("SELECT (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='public')+(SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='public' AND routine_name NOT IN ('villas_has_business','villas_identity_matches','villas_identity_business','villas_admission_business'))+(SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type<>'BASE TABLE'); ");
+  assert.equal(unsupported.output, '0', 'Logical backup permits only the bundled row-security helpers and base tables.');
+  await sql("INSERT INTO businesses(id,name) VALUES('backup-lake','Synthetic backup lake'); INSERT INTO customers(property_id,first_name,last_name) VALUES('backup-lake','Second business','Synthetic');");
+  assert.equal((await sql("SELECT COUNT(DISTINCT property_id) FROM customers;", 'villas_backup')).output, '2', 'Backup authority must read both businesses.');
   await sql(`INSERT INTO recovery_events(id,property_id,snapshot_id,invalidated_sessions,changed_staff,occurred_at) VALUES(gen_random_uuid()::text,'rehearsal-garden','${'f'.repeat(64)}',0,0,CURRENT_TIMESTAMP(6));`);
   const fingerprint = async (service, excludeSnapshot) => {
     const tables = (await sql("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;", 'root', false, service)).output.split('\n');

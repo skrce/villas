@@ -47,6 +47,28 @@ class OpenApiConfiguration {
                 paths.addPathItem(path.removePrefix(API_PREFIX), operation)
             }
         }
+        api.components.addSecuritySchemes(
+            "businessSelection",
+            SecurityScheme()
+                .type(SecurityScheme.Type.APIKEY)
+                .`in`(SecurityScheme.In.HEADER)
+                .name("X-Villas-Business")
+                .description(
+                    "Required explicit business ID for domain requests. This is a selector, not a credential. The server verifies current session membership and active business on every operation."
+                ),
+        )
+        paths.forEach { (path, item) ->
+            if (!path.startsWith("/auth/") && !path.startsWith("/businesses/")) {
+                item.readOperations().forEach { operation ->
+                    operation.security =
+                        listOf(
+                            SecurityRequirement()
+                                .addList("staffSession")
+                                .addList("businessSelection")
+                        )
+                }
+            }
+        }
         api.paths = paths
         api.servers = listOf(Server().url(API_PREFIX))
     }

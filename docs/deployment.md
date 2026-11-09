@@ -2,9 +2,9 @@
 
 The Owner superseded the per-business layout with a shared app and database per
 environment. Follow [the tenancy contract](contracts/multi-tenancy.md) and #44-#49.
-Business-data workflows and the operational reference remain bound to the configured
-compatibility business. Shared identity/staff membership management is implemented;
-domain isolation and browser switching remain #46/#47. Live Terraform commands are blocked before authentication until #48
+Shared identity, explicit business data access and PostgreSQL row security are
+implemented. Browser switching remains #47; the operational reference still has a
+configured compatibility recovery target. Live Terraform commands are blocked before authentication until #48
 replaces the topology. Do not use the earlier setup instructions below to provision
 resources or treat them as shared-tenancy qualification.
 
@@ -154,8 +154,8 @@ on every command. Review rendered configuration privately. In order:
 3. Apply `deploy/runtime-grants.sql` through the private database administrator `compose exec -T db`, using
    `PGPASSWORD` read from `/run/secrets/db_root`, without printing it.
 4. Verify all business tables and staff/invitations are empty.
-5. Run offline `bootstrap-owner` once, mounting a private `initial_owner` file and
-   setting `VILLAS_INITIAL_OWNER_EMAIL_FILE` only for that one-off container. It
+5. Run offline `bootstrap-owner` once with the explicit `VILLAS_OWNER_BUSINESS_ID`, privileged operator database credentials and a private `initial_owner` file.
+   Set `VILLAS_INITIAL_OWNER_EMAIL_FILE` only for that one-off container. It
    creates an invitation and still requires Google. Keep the real address out of git.
 6. `up --detach --wait api proxy`, then complete deployed staging/Google/pilot gates.
 7. Initialize separate empty production. Configure rooms/rates and real bookings
@@ -177,3 +177,8 @@ schema rollback. An old image may run only after proving schema compatibility in
 staging. Otherwise use a reviewed forward fix or an isolated verified restore,
 reconciling later externally completed payments before reopening writes. See
 [migrations.md](migrations.md) and [recovery.md](recovery.md).
+
+The [business data isolation contract](contracts/business-data-isolation.md) requires
+V18, restricted web credentials and reviewed function ACLs before serving requests.
+Domain selection is explicit; deployment settings cannot retarget a request. The
+current reference is not the qualified shared hosting topology planned in #48.

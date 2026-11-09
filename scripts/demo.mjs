@@ -134,7 +134,9 @@ try {
   );
   if (count === "0") await launch(["scripts/dev-db.mjs", "fixtures"]);
   if (database.sql("SELECT COUNT(*) FROM staff_accounts;") === "0")
-    await launch(["scripts/run-api.mjs", "--bootstrap-owner"]);
+    process.env.VILLAS_OWNER_BUSINESS_ID =
+      process.env.VILLAS_PROPERTY_ID ?? "villa-rosa";
+  await launch(["scripts/run-api.mjs", "--bootstrap-owner"]);
   const provider = launch(["scripts/test-identity-provider.mjs"]);
   const api = launch(["scripts/run-api.mjs", "--packaged"]);
   await Promise.race([

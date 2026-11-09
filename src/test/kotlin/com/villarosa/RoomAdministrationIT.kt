@@ -65,7 +65,10 @@ constructor(
             "1",
         )
 
-    private fun guest() = guests.saveAndFlush(Customer(firstName = "Synthetic", lastName = "Guest"))
+    private fun guest() =
+        guests.saveAndFlush(
+            Customer(firstName = "Synthetic", lastName = "Guest", propertyId = "villa-rosa")
+        )
 
     private fun key() = UUID.randomUUID().toString()
 
@@ -165,6 +168,7 @@ constructor(
                     startDate = start.plusDays(offset * 3L),
                     endDate = start.plusDays(offset * 3L + 2),
                     guestCount = 3,
+                    propertyId = "villa-rosa",
                 )
             }
         )
@@ -254,6 +258,7 @@ constructor(
                 startDate = LocalDate.of(2026, 11, 6),
                 endDate = LocalDate.of(2026, 11, 7),
                 guestCount = 4,
+                propertyId = "villa-rosa",
             )
         )
         val cancelled = createBooking(room, 4)

@@ -24,6 +24,7 @@ const response = async (url: RequestInfo | URL) => {
   if (u.pathname === "/api/v1/auth/session")
     return json({
       authenticated: true,
+      propertyId: "villa-rosa",
       generation: "calendar-test-login",
       staff: {
         id: "calendar-owner",

@@ -130,6 +130,10 @@ export class ReservationApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations`;
 
@@ -222,6 +226,10 @@ export class ReservationApi extends runtime.BaseAPI {
 
         if (requestParameters['idempotencyKey'] != null) {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
         }
 
 
@@ -317,6 +325,10 @@ export class ReservationApi extends runtime.BaseAPI {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
         }
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations`;
 
@@ -376,6 +388,10 @@ export class ReservationApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/reservations/available-apartments`;
 
@@ -415,6 +431,10 @@ export class ReservationApi extends runtime.BaseAPI {
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/reservations/customer`;
@@ -463,6 +483,10 @@ export class ReservationApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
+
 
         let urlPath = `/operations/{operationKey}`;
         urlPath = urlPath.replace(`{${"operationKey"}}`, encodeURIComponent(String(requestParameters['operationKey'])));
@@ -499,6 +523,10 @@ export class ReservationApi extends runtime.BaseAPI {
         const queryParameters: any = {};
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
+        }
 
 
         let urlPath = `/reservations/{reservationId}`;
@@ -576,6 +604,10 @@ export class ReservationApi extends runtime.BaseAPI {
 
         if (requestParameters['idempotencyKey'] != null) {
             headerParameters['Idempotency-Key'] = String(requestParameters['idempotencyKey']);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["X-Villas-Business"] = await this.configuration.apiKey("X-Villas-Business"); // businessSelection authentication
         }
 
 

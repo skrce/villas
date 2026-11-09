@@ -4,7 +4,6 @@ import com.villarosa.exception.DomainException
 import com.villarosa.exception.conflict
 import com.villarosa.exception.invalid
 import com.villarosa.exception.missing
-import com.villarosa.service.PropertyScope
 import java.time.Clock
 import java.time.Duration
 import java.time.temporal.ChronoUnit
@@ -32,11 +31,12 @@ class StaffDirectory(
     private val access: StaffAccess,
     private val clock: Clock,
     private val shared: SharedIdentities,
+    private val database: DatabaseScope,
 ) {
     fun bootstrap(
         email: String,
         replacePending: Boolean = false,
-        businessId: String = PropertyScope.ID,
+        businessId: String,
     ): InvitationView {
         propertyLock(businessId)
         if (!access.lockBusiness(businessId))
@@ -76,7 +76,7 @@ class StaffDirectory(
         return inviteRecord(normalized, null, "OWNER_BOOTSTRAP", businessId).view()
     }
 
-    fun recover(suppliedEmail: String, businessId: String = PropertyScope.ID): InvitationView {
+    fun recover(suppliedEmail: String, businessId: String): InvitationView {
         propertyLock(businessId)
         if (!access.lockBusiness(businessId))
             throw DomainException(
@@ -95,8 +95,9 @@ class StaffDirectory(
     fun invite(
         actor: StaffIdentity,
         suppliedEmail: String,
-        businessId: String = PropertyScope.ID,
+        businessId: String = BusinessScope.id(),
     ): InvitationView {
+        database.business(businessId, actor)
         propertyLock(businessId)
         val owner = access.lockOwner(actor, businessId)
         val email = email(suppliedEmail)
@@ -111,8 +112,9 @@ class StaffDirectory(
         actor: StaffIdentity,
         id: String,
         expected: Long,
-        businessId: String = PropertyScope.ID,
+        businessId: String = BusinessScope.id(),
     ): InvitationView {
+        database.business(businessId, actor)
         propertyLock(businessId)
         access.lockOwner(actor, businessId)
         val invite =
@@ -128,17 +130,18 @@ class StaffDirectory(
     }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    fun accept(verified: VerifiedStaffIdentity): StaffAccount {
-        val session = shared.signIn(verified, requiredBusiness = PropertyScope.ID)
-        return access.current(access.resolve(session, PropertyScope.ID))
+    fun accept(verified: VerifiedStaffIdentity, businessId: String): StaffAccount {
+        val session = shared.signIn(verified, requiredBusiness = businessId)
+        return access.current(access.resolve(session, businessId), businessId)
     }
 
     fun deactivate(
         actor: StaffIdentity,
         id: String,
         expected: Long,
-        businessId: String = PropertyScope.ID,
+        businessId: String = BusinessScope.id(),
     ): StaffView {
+        database.business(businessId, actor)
         propertyLock(businessId)
         access.lockOwner(actor, businessId)
         val target = staff.locked(businessId, id) ?: missing("Staff account does not exist.")
@@ -158,8 +161,9 @@ class StaffDirectory(
         actor: StaffIdentity,
         id: String,
         expected: Long,
-        businessId: String = PropertyScope.ID,
+        businessId: String = BusinessScope.id(),
     ): StaffView {
+        database.business(businessId, actor)
         propertyLock(businessId)
         access.lockOwner(actor, businessId)
         val target = staff.locked(businessId, id) ?: missing("Staff account does not exist.")
@@ -170,7 +174,7 @@ class StaffDirectory(
         return target.view()
     }
 
-    fun accounts(actor: StaffIdentity, businessId: String = PropertyScope.ID): List<StaffView> {
+    fun accounts(actor: StaffIdentity, businessId: String = BusinessScope.id()): List<StaffView> {
         access.current(actor, businessId)
         return staff
             .findByPropertyIdOrderByCreatedAtAscIdAsc(businessId, PageRequest.of(0, 100))
@@ -179,7 +183,7 @@ class StaffDirectory(
 
     fun pendingInvitations(
         actor: StaffIdentity,
-        businessId: String = PropertyScope.ID,
+        businessId: String = BusinessScope.id(),
     ): List<InvitationView> {
         access.current(actor, businessId)
         return invitations

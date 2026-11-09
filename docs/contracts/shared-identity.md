@@ -1,8 +1,8 @@
 # Shared Google identity and business memberships
 
 [#45](https://github.com/skrce/villas/issues/45) implements one Google identity and
-server session across independent Owner memberships. The shared booking/data context,
-PostgreSQL row security, business switcher and shared hosting remain #46-#49. The
+server session across independent Owner memberships. The [shared data context and PostgreSQL row security](business-data-isolation.md)
+implement #46. Business switching and shared hosting remain #47-#49. The
 [tenancy contract](multi-tenancy.md) owns that rollout. Live deployment stays blocked.
 Real Google setup and provider acceptance remain deferred in #4.
 
@@ -67,13 +67,10 @@ active business in the session, so requests in different tabs do not retarget ea
 Anonymous session responses disclose no business names. Membership lists exclude
 unrelated and revoked businesses even when their IDs are known.
 
-The legacy `/api/v1/staff` adapters and booking/guest/room/financial routes still name
-the configured compatibility workspace through their fixed server binding. They
-require that business's live membership and reject a conflicting `X-Villas-Business`
-header; that header is not a tenant selector. They never select another authorized
-business when the configured grant is absent. #46 replaces that domain boundary;
-#47 scopes browser state and adds switching. Do not expose a shared service based
-on these compatibility adapters.
+Domain and legacy staff adapters now require an explicit `X-Villas-Business`
+selector under [business data isolation](business-data-isolation.md). There is no
+configured or first-business fallback. Staff paths select by path; an optional
+header must agree. #47 completes browser state separation and switching.
 
 The current console continues to use the configured business. An identity without
 that grant sees a workspace-access message and can sign out, while its authorized
@@ -102,8 +99,8 @@ Only offline bootstrap/recovery omits a staff actor. It still locks the business
 records its system invitation event. The runtime can update identity coordination and
 validated identity/membership data but cannot create businesses, coordination rows or
 onboarding receipts. Onboarding needs separate database authority and has no HTTP route.
-RLS and complete domain tenant isolation remain #46; current privileges are not their
-qualification.
+V18 adds row policies and scoped runtime grants under the business-isolation contract.
+Privileged operator actions and narrowly scoped identity admission remain separate.
 
 ## Operator onboarding
 

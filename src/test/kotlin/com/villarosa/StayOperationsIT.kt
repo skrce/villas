@@ -68,9 +68,19 @@ constructor(
                     reference = "STAY-1",
                     baseRateCents = 5001,
                     rateVersion = 1,
+                    propertyId = "villa-rosa",
                 )
             )
-        guest = guests.saveAndFlush(Customer(firstName = "Synthetic", lastName = "Lifecycle")).id!!
+        guest =
+            guests
+                .saveAndFlush(
+                    Customer(
+                        firstName = "Synthetic",
+                        lastName = "Lifecycle",
+                        propertyId = "villa-rosa",
+                    )
+                )
+                .id!!
         id = book(room.id!!, "2026-11-07", "2026-11-09")
         clock.value = Instant.parse("2026-11-07T12:00:00.123456Z")
     }
@@ -150,6 +160,7 @@ constructor(
                 endDate = LocalDate.parse("2026-11-06"),
                 phase = StayPhase.CHECKED_IN,
                 checkedInAt = Instant.parse("2026-11-01T12:00:00Z"),
+                propertyId = "villa-rosa",
             )
         )
         assertThat(failure { stays.checkIn(id, 0, 3, key()) }).isEqualTo("ROOM_OCCUPIED")
@@ -178,6 +189,7 @@ constructor(
                     reference = "STAY-2",
                     baseRateCents = 6001,
                     rateVersion = 1,
+                    propertyId = "villa-rosa",
                 )
             )
         val moveQuote = quotes.create(destination.id!!, extension.startDate, extension.endDate, 2)
@@ -326,6 +338,7 @@ constructor(
                     name = "Synthetic move",
                     reference = "STAY-3",
                     baseRateCents = 6001,
+                    propertyId = "villa-rosa",
                 )
             )
         val offer = quotes.create(destination.id!!, "2026-11-07", "2026-11-09", 2)

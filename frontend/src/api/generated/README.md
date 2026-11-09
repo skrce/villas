@@ -6,7 +6,7 @@ contract with `npm run generate:api`; do not edit generated files.
 Use the session-aware clients in `frontend/src/api/client.ts`. Browser requests use
 same-origin credentials. Unsafe requests also require the current CSRF header.
 Never read, copy or configure the HttpOnly session cookie as a JavaScript API key.
-Business-scoped staff operations require an explicit authorized `businessId`.
+Domain requests require an explicit `X-Villas-Business` ID. It selects a business and never proves access; the server verifies the current membership. The session-aware fetch adapter supplies this header. External generated clients can configure the `businessSelection` header scheme. Business-scoped staff paths require an explicit authorized `businessId`; a conflicting header is rejected.
 
 ## API endpoints
 
@@ -129,6 +129,7 @@ Business-scoped staff operations require an explicit authorized `businessId`.
 - [LedgerSummary](docs/LedgerSummary.md)
 - [LedgerTotals](docs/LedgerTotals.md)
 - [MaintenanceBlock](docs/MaintenanceBlock.md)
+- [MaintenanceInfo](docs/MaintenanceInfo.md)
 - [MaintenancePage](docs/MaintenancePage.md)
 - [OccupancyRow](docs/OccupancyRow.md)
 - [OperationResult](docs/OperationResult.md)
@@ -181,6 +182,10 @@ Business-scoped staff operations require an explicit authorized `businessId`.
 
 ## Authorization
 
+<a id="businessSelection"></a>
+### businessSelection
+
+Required explicit business ID for domain requests. This is a selector, not a credential. The server verifies current session membership and active business on every operation.
 <a id="staffSession"></a>
 ### staffSession
 

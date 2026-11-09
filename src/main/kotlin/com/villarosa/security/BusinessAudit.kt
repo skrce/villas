@@ -1,6 +1,5 @@
 package com.villarosa.security
 
-import com.villarosa.service.PropertyScope
 import jakarta.persistence.*
 import java.time.Clock
 import java.time.Instant
@@ -15,7 +14,7 @@ class BusinessAudit(private val jdbc: JdbcTemplate, private val clock: Clock) {
     fun record(actor: String, kind: String, type: String, id: String) {
         jdbc.update(
             "INSERT INTO business_events (property_id, actor_id, kind, subject_type, subject_id, occurred_at) VALUES (?, ?, ?, ?, ?, ?)",
-            PropertyScope.ID,
+            BusinessScope.id(),
             actor,
             kind,
             type,
@@ -29,8 +28,7 @@ class BusinessAudit(private val jdbc: JdbcTemplate, private val clock: Clock) {
 @Table(name = "business_events")
 class BusinessEvent(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long? = null,
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "actor_id", nullable = false, length = 36) val actorId: String = "",
     @Column(nullable = false, length = 32) val kind: String = "",
     @Column(name = "subject_type", nullable = false, length = 32) val subjectType: String = "",

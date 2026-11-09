@@ -1,7 +1,7 @@
 package com.villarosa.repository
 
 import com.villarosa.repository.model.*
-import com.villarosa.service.PropertyScope
+import com.villarosa.security.BusinessScope
 import com.villarosa.service.StayDates
 import jakarta.persistence.LockModeType
 import java.time.LocalDate
@@ -65,12 +65,12 @@ class InventoryAvailability(private val jdbc: JdbcTemplate) {
             """SELECT (SELECT COUNT(*) FROM reservations r JOIN (${com.villarosa.service.RoomAllocations.SQL}) a ON a.property_id=r.property_id AND a.reservation_id=r.id WHERE r.property_id=? AND a.room_id=? AND r.status='ACTIVE' AND a.start_date<? AND a.end_date>? AND r.id<>?)
               + (SELECT COUNT(*) FROM maintenance_blocks WHERE property_id=? AND room_id=? AND status='ACTIVE' AND start_date<? AND end_date>?)""",
             Long::class.java,
-            PropertyScope.ID,
+            BusinessScope.id(),
             roomId,
             dates.end,
             dates.start,
             excludedReservation,
-            PropertyScope.ID,
+            BusinessScope.id(),
             roomId,
             dates.end,
             dates.start,

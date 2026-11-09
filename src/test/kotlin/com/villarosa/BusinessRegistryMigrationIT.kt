@@ -192,7 +192,7 @@ class BusinessRegistryMigrationIT {
                 DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
                     .migrationsExecuted
             )
-            .isEqualTo(2)
+            .isEqualTo(3)
         PropertyDatabaseBinding(source)
     }
 

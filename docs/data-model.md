@@ -3,16 +3,18 @@
 V16 begins the [shared-tenancy conversion](contracts/multi-tenancy.md) with a business
 registry, parent references on tenant-owned tables and composite staff-actor references.
 V17 adds canonical Google identities and independent staff membership grants without
-rewriting the old staff/actor IDs. Domain services remain bound to the compatibility
-business until #46. Registration alone grants no web access.
+rewriting staff/actor IDs. V18 adds explicit business data scope and PostgreSQL row
+security. Registration alone grants no access. See the
+[business isolation contract](contracts/business-data-isolation.md).
 
-The compatibility runtime serves one configured business, defaulting to `villa-rosa` locally.
-`VILLAS_PROPERTY_ID` is a validated deployment setting, not a client-selected tenant.
-`property_identity` binds an initialized database to that ID and startup refuses a
-mismatch. `VILLAS_PROPERTY_NAME` seeds its initial registry label; the saved name is authoritative. Rooms, guests, and bookings
-carry a server-owned property ID. Composite foreign keys prevent linking bookings
-to another property's guest or room. API IDs retain their existing integer shape.
-Property IDs are not client-controlled fields in the console.
+Requests select a business explicitly; entity creation and SQL inserts have no
+property default. Composite foreign keys prevent cross-business parents/actors,
+while row policies check transaction-local identity and membership claims.
+`property_identity` remains historical upgrade metadata. The configured ID/name seed
+that legacy registry record and provide the current console compatibility summary;
+they cannot select a domain request's business. API resource IDs keep their existing
+shape. The server derives the data scope from current authorized membership, never a
+business field accepted in a guest/room/booking body.
 
 | Table | Main fields and invariants |
 | --- | --- |

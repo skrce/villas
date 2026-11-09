@@ -1,6 +1,6 @@
 package com.villarosa.controller
 
-import com.villarosa.repository.model.MaintenanceBlock
+import com.villarosa.repository.model.MaintenanceInfo
 import com.villarosa.service.ReservationService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -20,7 +20,7 @@ class MaintenanceController(private val service: ReservationService) {
         @RequestParam endDate: String,
         @RequestParam(defaultValue = "Maintenance") reason: String,
         @RequestHeader("Idempotency-Key") key: String,
-    ): MaintenanceBlock = service.block(roomId, startDate, endDate, reason, key).maintenance!!
+    ): MaintenanceInfo = service.block(roomId, startDate, endDate, reason, key).maintenance!!
 
     @DeleteMapping("/api/v1/maintenance-blocks/{blockId}")
     @Operation(
@@ -31,5 +31,5 @@ class MaintenanceController(private val service: ReservationService) {
         @PathVariable blockId: Int,
         @RequestParam expectedVersion: Long,
         @RequestHeader("Idempotency-Key") key: String,
-    ): MaintenanceBlock = service.unblock(blockId, expectedVersion, key).maintenance!!
+    ): MaintenanceInfo = service.unblock(blockId, expectedVersion, key).maintenance!!
 }

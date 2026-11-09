@@ -57,6 +57,7 @@ constructor(
                     name = "Synthetic first",
                     reference = "AL-A",
                     baseRateCents = 5001,
+                    propertyId = "villa-rosa",
                 )
             )
         b =
@@ -66,9 +67,19 @@ constructor(
                     name = "Synthetic second",
                     reference = "AL-B",
                     baseRateCents = 6001,
+                    propertyId = "villa-rosa",
                 )
             )
-        guest = guests.saveAndFlush(Customer(firstName = "Synthetic", lastName = "Allocation")).id!!
+        guest =
+            guests
+                .saveAndFlush(
+                    Customer(
+                        firstName = "Synthetic",
+                        lastName = "Allocation",
+                        propertyId = "villa-rosa",
+                    )
+                )
+                .id!!
     }
 
     private fun book(

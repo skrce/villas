@@ -3,6 +3,7 @@ package com.villarosa.service
 import com.villarosa.exception.conflict
 import com.villarosa.exception.invalid
 import com.villarosa.repository.model.*
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import io.swagger.v3.oas.annotations.media.Schema
@@ -109,7 +110,7 @@ class DailyOperations(
                             .trim(),
                     )
                 },
-                *(listOf(PropertyScope.ID, after) + dates + listOf(limit + 1)).toTypedArray(),
+                *(listOf(BusinessScope.id(), after) + dates + listOf(limit + 1)).toTypedArray(),
             )
         return FrontDeskPage(
             today.toString(),
@@ -151,7 +152,7 @@ class DailyOperations(
                         emptyList(),
                     )
                 },
-                PropertyScope.ID,
+                BusinessScope.id(),
                 after,
                 state?.name,
                 state?.name,

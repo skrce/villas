@@ -8,6 +8,7 @@ import com.villarosa.repository.SeasonalRate
 import com.villarosa.repository.SeasonalRateRepository
 import com.villarosa.repository.model.Apartment
 import com.villarosa.security.BusinessAudit
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import java.time.LocalDate
@@ -27,7 +28,7 @@ class RateService(
 ) {
     fun get(roomId: Int): RoomRates {
         access.current(current.identity())
-        return read(rooms.locked(PropertyScope.ID, roomId) ?: missing("Room does not exist."))
+        return read(rooms.locked(BusinessScope.id(), roomId) ?: missing("Room does not exist."))
     }
 
     fun update(
@@ -41,13 +42,13 @@ class RateService(
         EuroCents.currency(currency)
         EuroCents.positive(baseNightlyCents)
         val normalized = PriceCalculator.seasons(seasonal)
-        val room = rooms.locked(PropertyScope.ID, roomId) ?: missing("Room does not exist.")
+        val room = rooms.locked(BusinessScope.id(), roomId) ?: missing("Room does not exist.")
         if (expectedVersion < 0) invalid("INVALID_VERSION", "Version must not be negative.")
         if (room.rateVersion != expectedVersion)
             conflict("STALE_VERSION", "The room rates changed. Reload them before editing.")
         if (room.rateVersion >= EuroCents.MAX)
             conflict("RATE_VERSION_LIMIT", "The room's rate version exceeds the supported range.")
-        seasons.deleteForRoom(PropertyScope.ID, roomId)
+        seasons.deleteForRoom(BusinessScope.id(), roomId)
         seasons.saveAllAndFlush(
             normalized.map {
                 SeasonalRate(
@@ -56,6 +57,7 @@ class RateService(
                     startDate = LocalDate.parse(it.startDate),
                     endDate = LocalDate.parse(it.endDate),
                     nightlyCents = it.nightlyCents,
+                    propertyId = BusinessScope.id(),
                 )
             }
         )
@@ -68,7 +70,7 @@ class RateService(
 
     fun preview(roomId: Int, start: String, end: String, guestCount: Int): StayPrice {
         access.current(current.identity())
-        val room = rooms.locked(PropertyScope.ID, roomId) ?: missing("Room does not exist.")
+        val room = rooms.locked(BusinessScope.id(), roomId) ?: missing("Room does not exist.")
         checkRoom(room, guestCount)
         return PriceCalculator.calculate(read(room), StayDates.parse(start, end))
     }
@@ -81,14 +83,19 @@ class RateService(
             baseNightlyCents = room.baseRateCents,
             version = room.rateVersion,
             seasons =
-                seasons.findByPropertyIdAndRoomIdOrderByStartDate(PropertyScope.ID, room.id!!).map {
-                    SeasonRate(
-                        it.name,
-                        it.startDate.toString(),
-                        it.endDate.toString(),
-                        it.nightlyCents,
+                seasons
+                    .findByPropertyIdAndRoomIdOrderByStartDate(
+                        BusinessScope.id(),
+                        room.id!!,
                     )
-                },
+                    .map {
+                        SeasonRate(
+                            it.name,
+                            it.startDate.toString(),
+                            it.endDate.toString(),
+                            it.nightlyCents,
+                        )
+                    },
         )
 
     fun checkRoom(room: Apartment, guestCount: Int) {

@@ -1,7 +1,6 @@
 package com.villarosa.repository.model
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.villarosa.service.PropertyScope
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.persistence.*
 import java.time.Instant
@@ -22,9 +21,19 @@ data class MaintenanceBlock(
     @Column(nullable = false, length = 16)
     var status: ReservationStatus = ReservationStatus.ACTIVE,
     @Version @Column(nullable = false) var version: Long = 0,
-    @JsonIgnore
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @JsonIgnore @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
+) {
+    fun info() = MaintenanceInfo(id, roomId, startDate, endDate, reason, status, version)
+}
+
+data class MaintenanceInfo(
+    val id: Int?,
+    val roomId: Int,
+    val startDate: LocalDate,
+    val endDate: LocalDate,
+    val reason: String,
+    val status: ReservationStatus,
+    val version: Long,
 )
 
 @Entity
@@ -39,8 +48,7 @@ data class MaintenanceBlock(
 )
 data class InventoryOperation(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long? = null,
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "actor_id", nullable = false, length = 64) val actorId: String = "development",
     @Column(name = "operation_kind", nullable = false, length = 32) val kind: String = "",
     @Column(name = "operation_key", nullable = false, length = 36) val key: String = "",
@@ -62,8 +70,7 @@ data class InventoryOperation(
 )
 data class InventoryEvent(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) val id: Long? = null,
-    @Column(name = "property_id", nullable = false, length = 64)
-    val propertyId: String = PropertyScope.ID,
+    @Column(name = "property_id", nullable = false, length = 64) val propertyId: String,
     @Column(name = "actor_id", nullable = false, length = 64) val actorId: String = "development",
     @Column(name = "operation_key", nullable = false, length = 36) val operationKey: String = "",
     @Column(nullable = false, length = 32) val kind: String = "",
@@ -108,7 +115,7 @@ data class OperationResult(
     @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED) val kind: OperationKind,
     @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED) val resourceId: Int,
     val reservation: ReservationInfo? = null,
-    val maintenance: MaintenanceBlock? = null,
+    val maintenance: MaintenanceInfo? = null,
     val readiness: ReadinessView? = null,
     val readinessEvent: ReadinessEventInfo? = null,
     val inventoryEvent: InventoryEventInfo? = null,

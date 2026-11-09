@@ -126,6 +126,6 @@ class ApartmentController(
         @PathVariable apartmentId: Int,
         @Valid @RequestBody body: RoomBlockRequest,
         @RequestHeader("Idempotency-Key") key: String,
-    ): MaintenanceBlock =
+    ): MaintenanceInfo =
         inventory.block(apartmentId, body.startDate, body.endDate, body.reason, key).maintenance!!
 }

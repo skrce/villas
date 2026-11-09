@@ -8,6 +8,7 @@ import com.villarosa.repository.CustomerRepository
 import com.villarosa.repository.ReservationRepository
 import com.villarosa.repository.model.*
 import com.villarosa.security.BusinessAudit
+import com.villarosa.security.BusinessScope
 import com.villarosa.security.CurrentStaff
 import com.villarosa.security.StaffAccess
 import org.springframework.data.domain.PageRequest
@@ -42,7 +43,10 @@ class CustomerService(
                 "POSSIBLE_DUPLICATE",
                 "A guest with this name already exists. Review the matches or explicitly create a separate guest.",
             )
-        val guest = Customer().apply { applyProfile(profile) }
+        val guest =
+            Customer(propertyId = BusinessScope.id()).apply {
+                applyProfile(profile)
+            }
         val id = customerRepository.saveAndFlush(guest).id!!
         audit.record(actor.id, "CUSTOMER_CREATED", "CUSTOMER", id.toString())
         return id
@@ -51,7 +55,7 @@ class CustomerService(
     fun update(id: Int, version: Long, profile: GuestProfile): Customer {
         val actor = access.lockOwner(current.identity())
         val guest =
-            customerRepository.locked(PropertyScope.ID, id) ?: missing("Guest does not exist.")
+            customerRepository.locked(BusinessScope.id(), id) ?: missing("Guest does not exist.")
         expected(guest.version, version)
         guest.applyProfile(
             GuestProfile.normalize(
@@ -71,7 +75,7 @@ class CustomerService(
     fun status(id: Int, version: Long, active: Boolean): Customer {
         val actor = access.lockOwner(current.identity())
         val guest =
-            customerRepository.locked(PropertyScope.ID, id) ?: missing("Guest does not exist.")
+            customerRepository.locked(BusinessScope.id(), id) ?: missing("Guest does not exist.")
         expected(guest.version, version)
         if (guest.active != active) {
             if (!active) protection.guestArchive(id)
@@ -91,7 +95,7 @@ class CustomerService(
     fun findCustomerById(id: Int): java.util.Optional<Customer> {
         access.current(current.identity())
         return java.util.Optional.ofNullable(
-            customerRepository.findByPropertyIdAndId(PropertyScope.ID, id)
+            customerRepository.findByPropertyIdAndId(BusinessScope.id(), id)
         )
     }
 
@@ -137,7 +141,7 @@ class CustomerService(
         if (limit !in 1..100) invalid("INVALID_PAGE_SIZE", "Limit must be between 1 and 100.")
         val rows =
             reservations.guestHistory(
-                PropertyScope.ID,
+                BusinessScope.id(),
                 id,
                 after,
                 status,

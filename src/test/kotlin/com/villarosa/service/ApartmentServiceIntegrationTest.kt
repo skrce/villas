@@ -28,8 +28,14 @@ constructor(
 
     @Test
     fun getAllApartments_returnsPersistedApartments() {
-        val first = apartmentRepository.save(Apartment(null, 2, "South", "Lake", 100, 150))
-        val second = apartmentRepository.save(Apartment(null, 3, "East", "Garden", 120, 170))
+        val first =
+            apartmentRepository.save(
+                Apartment(null, 2, "South", "Lake", 100, 150, propertyId = "villa-rosa")
+            )
+        val second =
+            apartmentRepository.save(
+                Apartment(null, 3, "East", "Garden", 120, 170, propertyId = "villa-rosa")
+            )
 
         val results = apartmentService.getAllApartments()
 
@@ -39,7 +45,10 @@ constructor(
 
     @Test
     fun findApartmentById_returnsApartmentWhenExists() {
-        val apartment = apartmentRepository.save(Apartment(null, 2, "South", "Lake", 100, 150))
+        val apartment =
+            apartmentRepository.save(
+                Apartment(null, 2, "South", "Lake", 100, 150, propertyId = "villa-rosa")
+            )
 
         val result = apartmentService.findApartmentById(apartment.id!!)
 

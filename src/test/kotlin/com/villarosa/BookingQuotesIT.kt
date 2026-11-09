@@ -71,9 +71,25 @@ constructor(
         TestData.reset(jdbc, database.jdbcUrl)
         TestData.seedOwner(jdbc, index = 1)
         clock.value = Instant.parse("2026-11-06T12:00:00.123456Z")
-        room = rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 5001, rateVersion = 1))
+        room =
+            rooms.saveAndFlush(
+                Apartment(
+                    capacity = 4,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                    propertyId = "villa-rosa",
+                )
+            )
         guestId =
-            guests.saveAndFlush(Customer(firstName = "Synthetic", lastName = "Quote guest")).id!!
+            guests
+                .saveAndFlush(
+                    Customer(
+                        firstName = "Synthetic",
+                        lastName = "Quote guest",
+                        propertyId = "villa-rosa",
+                    )
+                )
+                .id!!
     }
 
     private fun key() = UUID.randomUUID().toString()
@@ -113,6 +129,7 @@ constructor(
                             startDate = LocalDate.of(2030, 1, 1),
                             endDate = LocalDate.of(2030, 1, 3),
                             guestCount = 2,
+                            propertyId = "villa-rosa",
                         )
                     )
                 OperationResult(
@@ -290,7 +307,14 @@ constructor(
         assertThat(changed.reservation!!.version).isEqualTo(1)
         assertThat(quotes.currentPrice(saved.resourceId)!!.quote.price.totalCents).isEqualTo(18003)
         val destination =
-            rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 7001, rateVersion = 1))
+            rooms.saveAndFlush(
+                Apartment(
+                    capacity = 4,
+                    baseRateCents = 7001,
+                    rateVersion = 1,
+                    propertyId = "villa-rosa",
+                )
+            )
         val move = quotes.create(destination.id!!, extension.startDate, extension.endDate, 3)
         val moved = inventory.move(saved.resourceId, destination.id!!, 1, key(), move.id)
         assertThat(moved.reservation!!.version).isEqualTo(2)
@@ -351,7 +375,14 @@ constructor(
         val saved = confirm(quote())
         val target =
             if (kind == "MOVE")
-                rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 7001, rateVersion = 1))
+                rooms.saveAndFlush(
+                    Apartment(
+                        capacity = 4,
+                        baseRateCents = 7001,
+                        rateVersion = 1,
+                        propertyId = "villa-rosa",
+                    )
+                )
             else room
         val old =
             quotes.create(
@@ -394,7 +425,14 @@ constructor(
         val saved = confirm(original)
         val target =
             if (kind == "MOVE")
-                rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 7001, rateVersion = 1))
+                rooms.saveAndFlush(
+                    Apartment(
+                        capacity = 4,
+                        baseRateCents = 7001,
+                        rateVersion = 1,
+                        propertyId = "villa-rosa",
+                    )
+                )
             else room
         val offer =
             quotes.create(
@@ -468,7 +506,14 @@ constructor(
     fun quotedRoomDatesAndPartySizeCannotBeSubstitutedAtConfirmation() {
         val quote = quote()
         val second =
-            rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 5001, rateVersion = 1))
+            rooms.saveAndFlush(
+                Apartment(
+                    capacity = 4,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                    propertyId = "villa-rosa",
+                )
+            )
         assertThat(
                 failure {
                     inventory.createQuoted(
@@ -668,7 +713,14 @@ constructor(
     fun unapprovedUnquotedEditPathsCannotChangeAPricedStay() {
         val saved = confirm(quote())
         val second =
-            rooms.saveAndFlush(Apartment(capacity = 4, baseRateCents = 5001, rateVersion = 1))
+            rooms.saveAndFlush(
+                Apartment(
+                    capacity = 4,
+                    baseRateCents = 5001,
+                    rateVersion = 1,
+                    propertyId = "villa-rosa",
+                )
+            )
         assertThat(failure { inventory.move(saved.resourceId, second.id!!, 0, key()) }.code)
             .isEqualTo("PRICE_REVIEW_REQUIRED")
         assertThat(
@@ -738,7 +790,7 @@ constructor(
 
     @Test
     fun missingRatesAndInvalidInputsCannotCreateProposedQuotesOrPriceHistory() {
-        val empty = rooms.saveAndFlush(Apartment(capacity = 2))
+        val empty = rooms.saveAndFlush(Apartment(capacity = 2, propertyId = "villa-rosa"))
         assertThat(failure { quotes.create(empty.id!!, "2030-01-01", "2030-01-03", 1) }.code)
             .isEqualTo("RATES_REQUIRED")
         assertThat(failure { quotes.create(room.id!!, "2030-01-01", "2030-01-03", 1, "USD") }.code)
