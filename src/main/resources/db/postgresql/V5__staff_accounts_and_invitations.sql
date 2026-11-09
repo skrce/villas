@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS property_identity (
 INSERT INTO property_identity(singleton,property_id) VALUES(1,'${propertyId}');
 
 CREATE TABLE IF NOT EXISTS staff_property_lock (
-    property_id VARCHAR(64) NOT NULL PRIMARY KEY
+    property_id VARCHAR(64) NOT NULL PRIMARY KEY,
+    lock_token SMALLINT NOT NULL DEFAULT 0 CHECK (lock_token=0)
 );
 
 INSERT INTO staff_property_lock (property_id) VALUES ('${propertyId}') ON CONFLICT DO NOTHING;

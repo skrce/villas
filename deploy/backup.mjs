@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
-import { isAbsolute } from 'node:path';
+import { mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { isAbsolute, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { backupDelay, maximumBackupJob } from './recovery-policy.mjs';
 
@@ -147,7 +148,7 @@ const backup = async () => {
   await discardPending();
   const started = Date.now();
   const tag = `villas-pending-${started}-${started + jobSeconds() * 1000}-${randomBytes(12).toString('hex')}`;
-  const dump = start('pg_dump', [...sqlArguments(), '--no-owner', '--no-acl', '--clean', '--if-exists', '--schema=public', '--dbname=villarosa'], sqlEnvironment(), { pipe: true });
+  const dump = start('pg_dump', [...sqlArguments(), '--format=custom', '--compress=6', '--no-owner', '--no-acl', '--schema=public', '--dbname=villarosa'], sqlEnvironment(), { pipe: true });
   dump.child.stdin.end();
   const archive = start('restic', ['backup', '--stdin', '--stdin-filename', '/villas.sql', '--host', host(), '--tag', tag, '--json'], resticEnvironment(), { capture: true, pipe: true });
   const [dumpResult, result] = await transfer(dump, archive);
@@ -173,10 +174,22 @@ const restore = async id => {
   try { snapshots = JSON.parse(await restic(['snapshots', '--json', '--host', host(), '--tag', 'villas-complete', id], 'snapshot-selection', true)); } catch { throw stageError('snapshot-selection'); }
   if (snapshots.length !== 1 || snapshots[0].id !== id || !snapshots[0].tags?.includes('villas-complete')) throw stageError('snapshot-selection');
   if ((await sql("SELECT (SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f'))+(SELECT COUNT(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public');", 'empty-target')).trim() !== '0') throw stageError('target-is-not-empty');
-  const dump = start('restic', ['dump', id, '/villas.sql'], resticEnvironment(), { pipe: true }); dump.child.stdin.end();
-  const database = start('psql', [...sqlArguments(), '--no-psqlrc', '--set=ON_ERROR_STOP=1', '--single-transaction', '--dbname=villarosa'], sqlEnvironment(), { pipe: true }); database.child.stdout.resume();
-  const results = await transfer(dump, database);
-  if (results.some(result => result.code !== 0)) throw stageError('restore-stream');
+  const metadataSource = start('restic', ['dump', id, '/villas.sql'], resticEnvironment(), { pipe: true }); metadataSource.child.stdin.end();
+  const metadata = start('pg_restore', ['--list'], { PATH: process.env.PATH, TZ: 'UTC' }, { capture: true, pipe: true });
+  const listed = await transfer(metadataSource, metadata);
+  if (listed.some(result => result.code !== 0)) throw stageError('restore-catalogue');
+  const directory = mkdtempSync(join(tmpdir(), 'villas-restore-'));
+  try {
+    const catalogue = join(directory, 'catalogue');
+    // Keep the provisioned public schema and its least-privilege grants.
+    const entries = listed[1].output.split('\n').filter(line => !/^\d+; \d+ \d+ SCHEMA - public /.test(line));
+    if (!entries.some(line => /^\d+;/.test(line))) throw stageError('restore-catalogue');
+    writeFileSync(catalogue, entries.join('\n'), { mode: 0o600 });
+    const dump = start('restic', ['dump', id, '/villas.sql'], resticEnvironment(), { pipe: true }); dump.child.stdin.end();
+    const database = start('pg_restore', [...sqlArguments(), '--no-owner', '--no-acl', '--single-transaction', '--exit-on-error', `--use-list=${catalogue}`, '--dbname=villarosa'], sqlEnvironment(), { pipe: true }); database.child.stdout.resume();
+    const results = await transfer(dump, database);
+    if (results.some(result => result.code !== 0)) throw stageError('restore-stream');
+  } finally { rmSync(directory, { recursive: true, force: true }); }
   const quarantine = readFileSync(fileURLToPath(new URL('./recovery-quarantine.sql', import.meta.url)), 'utf8').replace('__SNAPSHOT_ID__', id);
   await sql(quarantine, 'session-quarantine');
   console.log('villas_restore_quarantined');

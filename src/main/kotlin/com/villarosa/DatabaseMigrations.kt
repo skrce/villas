@@ -22,7 +22,11 @@ object DatabaseMigrations {
             .load()
 
     fun migrate(url: String, username: String, password: String): MigrateResult =
-        configured(url, username, password).migrate()
+        configured(url, username, password).migrate().also {
+            java.sql.DriverManager.getConnection(url, username, password).use {
+                PropertyDatabaseBinding.verify(it)
+            }
+        }
 
     fun fromEnvironment() {
         val settings = PrivateSettings.resolve()

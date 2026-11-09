@@ -1,4 +1,5 @@
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO villas_runtime;
+GRANT UPDATE(lock_token) ON public.staff_property_lock TO villas_runtime;
 GRANT INSERT, UPDATE ON public.apartments TO villas_runtime;
 GRANT INSERT, UPDATE ON public.customers TO villas_runtime;
 GRANT INSERT, UPDATE ON public.reservations TO villas_runtime;

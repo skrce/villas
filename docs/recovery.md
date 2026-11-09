@@ -10,7 +10,7 @@ See [deployment](deployment.md), [operations](operations.md) and the
 ## Backup contract
 
 The backup image uses the pinned PostgreSQL 17 client and restic. `pg_dump` streams
-one consistent logical snapshot into encrypted storage without writing a plaintext
+one compressed custom-format logical snapshot into encrypted storage without writing a plaintext
 SQL export to disk. It captures the app's public schema, data, sequence positions
 and Flyway history. Owner/grant statements are excluded; restore uses separately
 reviewed roles/grants. Stop the scheduler and drain active backup work before DDL.
@@ -73,7 +73,8 @@ Actual failures/outages can still breach the target and require verified alerts.
 3. Select the full completed snapshot ID, compatible source app/backup/PostgreSQL
    digests and original backup identity. The target must have zero schema tables
    before import. A populated target is refused. Preserve a failed target for diagnosis.
-4. Import using error-stop and a PostgreSQL transaction. A failed import stays closed.
+4. Read the bounded archive catalogue and retain the preprovisioned public schema
+   and its grants. Stream `pg_restore` with error-stop and a PostgreSQL transaction. A failed import stays closed.
    On success, an atomic quarantine deletes restored sessions, increments staff
    security generations and appends a recovery audit event with snapshot, counts and
    UTC time. Do not serve traffic if import or quarantine fails.

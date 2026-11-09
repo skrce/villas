@@ -40,6 +40,9 @@ class MigrationsIT {
             }
         }
         assertThrows<IllegalArgumentException> { PropertyDatabaseBinding(source) }
+        assertThrows<IllegalArgumentException> {
+            DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        }
     }
 
     @Test

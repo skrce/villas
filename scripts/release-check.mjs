@@ -31,6 +31,8 @@ const environment = {
   ...cleanEnvironment,
   VILLAS_APP_IMAGE: build.appId,
   VILLAS_PROXY_IMAGE: build.proxyId,
+  VILLAS_PROPERTY_ID: 'rehearsal-garden',
+  VILLAS_PROPERTY_NAME: 'Rehearsal Garden',
   VILLAS_POSTGRES_IMAGE: readFileSync(join(root, 'postgres-image.txt'), 'utf8').trim(),
   VILLAS_DOMAIN: 'localhost',
   VILLAS_SECRET_DIR: secrets,
@@ -106,6 +108,7 @@ try {
   await compose(['run', '--rm', 'migrate']);
   await compose(['run', '--rm', 'migrate']);
   await sql(readFileSync(join(root, 'deploy/runtime-grants.sql'), 'utf8'));
+  await sql('BEGIN; SELECT property_id FROM staff_property_lock FOR UPDATE; ROLLBACK;', 'villas_runtime');
   const empty = await sql('SELECT (SELECT COUNT(*) FROM apartments)+(SELECT COUNT(*) FROM customers)+(SELECT COUNT(*) FROM reservations)+(SELECT COUNT(*) FROM staff_accounts)+(SELECT COUNT(*) FROM staff_invitations)+(SELECT COUNT(*) FROM ledger_entries);');
   assert.equal(empty.output, '0', 'Production initialization must be empty.');
   for (const statement of [
@@ -114,6 +117,8 @@ try {
     'DELETE FROM business_events WHERE id=0;',
     "UPDATE reservation_prices SET quote_json='{}' WHERE id='no-record';",
     "UPDATE flyway_schema_history SET checksum=0 WHERE installed_rank=0;",
+    "UPDATE property_identity SET property_id='foreign' WHERE singleton=1;",
+    "UPDATE staff_property_lock SET property_id='foreign' WHERE property_id='rehearsal-garden';",
   ]) assert.notEqual((await sql(statement, 'villas_runtime', true)).code, 0, 'Runtime credentials must reject schema/history mutations.');
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy']);
   await compose(['exec', '-T', 'api', 'java', '-jar', '/app/villas.jar', 'healthcheck']);
@@ -173,7 +178,7 @@ try {
   await sql(readFileSync(join(root, 'dev/fixtures.sql'), 'utf8'));
   await compose(['run', '--rm', 'api', 'bootstrap-owner']);
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy', 'identity']);
-  await run(process.execPath, ['frontend/node_modules/@playwright/test/cli.js', 'test', '--config', 'frontend/playwright.release.config.ts', '--max-failures=1'], { env: { ...cleanEnvironment, ...synthetic, VILLAS_BROWSER_CLOCK_FILE: join(clock, 'instant.txt') }, timeout: 600_000 });
+  await run(process.execPath, ['frontend/node_modules/@playwright/test/cli.js', 'test', '--config', 'frontend/playwright.release.config.ts', '--max-failures=1'], { env: { ...cleanEnvironment, ...synthetic, VILLAS_PROPERTY_ID: 'rehearsal-garden', VILLAS_PROPERTY_NAME: 'Rehearsal Garden', VILLAS_BROWSER_CLOCK_FILE: join(clock, 'instant.txt') }, timeout: 600_000 });
   const signedIn = await chromium.launch({ headless: true });
   let savedCookies;
   try {
@@ -187,7 +192,7 @@ try {
   await compose(['stop', 'proxy', 'identity', 'api']);
   const unsupported = await sql("SELECT (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema='public')+(SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema='public')+(SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type<>'BASE TABLE'); ");
   assert.equal(unsupported.output, '0', 'The supported logical backup schema contains PostgreSQL base tables without database programs.');
-  await sql(`INSERT INTO recovery_events(id,property_id,snapshot_id,invalidated_sessions,changed_staff,occurred_at) VALUES(gen_random_uuid()::text,'villa-rosa','${'f'.repeat(64)}',0,0,CURRENT_TIMESTAMP(6));`);
+  await sql(`INSERT INTO recovery_events(id,property_id,snapshot_id,invalidated_sessions,changed_staff,occurred_at) VALUES(gen_random_uuid()::text,'rehearsal-garden','${'f'.repeat(64)}',0,0,CURRENT_TIMESTAMP(6));`);
   const fingerprint = async (service, excludeSnapshot) => {
     const tables = (await sql("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;", 'root', false, service)).output.split('\n');
     const result = {};

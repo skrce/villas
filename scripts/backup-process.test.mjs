@@ -32,6 +32,7 @@ for (const mode of ['backup', 'restore']) test(`${mode} cancels a delayed, backp
   try {
     f.script('pg_dump', producer);
     f.script('psql', `if(process.argv.includes('--tuples-only')) console.log('0'); else process.exit(1);`);
+    f.script('pg_restore', `if(process.argv.includes('--list')) { for await (const chunk of process.stdin) {} console.log('1; 1 1 TABLE public synthetic owner'); } else process.exit(1);`);
     f.script('restic', `
 const command=process.argv[2];
 if(command==='snapshots') console.log(JSON.stringify(${mode === 'restore' ? `[{id:'${snapshot}',tags:['villas-complete']}]` : '[]'}));

@@ -12,6 +12,8 @@ x-app: &app
   logging: *logging
   environment: &app-env
     VILLAS_MODE: production
+    VILLAS_PROPERTY_ID: ${VILLAS_PROPERTY_ID:-villa-rosa}
+    VILLAS_PROPERTY_NAME: ${VILLAS_PROPERTY_NAME:-Villa Rosa}
     VILLAS_DB_URL: jdbc:postgresql://db:5432/villarosa
     VILLAS_DB_USERNAME: villas_runtime
     VILLAS_DB_PASSWORD_FILE: /run/secrets/db_runtime
@@ -50,6 +52,7 @@ services:
     command: [migrate]
     environment:
       VILLAS_DB_URL: jdbc:postgresql://db:5432/villarosa
+      VILLAS_PROPERTY_ID: ${VILLAS_PROPERTY_ID:-villa-rosa}
       VILLAS_DB_USERNAME: villas_migration
       VILLAS_DB_PASSWORD_FILE: /run/secrets/db_migration
     secrets: [db_migration]

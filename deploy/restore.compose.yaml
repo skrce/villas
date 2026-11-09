@@ -50,6 +50,7 @@ services:
     security_opt: [no-new-privileges:true]
     environment:
       VILLAS_DB_URL: jdbc:postgresql://restored-db:5432/villarosa
+      VILLAS_PROPERTY_ID: ${VILLAS_PROPERTY_ID:-villa-rosa}
       VILLAS_DB_USERNAME: villas_migration
       VILLAS_DB_PASSWORD_FILE: /run/secrets/db_migration
     secrets: [db_migration]

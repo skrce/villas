@@ -90,6 +90,41 @@ class RecoveryMigrationIT {
             .filter(String::isNotEmpty)
 
     @Test
+    fun quarantineUsesTheRestoredBusinessBindingForRevocationAndAudit() {
+        seed(7)
+        connection().use { connection ->
+            connection.createStatement().use { sql ->
+                sql.executeUpdate(
+                    "UPDATE property_identity SET property_id='lake-house' WHERE singleton=1"
+                )
+                sql.executeUpdate(
+                    "UPDATE staff_accounts SET property_id='lake-house' WHERE property_id='villa-rosa'"
+                )
+                quarantine().forEach { sql.execute(it) }
+                sql.executeQuery(
+                        "SELECT property_id,changed_staff FROM recovery_events WHERE snapshot_id='$snapshot'"
+                    )
+                    .use { rows ->
+                        assertThat(rows.next()).isTrue()
+                        assertThat(rows.getString(1)).isEqualTo("lake-house")
+                        assertThat(rows.getLong(2)).isEqualTo(1)
+                    }
+                sql.executeQuery(
+                        "SELECT security_version FROM staff_accounts WHERE property_id='lake-house'"
+                    )
+                    .use { rows ->
+                        assertThat(rows.next()).isTrue()
+                        assertThat(rows.getLong(1)).isEqualTo(8)
+                    }
+                sql.executeQuery("SELECT COUNT(*) FROM SPRING_SESSION").use { rows ->
+                    rows.next()
+                    assertThat(rows.getLong(1)).isZero()
+                }
+            }
+        }
+    }
+
+    @Test
     fun quarantineRevokesSessionsAndStaffGenerationsWithAnAtomicRecoveryEvent() {
         seed(7)
         connection().use { connection ->
