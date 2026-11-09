@@ -23,6 +23,38 @@ class MigrationsIT {
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
 
     @Test
+    fun anotherBusinessBindingRejectsTheUpgradeBeforeAnyDdl() {
+        DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "14")
+            .migrate()
+        connection().use { connection ->
+            connection.createStatement().use { sql ->
+                sql.executeUpdate(
+                    "UPDATE property_identity SET property_id='other-business' WHERE singleton=1"
+                )
+            }
+        }
+        assertThrows<IllegalArgumentException> {
+            DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        }
+        connection().use { connection ->
+            connection.createStatement().use { sql ->
+                sql.executeQuery(
+                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='recovery_events'"
+                    )
+                    .use { rows ->
+                        rows.next()
+                        assertThat(rows.getInt(1)).isZero()
+                    }
+                sql.executeQuery("SELECT MAX(version::integer) FROM flyway_schema_history").use {
+                    rows ->
+                    rows.next()
+                    assertThat(rows.getInt(1)).isEqualTo(14)
+                }
+            }
+        }
+    }
+
+    @Test
     fun anotherBusinessDatabaseCannotStartTheApplication() {
         DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
         val source =

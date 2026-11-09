@@ -206,6 +206,7 @@ try {
     }
     return result;
   };
+  await sql("CREATE TABLE restore_stream_probe(id INT PRIMARY KEY,payload BYTEA NOT NULL); INSERT INTO restore_stream_probe SELECT i,decode(string_agg(md5(random()::text),''),'hex') FROM generate_series(1,256) i CROSS JOIN generate_series(1,512) j GROUP BY i;", 'villas_migration');
   const original = await fingerprint('db');
   const generations = (await sql('SELECT id,security_version FROM staff_accounts ORDER BY id;')).output;
   const sessions = Number((await sql('SELECT COUNT(*) FROM SPRING_SESSION;')).output);

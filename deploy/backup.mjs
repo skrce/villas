@@ -81,16 +81,26 @@ const start = (command, args, env, { capture = false, input, pipe = false } = {}
   if (!pipe) child.stdin.end(input);
   return { child, done };
 };
-const transfer = async (source, destination) => {
+const transfer = async (source, destination, { catalogue = false } = {}) => {
   destination.child.once('error', () => cancel(source.child));
-  destination.child.once('close', () => {
+  destination.child.once('close', code => {
+    if (catalogue && code === 0) {
+      source.child.stdout.unpipe(destination.child.stdin);
+      source.child.stdout.resume();
+      return;
+    }
     if (!source.child.stdout.readableEnded) cancel(source.child);
     else setTimeout(() => { if (children.has(source.child)) cancel(source.child); }, 2_000).unref();
   });
   source.child.once('error', () => cancel(destination.child));
   source.child.once('close', code => { if (code !== 0) cancel(destination.child); });
   source.child.stdout.once('error', () => { cancel(source.child); cancel(destination.child); });
-  destination.child.stdin.once('error', () => { cancel(source.child); cancel(destination.child); });
+  destination.child.stdin.once('error', () => {
+    if (catalogue) {
+      source.child.stdout.unpipe(destination.child.stdin);
+      source.child.stdout.resume();
+    } else { cancel(source.child); cancel(destination.child); }
+  });
   source.child.stdout.pipe(destination.child.stdin);
   return Promise.all([source.done, destination.done]);
 };
@@ -124,13 +134,13 @@ const pendingPattern = /^villas-pending-([0-9]{13})-([0-9]{13})-[a-f0-9]{24}$/;
 const discardPending = async tag => {
   let snapshots;
   try {
-    const args = ['snapshots', '--json', '--host', host(), '--path', '/villas.sql'];
+    const args = ['snapshots', '--json', '--host', host(), '--path', '/villas.dump'];
     if (tag) args.push('--tag', tag);
     snapshots = JSON.parse(await restic(args, 'pending-inspection', true));
   } catch { throw stageError('pending-inspection'); }
   const ids = [];
   for (const snapshot of snapshots) {
-    if (snapshot.hostname !== host() || !snapshot.paths?.includes('/villas.sql') || !/^[a-f0-9]{64}$/.test(snapshot.id ?? '') || !Array.isArray(snapshot.tags) || snapshot.tags.includes('villas-complete')) continue;
+    if (snapshot.hostname !== host() || !snapshot.paths?.includes('/villas.dump') || !/^[a-f0-9]{64}$/.test(snapshot.id ?? '') || !Array.isArray(snapshot.tags) || snapshot.tags.includes('villas-complete')) continue;
     const eligible = snapshot.tags.some(value => {
       const match = pendingPattern.exec(value);
       if (!match) return false;
@@ -150,7 +160,7 @@ const backup = async () => {
   const tag = `villas-pending-${started}-${started + jobSeconds() * 1000}-${randomBytes(12).toString('hex')}`;
   const dump = start('pg_dump', [...sqlArguments(), '--format=custom', '--compress=6', '--no-owner', '--no-acl', '--schema=public', '--dbname=villarosa'], sqlEnvironment(), { pipe: true });
   dump.child.stdin.end();
-  const archive = start('restic', ['backup', '--stdin', '--stdin-filename', '/villas.sql', '--host', host(), '--tag', tag, '--json'], resticEnvironment(), { capture: true, pipe: true });
+  const archive = start('restic', ['backup', '--stdin', '--stdin-filename', '/villas.dump', '--host', host(), '--tag', tag, '--json'], resticEnvironment(), { capture: true, pipe: true });
   const [dumpResult, result] = await transfer(dump, archive);
   if (dumpResult.code !== 0 || result.code !== 0) {
     try { await discardPending(tag); } catch { /* A later run rechecks expired pending snapshots; none are restore-eligible. */ }
@@ -160,7 +170,7 @@ const backup = async () => {
   try { id = result.output.trim().split('\n').map(line => JSON.parse(line)).find(line => line.message_type === 'summary')?.snapshot_id; } catch { throw stageError('backup-summary'); }
   if (!/^[a-f0-9]{64}$/.test(id ?? '')) throw stageError('backup-summary');
   await restic(['tag', '--remove', tag, '--add', 'villas-complete', id], 'snapshot-commit');
-  await restic(['forget', '--host', host(), '--path', '/villas.sql', '--tag', 'villas-complete', '--group-by', 'host,paths', '--keep-hourly', String(hourly), '--keep-daily', String(daily), '--prune'], 'retention');
+  await restic(['forget', '--host', host(), '--path', '/villas.dump', '--tag', 'villas-complete', '--group-by', 'host,paths', '--keep-hourly', String(hourly), '--keep-daily', String(daily), '--prune'], 'retention');
   status(true, 'complete', started);
   console.log('villas_backup_complete');
 };
@@ -174,9 +184,9 @@ const restore = async id => {
   try { snapshots = JSON.parse(await restic(['snapshots', '--json', '--host', host(), '--tag', 'villas-complete', id], 'snapshot-selection', true)); } catch { throw stageError('snapshot-selection'); }
   if (snapshots.length !== 1 || snapshots[0].id !== id || !snapshots[0].tags?.includes('villas-complete')) throw stageError('snapshot-selection');
   if ((await sql("SELECT (SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f'))+(SELECT COUNT(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public');", 'empty-target')).trim() !== '0') throw stageError('target-is-not-empty');
-  const metadataSource = start('restic', ['dump', id, '/villas.sql'], resticEnvironment(), { pipe: true }); metadataSource.child.stdin.end();
+  const metadataSource = start('restic', ['dump', id, '/villas.dump'], resticEnvironment(), { pipe: true }); metadataSource.child.stdin.end();
   const metadata = start('pg_restore', ['--list'], { PATH: process.env.PATH, TZ: 'UTC' }, { capture: true, pipe: true });
-  const listed = await transfer(metadataSource, metadata);
+  const listed = await transfer(metadataSource, metadata, { catalogue: true });
   if (listed.some(result => result.code !== 0)) throw stageError('restore-catalogue');
   const directory = mkdtempSync(join(tmpdir(), 'villas-restore-'));
   try {
@@ -185,7 +195,7 @@ const restore = async id => {
     const entries = listed[1].output.split('\n').filter(line => !/^\d+; \d+ \d+ SCHEMA - public /.test(line));
     if (!entries.some(line => /^\d+;/.test(line))) throw stageError('restore-catalogue');
     writeFileSync(catalogue, entries.join('\n'), { mode: 0o600 });
-    const dump = start('restic', ['dump', id, '/villas.sql'], resticEnvironment(), { pipe: true }); dump.child.stdin.end();
+    const dump = start('restic', ['dump', id, '/villas.dump'], resticEnvironment(), { pipe: true }); dump.child.stdin.end();
     const database = start('pg_restore', [...sqlArguments(), '--no-owner', '--no-acl', '--single-transaction', '--exit-on-error', `--use-list=${catalogue}`, '--dbname=villarosa'], sqlEnvironment(), { pipe: true }); database.child.stdout.resume();
     const results = await transfer(dump, database);
     if (results.some(result => result.code !== 0)) throw stageError('restore-stream');

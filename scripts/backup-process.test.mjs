@@ -59,12 +59,12 @@ const tagPath=${JSON.stringify(join(f.directory, 'tag'))};
 if(args[0]==='snapshots') {
  const i=args.indexOf('--tag');
  if(i<0) console.log(JSON.stringify([
-  {id:'b'.repeat(64),hostname:'villas-rehearsal-test',paths:['/villas.sql'],tags:[${JSON.stringify(expired)}]},
-  {id:'c'.repeat(64),hostname:'other-host',paths:['/villas.sql'],tags:[${JSON.stringify(expired)}]},
+  {id:'b'.repeat(64),hostname:'villas-rehearsal-test',paths:['/villas.dump'],tags:[${JSON.stringify(expired)}]},
+  {id:'c'.repeat(64),hostname:'other-host',paths:['/villas.dump'],tags:[${JSON.stringify(expired)}]},
   {id:'d'.repeat(64),hostname:'villas-rehearsal-test',paths:['/other'],tags:[${JSON.stringify(expired)}]},
-  {id:'e'.repeat(64),hostname:'villas-rehearsal-test',paths:['/villas.sql'],tags:['villas-complete',${JSON.stringify(expired)}]}
+  {id:'e'.repeat(64),hostname:'villas-rehearsal-test',paths:['/villas.dump'],tags:['villas-complete',${JSON.stringify(expired)}]}
  ]));
- else console.log(JSON.stringify([{id:'a'.repeat(64),hostname:'villas-rehearsal-test',paths:['/villas.sql'],tags:[args[i+1]]}]));
+ else console.log(JSON.stringify([{id:'a'.repeat(64),hostname:'villas-rehearsal-test',paths:['/villas.dump'],tags:[args[i+1]]}]));
 } else if(args[0]==='backup') {
  writeFileSync(tagPath,args[args.indexOf('--tag')+1]);
  for await(const chunk of process.stdin) {}
@@ -79,5 +79,24 @@ if(args[0]==='snapshots') {
     assert(!records.some(record => Object.values(record.env).includes('host-credential-must-not-escape')));
     assert(!records.some(record => record.args[0] === 'tag'));
     assert.equal(JSON.parse(readFileSync(join(f.directory, 'status.json'))).ok, false);
+  } finally { f.close(); }
+});
+
+test('a successful early catalogue exit drains and verifies a large archive before importing it', async () => {
+  const f = fixture(); const completed = join(f.directory, 'completed');
+  try {
+    f.script('psql', `for await(const chunk of process.stdin) {} console.log('0');`);
+    f.script('pg_restore', `
+if(process.argv.includes('--list')) { process.stdin.once('data',()=>{ console.log('1; 1 1 SCHEMA - public owner\\n2; 1 2 TABLE public synthetic owner'); process.exit(0); }); }
+else { for await(const chunk of process.stdin) {} }
+`);
+    f.script('restic', `
+import {appendFileSync} from 'node:fs';
+if(process.argv[2]==='snapshots') console.log(JSON.stringify([{id:'a'.repeat(64),tags:['villas-complete']}]));
+else if(process.argv[2]==='dump') process.stdout.write(Buffer.alloc(16*1024*1024,65),()=>appendFileSync(${JSON.stringify(completed)},'complete\\n'));
+`);
+    const result = await f.run('restore', 'a'.repeat(64));
+    assert.equal(result.code, 0, result.output);
+    assert.equal(readFileSync(completed, 'utf8'), 'complete\ncomplete\n');
   } finally { f.close(); }
 });

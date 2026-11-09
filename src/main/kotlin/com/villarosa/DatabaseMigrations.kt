@@ -21,12 +21,20 @@ object DatabaseMigrations {
             .validateMigrationNaming(true)
             .load()
 
-    fun migrate(url: String, username: String, password: String): MigrateResult =
-        configured(url, username, password).migrate().also {
+    fun migrate(url: String, username: String, password: String): MigrateResult {
+        java.sql.DriverManager.getConnection(url, username, password).use { connection ->
+            val bound =
+                connection.metaData
+                    .getTables(null, "public", "property_identity", arrayOf("TABLE"))
+                    .use { it.next() }
+            if (bound) PropertyDatabaseBinding.verify(connection)
+        }
+        return configured(url, username, password).migrate().also {
             java.sql.DriverManager.getConnection(url, username, password).use {
                 PropertyDatabaseBinding.verify(it)
             }
         }
+    }
 
     fun fromEnvironment() {
         val settings = PrivateSettings.resolve()
