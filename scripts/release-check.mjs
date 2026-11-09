@@ -127,6 +127,8 @@ try {
   await compose(['up', '--detach', '--wait', '--wait-timeout', '120', 'db']);
   await compose(['run', '--rm', 'migrate']);
   await compose(['run', '--rm', 'migrate']);
+  const registry = await sql('SELECT id,name FROM businesses ORDER BY id;');
+  assert.equal(registry.output, 'rehearsal-garden\tRehearsal Garden', 'Migration and web jobs must use the same configured business identity and name.');
   await sql(readFileSync(join(root, 'deploy/runtime-grants.sql'), 'utf8'));
   await sql('BEGIN; SELECT property_id FROM staff_property_lock FOR UPDATE; ROLLBACK;', 'villas_runtime');
   const empty = await sql('SELECT (SELECT COUNT(*) FROM apartments)+(SELECT COUNT(*) FROM customers)+(SELECT COUNT(*) FROM reservations)+(SELECT COUNT(*) FROM staff_accounts)+(SELECT COUNT(*) FROM staff_invitations)+(SELECT COUNT(*) FROM ledger_entries);');
