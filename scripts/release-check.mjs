@@ -295,7 +295,7 @@ try {
   await compose(['up', '--detach', '--wait', '--wait-timeout', '150', 'api', 'proxy', 'identity']);
   const restoredBrowser = await chromium.launch({ headless: true });
   try {
-    const context = await restoredBrowser.newContext(); await context.addCookies(savedCookies);
+    const context = await restoredBrowser.newContext({ extraHTTPHeaders: { 'X-Villas-Business': 'rehearsal-garden' } }); await context.addCookies(savedCookies);
     assert.equal((await context.request.get(`${publicUrl}/api/v1/apartments`)).status(), 401, 'A formerly valid restored cookie must fail before new sign-in.');
     const page = await context.newPage(); await page.goto(publicUrl);
     const popupPromise = page.waitForEvent('popup'); await page.getByRole('button', { name: 'Sign in to local demo' }).click();
