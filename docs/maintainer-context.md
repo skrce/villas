@@ -14,7 +14,7 @@ branch. Then read:
 2. [Release decisions](decisions.md): confirmed business policies and open inputs.
 3. [Implementation tracker](implementation.md): ten milestones and recorded evidence.
    Check the linked issue and current PRs before starting work.
-4. The relevant [API](contracts/api.md), [reservations](contracts/reservations.md),
+4. [Shared tenancy](contracts/multi-tenancy.md) and the relevant [API](contracts/api.md), [reservations](contracts/reservations.md),
    [pricing](contracts/pricing.md), [payments](contracts/payments.md),
    [front-desk](contracts/front-desk.md), [housekeeping](contracts/housekeeping.md),
    [reporting](contracts/reporting.md) or [permissions](contracts/permissions.md) contract.
@@ -31,7 +31,10 @@ test counts or an earlier "in progress" paragraph do not verify a new revision.
 
 ## Product and release status
 
-Villas is a responsive staff app for one property, initially in North Macedonia.
+Villas is a responsive staff app for accommodation businesses, initially in North Macedonia.
+The Owner approved a shared app/database per environment. The current runtime remains
+single-business during [the six-step tenancy conversion](contracts/multi-tenancy.md),
+tracked in #44-#49. The #44 schema foundation precedes shared login, request/RLS and browser work.
 Owners are the only implemented role. Public booking, guest accounts, online payment
 processing and additional staff roles are outside the initial plan.
 
@@ -56,15 +59,17 @@ Milestone 3's real Google setup and live-provider acceptance were explicitly def
 by the Owner. [Issue #4](https://github.com/skrce/villas/issues/4) remains open for
 those checks. Local synthetic OIDC success does not satisfy them. The Owner approved
 Cloud Run + Neon PostgreSQL in Frankfurt on November 8, 2026, using the same personal
-accounts as ABL with separate Villas resources per business. Daily encrypted backups
+accounts as ABL with separate Villas resources. The Owner subsequently approved
+one shared app/database per environment, superseding resources per business. Daily encrypted backups
 are retained seven days, with 24-hour loss/recovery targets. Actual resource setup,
 monitoring ownership and live verification remain open. No cloud deployment or
 production/pilot acceptance is implied by the local demo.
 
 For the next release session, inspect #11 and the current PR/CI heads first. Follow [Cloud Run + Neon](cloud-run-neon.md), the confirmed
 D04 architecture and [PostgreSQL transition](postgresql-transition.md); configure
-separate per-business resources within the free-tier target; set up the Villas-specific Google
-client under #4 when the Owner is ready. Configure separate staging/production
+the shared tenancy steps #44-#49 before provisioning. The earlier cloud templates
+are superseded and the live wrapper is blocked. Set up one Villas-specific Google
+client per environment under #4 when the Owner is ready. Configure separate staging/production
 secrets and off-server protection, qualify external availability/alert delivery,
 then perform deployed Google/recovery checks and the Owner pilot. Production starts
 empty. Do not copy a local/demo volume into it. The release checklist is the launch
@@ -113,7 +118,7 @@ gate even when all implementation PRs are merged.
 | Concern | Starting points |
 | --- | --- |
 | Application/configuration and HTTP security | `src/main/kotlin/com/villarosa/Application.kt`, `SecurityConfiguration.kt`, `security/` |
-| Scoped models, repositories and V1..V15 migrations | `src/main/kotlin/com/villarosa/repository/`, `src/main/resources/db/postgresql/` |
+| Scoped models, repositories and versioned migrations | `src/main/kotlin/com/villarosa/repository/`, `src/main/resources/db/postgresql/` |
 | Atomic inventory changes and reconciliation | `service/OperationCoordinator.kt`, `service/InventoryWriter.kt`, `repository/InventoryRepository.kt` |
 | Stay phases, actual times and dated room assignments | `service/StayOperations.kt`, `service/RoomAllocations.kt`, `controller/StayOperationsController.kt` |
 | Rates, immutable quotes and agreements | `service/QuoteService.kt`, related rate/price services and the pricing contract |
@@ -224,10 +229,12 @@ For an ordinary app update, follow [the later-change release procedure](deployme
 CI checks/rehearses images and validates cloud templates with mock providers. The
 [Cloud Run + Neon guide](cloud-run-neon.md) owns keyless registry publication and
 the explicit staging/production operator rollout. The publisher cannot deploy or
-read secrets. Frankfurt templates have phased secrets/jobs/service initialization,
-private defaults, static maintenance and runtime database fencing. Actual resources,
+read secrets. The earlier per-business Frankfurt templates retain local reference checks,
+static maintenance and runtime database fencing, but the operator wrapper blocks
+live use until #48 replaces their topology. [The tenancy contract](contracts/multi-tenancy.md)
+is authoritative for the shared target and implementation status. Actual resources,
 Google clients, alert delivery, off-server recovery and the pilot remain open.
-Villas uses separate personal resources from ABL and every other business.
+Villas uses personal resources separate from ABL. Businesses share the Villas resources within each environment.
 
 Use a `codex/` branch and small PRs linked to the active milestone. Keep an independent
 review on each PR, address material findings, run required checks and merge only after

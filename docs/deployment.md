@@ -1,7 +1,15 @@
 # Deployment
 
-Milestone 10 is active. D04 confirms Cloud Run + Neon in Frankfurt, free-first, with separate
-deployments/databases per business. Resource configuration, custom domain,
+The Owner superseded the per-business layout with a shared app and database per
+environment. Follow [the tenancy contract](contracts/multi-tenancy.md) and #44-#49.
+The current runtime and operational reference remain single-business during this
+conversion. Live Terraform commands are blocked before authentication until #48
+replaces the topology. Do not use the earlier setup instructions below to provision
+resources or treat them as shared-tenancy qualification.
+
+
+Milestone 10 is active. D04/D16 confirm one shared Cloud Run app and Neon database
+per environment in Frankfurt, targeting Free initially. Resource configuration, custom domain,
 availability and actual operating cost/backup verification remain open. This repository does not provision an
 account or use another project's infrastructure. Real Google acceptance and the
 staff pilot remain required. See [release-checklist.md](release-checklist.md).

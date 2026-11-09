@@ -12,6 +12,7 @@ let temporary;
 let plan;
 let proof;
 let invalidate = false;
+let architectureBlocked = false;
 const invalidatePlan = () => {
   if (plan) rmSync(plan, { force: true });
   if (proof) rmSync(proof, { force: true });
@@ -23,7 +24,7 @@ const sourceHash = () => {
       if (entry.name === '.terraform') continue;
       const file = join(directory, entry.name);
       if (entry.isDirectory()) visit(file, `${prefix}${entry.name}/`);
-      else if (/\.(tf|hcl)$/.test(entry.name)) files.push([`${prefix}${entry.name}`, sha256(file)]);
+      else if (/\.(tf|hcl)$/.test(entry.name) || entry.name === 'architecture.json') files.push([`${prefix}${entry.name}`, sha256(file)]);
     }
   };
   visit(join(root, 'deploy/cloud'));
@@ -40,6 +41,12 @@ try {
   plan = join(directory, 'reviewed.tfplan'); proof = join(directory, 'reviewed.json');
   invalidate = ['plan', 'apply'].includes(command);
   if (command === 'plan') invalidatePlan();
+  const architecture = JSON.parse(readFileSync(join(root, 'deploy/cloud/architecture.json'), 'utf8'));
+  if (architecture.target !== 'shared-app-shared-database' || architecture.implementation !== 'ready') {
+    architectureBlocked = true;
+    invalidatePlan();
+    throw new Error();
+  }
   const inputs = { configSha256: sha256(configPath), variablesSha256: sha256(config.variablesFile), sourceSha256: sourceHash() };
   if (command === 'apply') {
     const reviewed = JSON.parse(readFileSync(proof, 'utf8'));
@@ -73,6 +80,6 @@ try {
   if (command === 'apply') invalidatePlan();
 } catch {
   if (invalidate) invalidatePlan();
-  console.error('Villas Terraform did not complete successfully. Check the private 0600 config, explicit personal account, pinned tools and reviewed plan; inspect remote state before retrying an apply.');
+  console.error(architectureBlocked ? 'Villas live deployment is blocked until the shared hosting implementation in #48 is ready. Local mock checks remain available.' : 'Villas Terraform did not complete successfully. Check the private 0600 config, explicit personal account, pinned tools and reviewed plan; inspect remote state before retrying an apply.');
   process.exitCode = 1;
 } finally { if (temporary) rmSync(temporary, { recursive: true, force: true }); }

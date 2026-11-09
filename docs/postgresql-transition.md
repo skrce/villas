@@ -1,10 +1,15 @@
 # PostgreSQL transition
 
-The Owner approved PostgreSQL and preparation for Cloud Run + Neon in Frankfurt on
-November 8, 2026. Each business has a separate app deployment, Neon project/database,
-credentials, Google client and backup configuration. The same personal accounts as
-ABL may own those resources; their operational data and credentials remain separate.
-Daily encrypted backups retain seven days, with 24-hour loss/recovery targets.
+The Owner approved PostgreSQL and Cloud Run + Neon in Frankfurt on November 8, 2026.
+The later shared-tenancy decision supersedes a deployment/database per business.
+The target is one shared app, PostgreSQL database and Google client per environment,
+with independent business memberships. Staging, production and ABL remain separate.
+The same personal accounts as ABL may own Villas resources. Daily encrypted backups
+retain seven days, with 24-hour loss/recovery targets.
+
+The engine transition below remains in use. Shared identity, request/database isolation,
+browser switching and shared hosting are pending under [the tenancy contract](contracts/multi-tenancy.md).
+Live deployment is blocked; use [the current hosting guide](cloud-run-neon.md).
 
 ## Existing data and schema history
 
@@ -29,14 +34,15 @@ while earlier business data survives, and the same migration can succeed after i
 precondition is corrected. Keep future nontransactional DDL explicit and separately
 qualified. Published migrations remain immutable; clean/baseline shortcuts stay disabled.
 
-## Business configuration
+## Business compatibility configuration
 
 Set a stable `VILLAS_PROPERTY_ID`, using 1 to 64 lowercase letters, digits or hyphens,
 and a `VILLAS_PROPERTY_NAME` of at most 100 characters. The default local business is
 `villa-rosa` / `Villa Rosa`. Flyway initializes matching defaults and the staff lock.
 `property_identity` binds the database to that ID; application startup rejects a
-mismatch. Each API/session remains scoped to the deployment. This adds no browser
-business switcher or shared multi-business tenancy.
+mismatch. V16 registers that business and requires it to be active at startup.
+The compatibility runtime still serves its configured business. Shared identity,
+authorization, row security and a business switcher remain later implementation steps.
 
 The browser gate runs the entire workflow with a non-default business ID and name.
 Native checks cover booking races, exact prices/ledger balances, Unicode contacts,
@@ -56,6 +62,8 @@ node scripts/release-check.mjs
 
 The container rehearsal uses native PostgreSQL, restricted runtime/backup accounts,
 encrypted streaming backup, an isolated empty restore target and business/audit
-reconciliation. Restored sessions are purged and staff security generations change.
+reconciliation for the configured business. Restored sessions are purged and staff
+security generations change. Shared all-business and selective recovery still need
+their own implementation and qualification in #48/#49.
 Native and loopback evidence remain separate from actual Neon TLS, Cloud Run Google
 login, off-server recovery, alerts and the Owner pilot. See [issue #11](https://github.com/skrce/villas/issues/11).

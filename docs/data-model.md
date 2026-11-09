@@ -1,6 +1,11 @@
 # Data model
 
-Each deployment serves one configured business, defaulting to `villa-rosa` locally.
+V16 begins the [shared-tenancy conversion](contracts/multi-tenancy.md) with a business
+registry, parent references on tenant-owned tables and composite staff-actor references.
+The runtime remains bound to its configured business until #45/#46 implement shared
+identity and authorized tenant context. Registration alone grants no web access.
+
+The compatibility runtime serves one configured business, defaulting to `villa-rosa` locally.
 `VILLAS_PROPERTY_ID` is a validated deployment setting, not a client-selected tenant.
 `property_identity` binds an initialized database to that ID and startup refuses a
 mismatch. `VILLAS_PROPERTY_NAME` supplies its workspace label. Rooms, guests, and bookings
@@ -10,6 +15,7 @@ Property IDs are not client-controlled fields in the console.
 
 | Table | Main fields and invariants |
 | --- | --- |
+| `businesses` | Stable tenant ID, validated display name, active state, EUR, Europe/Skopje, version and UTC creation instant. Runtime cannot create or change registry entries. |
 | `apartments` | Named room with a property-unique uppercase reference, capacity, orientation/view/bed/features/floor, optional legacy test price integers, active/archive flag, optimistic version, and property scope |
 | `customers` | Required first/last names, optional phone/email/address/notes, active/archive flag, optimistic version, and property scope. No uniqueness claim on shared contacts. |
 | `reservations` | Guest/room references, SQL DATE check-in/out, positive guest count, status/version, UTC creation instant, property scope and accepted quote reference. Historical records may have no price. |

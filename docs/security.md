@@ -4,6 +4,12 @@ The initial release supports Owners only, as confirmed by the owner. All new sta
 invitations grant full Owner access. Sessions have a seven-day absolute limit
 and a three-day inactivity limit. Staff identity is separate from guest records.
 
+The approved shared app will separate Google identity from independent business
+memberships under [#45](https://github.com/skrce/villas/issues/45). The implementation
+below still serves one configured business. It does not yet provide shared login,
+business switching or database row security. Read [the tenancy contract](contracts/multi-tenancy.md)
+for the ordered conversion and authorization requirements.
+
 ## Account foundation
 
 V5 adds property-scoped accounts, invitations, and staff events. It inserts one

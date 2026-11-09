@@ -1,5 +1,11 @@
 # Staff permissions
 
+For the approved shared target, Owners have independent memberships per business.
+[Shared tenancy](multi-tenancy.md) and #45-#47 add shared identity, request/database
+isolation and browser scope. The implementation below currently verifies the
+configured single-business boundary and does not grant cross-business access.
+
+
 The owner confirmed an Owner-only initial release. Every invitation grants Owner
 access. Front desk and housekeeping roles are not available. Adding them later
 requires an explicit capability decision, server enforcement, and denial tests.

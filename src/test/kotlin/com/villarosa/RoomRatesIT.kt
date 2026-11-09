@@ -98,6 +98,7 @@ constructor(
         jdbc.update("UPDATE apartments SET active=FALSE WHERE id=?", id)
         assertThat(failure { rates.preview(id, "2030-01-01", "2030-01-03", 1) })
             .isEqualTo("ROOM_INACTIVE")
+        TestData.registerBusiness(jdbc, "other-property")
         jdbc.update("UPDATE apartments SET property_id='other-property' WHERE id=?", id)
         assertThat(failure { rates.get(id) }).isEqualTo("NOT_FOUND")
         jdbc.update(

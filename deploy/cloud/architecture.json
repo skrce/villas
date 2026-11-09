@@ -1,0 +1,5 @@
+{
+  "target": "shared-app-shared-database",
+  "implementation": "pending",
+  "issue": 48
+}

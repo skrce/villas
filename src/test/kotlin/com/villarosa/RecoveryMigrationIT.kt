@@ -45,7 +45,12 @@ class RecoveryMigrationIT {
             }
         }
         val flyway =
-            DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password)
+            DatabaseMigrations.configured(
+                database.jdbcUrl,
+                database.username,
+                database.password,
+                "15",
+            )
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
@@ -94,6 +99,9 @@ class RecoveryMigrationIT {
         seed(7)
         connection().use { connection ->
             connection.createStatement().use { sql ->
+                sql.executeUpdate(
+                    "INSERT INTO businesses(id,name) VALUES('lake-house','Lake House')"
+                )
                 sql.executeUpdate(
                     "UPDATE property_identity SET property_id='lake-house' WHERE singleton=1"
                 )

@@ -66,6 +66,14 @@ class CloudRolesIT {
                         .use { rows -> assertThat(rows.next()).isTrue() }
                     assertThrows<SQLException> { sql.execute("CREATE TABLE forbidden(id INTEGER)") }
                     assertThrows<SQLException> {
+                        sql.execute("INSERT INTO businesses(id,name) VALUES('foreign','Synthetic')")
+                    }
+                    assertThrows<SQLException> {
+                        sql.executeUpdate(
+                            "UPDATE businesses SET name='Changed' WHERE id='villa-rosa'"
+                        )
+                    }
+                    assertThrows<SQLException> {
                         sql.executeUpdate(
                             "UPDATE property_identity SET property_id='foreign' WHERE singleton=1"
                         )
@@ -82,7 +90,7 @@ class CloudRolesIT {
                 it.createStatement().use { sql ->
                     sql.executeQuery("SELECT COUNT(*) FROM flyway_schema_history").use { rows ->
                         rows.next()
-                        assertThat(rows.getInt(1)).isEqualTo(15)
+                        assertThat(rows.getInt(1)).isEqualTo(16)
                     }
                     assertThrows<SQLException> {
                         sql.executeUpdate("DELETE FROM customers WHERE id=1")

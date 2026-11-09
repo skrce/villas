@@ -13,6 +13,8 @@ const fixture = () => {
   mkdirSync(join(checkout, 'scripts'), { recursive: true }); mkdirSync(operator);
   mkdirSync(join(checkout, 'deploy/cloud'), { recursive: true });
   const source = join(checkout, 'deploy/cloud/main.tf'); writeFileSync(source, 'variable "fixture" {}');
+  const architecture = join(checkout, 'deploy/cloud/architecture.json');
+  writeFileSync(architecture, JSON.stringify({ target: 'shared-app-shared-database', implementation: 'ready' }));
   for (const name of ['cloud-config.mjs', 'cloud-terraform.mjs', 'release-artifacts.mjs']) cpSync(join(root, 'scripts', name), join(checkout, 'scripts', name));
   cpSync(join(root, 'terraform-version.txt'), join(checkout, 'terraform-version.txt'));
   const calls = join(operator, 'calls'); const token = 'synthetic-personal-token-that-must-stay-private';
@@ -38,7 +40,7 @@ if(args.includes('plan')) {writeFileSync(args.find(value=>value.startsWith('-out
   const run = command => spawnSync(process.execPath, ['scripts/cloud-terraform.mjs', config, command], { cwd: checkout, env, encoding: 'utf8' });
   const records = () => readFileSync(calls, 'utf8').trim().split('\n').map(JSON.parse);
   const plan = join(checkout, '.local-state/terraform/villas-synthetic-stage/staging/reviewed.tfplan');
-  return { directory, checkout, calls, token, fail, vars, settings, source, run, records, plan, close: () => rmSync(directory, { recursive: true, force: true }) };
+  return { directory, checkout, calls, token, fail, vars, settings, source, architecture, run, records, plan, close: () => rmSync(directory, { recursive: true, force: true }) };
 };
 
 test('operator commands use explicit personal credentials, scrub ambient auth and separate private project state', () => {
@@ -73,6 +75,22 @@ test('failed replacement planning removes both an earlier approved plan and any 
     assert.equal(f.run('plan').status, 1); assert.equal(existsSync(f.plan), false);
     assert.equal(f.run('apply').status, 1);
     assert(!f.records().some(record => record.args.includes('apply')));
+  } finally { f.close(); }
+});
+
+test('the superseded cloud layout cannot plan or apply and invalidates a stale plan before authentication', () => {
+  const f = fixture();
+  try {
+    for (const command of ['init', 'plan', 'apply', 'output']) {
+      writeFileSync(f.architecture, JSON.stringify({ target: 'shared-app-shared-database', implementation: 'ready' }));
+      assert.equal(f.run('plan').status, 0); assert(existsSync(f.plan));
+      writeFileSync(f.architecture, JSON.stringify({ target: 'shared-app-shared-database', implementation: 'pending' }));
+      writeFileSync(f.calls, '');
+      const result = f.run(command);
+      assert.equal(result.status, 1); assert.match(result.stderr, /shared hosting implementation in #48/);
+      assert.equal(existsSync(f.plan), false);
+      assert.equal(readFileSync(f.calls, 'utf8'), '');
+    }
   } finally { f.close(); }
 });
 

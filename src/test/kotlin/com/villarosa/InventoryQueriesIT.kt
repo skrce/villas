@@ -231,6 +231,7 @@ constructor(
 
     @Test
     fun calendarAndHistoryQueriesRemainPropertyScoped() {
+        TestData.registerBusiness(jdbc, "other")
         val otherGuest = guests.saveAndFlush(guest.copy(id = null, propertyId = "other"))
         val otherRoom = rooms.saveAndFlush(room.copy(id = null, propertyId = "other"))
         val other =

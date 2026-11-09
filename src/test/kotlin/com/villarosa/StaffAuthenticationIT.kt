@@ -1,6 +1,7 @@
 package com.villarosa
 
 import com.villarosa.security.*
+import com.villarosa.service.PropertyScope
 import java.net.CookieManager
 import java.net.CookiePolicy
 import java.net.URI
@@ -333,12 +334,27 @@ constructor(
         assertThat(request("/api/v1/apartments").statusCode()).isEqualTo(401)
     }
 
-    @Test
-    fun anExpiredInvitationCannotBeAcceptedByAValidProviderLogin() {
-        clock.time.set(clock.instant().plus(StaffDirectory.INVITATION_TTL))
-        assertThat(signIn().second.headers().firstValue("Location").get())
-            .contains("sign_in_denied")
-        assertThat(staff.count()).isZero()
+    @ParameterizedTest
+    @ValueSource(longs = [-1L, 0L, 1L])
+    fun invitationAcceptanceUsesTheStoredExpiryBoundary(offsetNanos: Long) {
+        val expiresAt =
+            checkNotNull(
+                jdbc.queryForObject(
+                    "SELECT expires_at FROM staff_invitations WHERE property_id=? AND email=? AND state='PENDING'",
+                    { rows, _ -> rows.getTimestamp(1).toInstant() },
+                    PropertyScope.ID,
+                    "owner@example.test",
+                )
+            )
+        clock.time.set(expiresAt.plusNanos(offsetNanos))
+        val location = signIn().second.headers().firstValue("Location").get()
+        if (offsetNanos < 0) {
+            assertThat(location).isEqualTo("$BASE/auth/complete")
+            assertThat(staff.count()).isEqualTo(1)
+        } else {
+            assertThat(location).contains("sign_in_denied")
+            assertThat(staff.count()).isZero()
+        }
     }
 
     @Test

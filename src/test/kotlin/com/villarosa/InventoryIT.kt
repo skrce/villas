@@ -640,6 +640,7 @@ constructor(
 
     @Test
     fun referencesAndReadsCannotEscapeTheConfiguredProperty() {
+        TestData.registerBusiness(jdbc, "other")
         val otherGuest = guests.saveAndFlush(guest.copy(id = null, propertyId = "other"))
         val otherRoom = rooms.saveAndFlush(first.copy(id = null, propertyId = "other"))
         val otherBooking =

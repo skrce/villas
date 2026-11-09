@@ -376,6 +376,7 @@ constructor(
 
     @Test
     fun anotherPropertysGuestIsNeverReturnedOrMutated() {
+        TestData.registerBusiness(jdbc, "other")
         val foreign =
             guests.saveAndFlush(
                 Customer(firstName = "Foreign", lastName = "Guest", propertyId = "other")

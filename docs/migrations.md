@@ -1,5 +1,11 @@
 # Database migrations
 
+The approved shared target is tracked in [the tenancy contract](contracts/multi-tenancy.md).
+V16 adds the business registry and tenant-safe parent/actor relationships without
+rewriting V1-V15 or moving existing business records. Unknown legacy business IDs
+refuse the upgrade atomically. Current runtime binding remains enforced until the
+authorized shared-context step lands.
+
 Flyway owns the PostgreSQL schema. Normal API startup validates it and never applies
 migrations. Hibernate uses `validate`; automatic SQL/Flyway initialization is disabled.
 Use `postgres-image.txt` for native development, CI and backup clients. The approved
@@ -23,9 +29,9 @@ Fixtures require an explicit local command and refuse existing business data.
 
 ## Histories and business binding
 
-Active migrations are V1 through V15 under `src/main/resources/db/postgresql/`.
+Active migrations are V1 through V16 under `src/main/resources/db/postgresql/`.
 They cover inventory, staff, JDBC sessions, audit, guest/room profiles, rates, quotes,
-stay operations, manual settlement, dated allocations and recovery audit. The old
+stay operations, manual settlement, dated allocations, recovery audit and the business registry. The old
 MariaDB history under `db/migration/` is preserved byte-for-byte and is never selected
 by the PostgreSQL runtime. No adoption or automatic cross-engine import is offered.
 See [the transition](postgresql-transition.md).
@@ -34,6 +40,8 @@ Each new database binds to the validated deployment `VILLAS_PROPERTY_ID`. Flyway
 uses that value for property defaults, the staff lock and `property_identity`.
 Changing the configured ID does not retarget existing records. Startup refuses a
 database bound to another business. Runtime cannot rewrite that binding/history.
+Web startup also requires the V16 registry and an active configured business. Only
+the explicit migration preflight accepts an older schema so it can apply V16.
 
 ## Upgrades and failures
 

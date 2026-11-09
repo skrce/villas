@@ -644,6 +644,7 @@ constructor(
 
     @Test
     fun foreignResourcesRevokedActorsAndUnsafeVersionsNeverMutate() {
+        TestData.registerBusiness(jdbc, "foreign")
         val foreignRoom = rooms.saveAndFlush(room.copy(id = null, propertyId = "foreign"))
         val foreignGuest =
             guests.saveAndFlush(
