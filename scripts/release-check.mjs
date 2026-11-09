@@ -267,9 +267,11 @@ try {
   config.services.restore.volumes = [{ type: 'volume', source: 'repository', target: '/repo' }];
   saveConfig();
   await compose(['up', '--detach', '--wait', '--wait-timeout', '120', 'restored-db']);
+  await sql('ALTER SCHEMA public OWNER TO villas_root; GRANT USAGE,CREATE ON SCHEMA public TO villas_migration;', 'root', false, 'restored-db');
   const restoreArguments = ['run', '--rm', 'restore'];
   const startedAt = Date.now();
   await compose(restoreArguments);
+  assert.equal((await sql("SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname='public';", 'root', false, 'restored-db')).output, 'villas_root');
   assert.deepEqual(await fingerprint('restored-db', snapshot), original, 'Restore must preserve every business/configuration/operation/history row byte-for-byte.');
   const restoredGenerations = (await sql('SELECT id,security_version FROM staff_accounts ORDER BY id;', 'root', false, 'restored-db')).output;
   const expectedGenerations = generations.split('\n').map(row => { const [id, version] = row.split('\t'); return `${id}\t${BigInt(version) + 1n}`; }).join('\n');

@@ -12,15 +12,28 @@ import org.testcontainers.junit.jupiter.Testcontainers
 class CloudRolesIT {
     @Container val database = TestDatabases.postgres()
 
+    private fun administrator() =
+        DriverManager.getConnection(database.jdbcUrl, "neon_operator", "synthetic-operator")
+
     private fun roles() {
+        DriverManager.getConnection(database.jdbcUrl, database.username, database.password).use {
+            it.createStatement().use { sql ->
+                sql.execute(
+                    "DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='neon_operator') THEN CREATE ROLE neon_operator LOGIN CREATEROLE PASSWORD 'synthetic-operator'; END IF; END $$; ALTER DATABASE villarosa OWNER TO neon_operator; ALTER SCHEMA public OWNER TO neon_operator"
+                )
+            }
+        }
         val script =
             requireNotNull(javaClass.getResource("/deploy/cloud/neon-roles.sql"))
                 .readText()
                 .lineSequence()
                 .filterNot { it.startsWith("\\") }
                 .joinToString("\n")
-        DriverManager.getConnection(database.jdbcUrl, database.username, database.password).use {
-            it.createStatement().use { sql -> sql.execute(script) }
+        administrator().use {
+            it.createStatement().use { sql ->
+                sql.execute(script)
+                sql.execute("ALTER ROLE villas_migration PASSWORD 'synthetic-migration'")
+            }
         }
     }
 
@@ -28,8 +41,13 @@ class CloudRolesIT {
     fun sqlCreatedRolesCanMigrateThenRunAndBackUpWithoutInheritedAdministrativePermissions() {
         roles()
         roles()
-        DriverManager.getConnection(database.jdbcUrl, database.username, database.password).use {
+        administrator().use {
             it.createStatement().use { sql ->
+                sql.executeQuery("SELECT rolsuper FROM pg_roles WHERE rolname=current_user").use {
+                    rows ->
+                    rows.next()
+                    assertThat(rows.getBoolean(1)).isFalse()
+                }
                 for (role in listOf("villas_migration", "villas_runtime", "villas_backup")) sql
                     .execute("ALTER ROLE $role PASSWORD 'synthetic-role-password'")
             }
@@ -88,7 +106,7 @@ class CloudRolesIT {
     @Test
     fun maintenanceFencesAndTerminatesRuntimeConnectionsOnlyAfterCheckingTheBusinessBinding() {
         roles()
-        DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        DatabaseMigrations.migrate(database.jdbcUrl, "villas_migration", "synthetic-migration")
         fun execute(name: String, business: String) {
             val script =
                 requireNotNull(javaClass.getResource("/deploy/cloud/$name.sql"))
@@ -97,10 +115,9 @@ class CloudRolesIT {
                     .filterNot { it.startsWith("\\") }
                     .joinToString("\n")
                     .replace(":'business_id'", "'$business'")
-            DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
-                .use {
-                    it.createStatement().use { sql -> sql.execute(script) }
-                }
+            administrator().use {
+                it.createStatement().use { sql -> sql.execute(script) }
+            }
         }
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password).use {
             it.createStatement().use { sql ->

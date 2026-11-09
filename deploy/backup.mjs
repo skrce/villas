@@ -206,7 +206,7 @@ const restore = async id => {
   try {
     const catalogue = join(directory, 'catalogue');
     // Keep the provisioned public schema and its least-privilege grants.
-    const entries = listed[1].output.split('\n').filter(line => !/^\d+; \d+ \d+ SCHEMA - public /.test(line));
+    const entries = listed[1].output.split('\n').filter(line => !/^\d+; \d+ \d+ (SCHEMA - public |COMMENT - SCHEMA public )/.test(line));
     if (!entries.some(line => /^\d+;/.test(line))) throw stageError('restore-catalogue');
     writeFileSync(catalogue, entries.join('\n'), { mode: 0o600 });
     const dump = start('restic', resticArguments(['dump', id, '/villas.dump']), resticEnvironment(), { pipe: true }); dump.child.stdin.end();

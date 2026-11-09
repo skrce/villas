@@ -7,6 +7,8 @@ import { directoryDigest, git, sha256, treeDigest } from './release-artifacts.mj
 import { requireChecksRun } from './cloud-release-input.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+const publication = join(root, 'target/release/publication.json');
+rmSync(publication, { force: true });
 const env = process.env;
 const temporary = mkdtempSync(join(tmpdir(), 'villas-publish-'));
 const dockerEnvironment = { PATH: env.PATH, HOME: temporary, DOCKER_CONFIG: temporary };
@@ -72,7 +74,7 @@ try {
     if (!digest || !/@sha256:[a-f0-9]{64}$/.test(digest)) throw new Error('Published image digest could not be confirmed. Inspect the unique release tags.');
     images[kind] = digest;
   }
-  writeFileSync(join(root, 'target/release/publication.json'), `${JSON.stringify({ source: build.source, sourceTree: build.sourceTree, checks, tag, jarSha256: build.jarSha256, webSha256: build.webSha256, images, publishedAt: new Date().toISOString() }, null, 2)}\n`);
+  writeFileSync(publication, `${JSON.stringify({ source: build.source, sourceTree: build.sourceTree, checks, tag, jarSha256: build.jarSha256, webSha256: build.webSha256, images, publishedAt: new Date().toISOString() }, null, 2)}\n`);
   console.log('Verified Villas images published. Use publication.json digests unchanged for staging and production.');
 } catch {
   console.error('Villas image publication did not complete with a verified receipt. Inspect the unique registry tags and workflow privately before retrying.');

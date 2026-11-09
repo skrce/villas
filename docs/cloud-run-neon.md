@@ -100,7 +100,9 @@ and is written only after successful owned-resource cleanup.
    verified TLS. Use SQL-created roles, not Neon console-created admin roles. Set
    each password interactively with psql `\password`; do not put passwords in SQL,
    shell arguments or GitHub. The script rejects administrative role memberships
-   and is repeatable. Verify these privileges against actual Neon before acceptance.
+   and is repeatable. PostgreSQL 17 creator self-grants give the provisioner inherited
+   access to its restricted roles for default privileges and session fencing; those
+   roles never inherit administrator access. Verify these privileges against actual Neon before acceptance.
    Create a Villas Google web client for this business/environment with callback
    `PUBLIC_ORIGIN/login/oauth2/code/google`, and the invited Owner as a test user.
 7. Add secret versions directly from private files through explicitly scoped
@@ -140,7 +142,9 @@ node scripts/cloud-terraform.mjs /absolute/private/staging-operator.json apply
 node scripts/cloud-terraform.mjs /absolute/private/staging-operator.json output
 ```
 
-Apply consumes the saved plan, not newly edited variables. Re-plan after any change.
+Apply verifies the saved plan, operator config, variables and Terraform source hashes.
+A failed replacement plan removes the old/partial plan; changed inputs cannot apply
+an earlier plan. Re-plan and inspect the result after any change or failed apply.
 Use a single operator per environment. Do not copy state between projects or run the
 live wrapper for unit validation. Never edit another application's credentials.
 
@@ -244,8 +248,10 @@ archive password plus a **separate target migration-password secret**. It must h
 no production runtime/migration password access. Do not grant the scheduler or
 publisher actAs/run access. Pause source repository writers during read-only verify
 and restore; these use `--no-lock` and cannot coordinate with a concurrent prune.
-Create/execute the job with explicit personal project selectors, no automatic
-retries, and wait/read back its execution. The importer independently refuses a
+Create this JSON body through the Cloud Run v2 jobs API (`POST
+https://run.googleapis.com/v2/projects/PROJECT/locations/europe-west3/jobs?jobId=JOB`),
+using private short-lived authorization, then execute the job with explicit personal
+project selectors, no automatic retries, and wait/read back its execution. The importer independently refuses a
 populated public schema. It then purges sessions and changes staff generations in
 one audited transaction. Keep the target quarantined after any failure.
 

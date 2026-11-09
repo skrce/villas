@@ -9,6 +9,7 @@ object DatabaseMigrations {
         username: String,
         password: String,
         target: String = "latest",
+        exact: Boolean = false,
     ): Flyway =
         Flyway.configure()
             .dataSource(url, username, password)
@@ -19,6 +20,7 @@ object DatabaseMigrations {
             .baselineOnMigrate(false)
             .outOfOrder(false)
             .validateMigrationNaming(true)
+            .apply { if (exact) ignoreMigrationPatterns(*emptyArray<String>()) }
             .load()
 
     fun migrate(url: String, username: String, password: String): MigrateResult {
@@ -59,7 +61,7 @@ object DatabaseMigrations {
     }
 
     fun check(url: String, username: String, password: String) {
-        val flyway = configured(url, username, password)
+        val flyway = configured(url, username, password, exact = true)
         flyway.validate()
         require(flyway.info().pending().isEmpty() && flyway.info().applied().isNotEmpty()) {
             "The database must match the complete bundled schema."

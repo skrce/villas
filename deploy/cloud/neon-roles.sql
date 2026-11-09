@@ -1,5 +1,6 @@
 \set ON_ERROR_STOP on
 BEGIN;
+SET LOCAL createrole_self_grant = 'inherit,set';
 DO $$
 BEGIN
   IF current_database() <> 'villarosa' THEN

@@ -23,6 +23,38 @@ class MigrationsIT {
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
 
     @Test
+    fun offlineCheckRejectsANewerAppliedSchemaWithoutChangingIt() {
+        Files.writeString(
+            recovery.resolve("V16__future_probe.sql"),
+            "CREATE TABLE future_probe(id INTEGER)",
+        )
+        Flyway.configure()
+            .configuration(
+                DatabaseMigrations.configured(
+                        database.jdbcUrl,
+                        database.username,
+                        database.password,
+                    )
+                    .configuration
+            )
+            .locations("classpath:db/postgresql", "filesystem:$recovery")
+            .load()
+            .migrate()
+        assertThrows<FlywayException> {
+            DatabaseMigrations.check(database.jdbcUrl, database.username, database.password)
+        }
+        connection().use {
+            it.createStatement().use { sql ->
+                sql.executeQuery("SELECT MAX(version::integer) FROM flyway_schema_history").use {
+                    rows ->
+                    rows.next()
+                    assertThat(rows.getInt(1)).isEqualTo(16)
+                }
+            }
+        }
+    }
+
+    @Test
     fun offlineCheckRequiresTheWholeSchemaAndMatchingBusinessWithoutApplyingPendingMigrations() {
         DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "14")
             .migrate()
