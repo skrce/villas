@@ -1,7 +1,6 @@
 import { useEffect } from "react";
-import { BrowserRouter } from "react-router-dom";
 import {
-  getSessionOwnerKey,
+  getSessionIdentityKey,
   installSessionEvents,
   useStaffSession,
 } from "./api/session";
@@ -13,9 +12,5 @@ export default function App() {
   useEffect(installSessionEvents, []);
   if (["/auth/start", "/auth/complete"].includes(window.location.pathname))
     return <AuthReturn />;
-  return (
-    <BrowserRouter>
-      <Workspace key={getSessionOwnerKey()} />
-    </BrowserRouter>
-  );
+  return <Workspace key={getSessionIdentityKey()} />;
 }

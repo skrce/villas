@@ -1,3 +1,4 @@
+import { sessionFixture, scopedPath } from "./test/session";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,23 +29,24 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { "Content-Type": "application/json" },
   });
-const session = () => ({
-  authenticated,
-  propertyId: "villa-rosa",
-  propertyName,
-  generation: "test-login",
-  staff: {
-    id: ownerId,
-    email: "owner@example.test",
-    role: "OWNER",
-    active: true,
-    version: 0,
-  },
-  csrfToken: "csrf-test",
-  expiresAt: "2099-01-01T00:00:00Z",
-  permissions: ["staff:manage"],
-  provider: "synthetic",
-});
+const session = () =>
+  sessionFixture({
+    authenticated,
+    propertyId: "villa-rosa",
+    propertyName,
+    generation: "test-login",
+    staff: {
+      id: ownerId,
+      email: "owner@example.test",
+      role: "OWNER",
+      active: true,
+      version: 0,
+    },
+    csrfToken: "csrf-test",
+    expiresAt: "2099-01-01T00:00:00Z",
+    permissions: ["staff:manage"],
+    provider: "synthetic",
+  });
 const responses = async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input);
   if (url.endsWith("/booking-quotes"))
@@ -152,7 +154,7 @@ beforeEach(async () => {
   propertyName = "Villa Rosa";
   localStorage.clear();
   sessionStorage.clear();
-  window.history.replaceState({}, "", "/rooms");
+  window.history.replaceState({}, "", scopedPath("/rooms"));
   api.mockReset();
   api.mockImplementation(responses);
   vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
@@ -221,7 +223,7 @@ describe("routed staff workspace", () => {
     ).toBeInTheDocument();
   });
   it("validates guest fields inline and focuses the first invalid field", async () => {
-    window.history.replaceState({}, "", "/guests");
+    window.history.replaceState({}, "", scopedPath("/guests"));
     await mount();
     await userEvent.click(screen.getByRole("button", { name: "Add guest" }));
     const form = screen.getByRole("form", { name: "Add guest" });
@@ -237,7 +239,7 @@ describe("routed staff workspace", () => {
     ).toBe(false);
   });
   it("uses JSON guest writes and retains entered details after an unconfirmed result", async () => {
-    window.history.replaceState({}, "", "/guests");
+    window.history.replaceState({}, "", scopedPath("/guests"));
     api.mockImplementation(async (input) =>
       String(input) === "/api/v1/customers"
         ? Promise.reject(new TypeError("Lost response"))
@@ -270,7 +272,7 @@ describe("routed staff workspace", () => {
     expect(localStorage.length).toBe(0);
   });
   it("runs private guest search without putting contacts in the URL", async () => {
-    window.history.replaceState({}, "", "/guests");
+    window.history.replaceState({}, "", scopedPath("/guests"));
     await mount();
     const form = screen.getByRole("form", { name: "Search guests" });
     await userEvent.type(within(form).getByLabelText("Phone"), "000");
@@ -299,7 +301,7 @@ describe("routed staff workspace", () => {
     expect(window.location.search).toBe("");
   });
   it("keeps adding a guest available during a pending guest search", async () => {
-    window.history.replaceState({}, "", "/guests");
+    window.history.replaceState({}, "", scopedPath("/guests"));
     api.mockImplementation(() => new Promise<Response>(() => {}));
     await mount();
     await userEvent.type(screen.getByLabelText("Name"), "Test");
@@ -315,7 +317,7 @@ describe("routed staff workspace", () => {
     window.history.replaceState(
       {},
       "",
-      "/reservations?from=2026-02-30&to=2026-11-06",
+      scopedPath("/reservations?from=2026-02-30&to=2026-11-06"),
     );
     await mount();
     expect(screen.getByText(/Choose valid dates/)).toBeInTheDocument();
@@ -348,7 +350,7 @@ describe("routed staff workspace", () => {
     ).toHaveLength(2);
   });
   it("preserves entered booking input in memory after expiry without repeating a write", async () => {
-    window.history.replaceState({}, "", "/reservations/new");
+    window.history.replaceState({}, "", scopedPath("/reservations/new"));
     await mount();
     await userEvent.click(
       await screen.findByRole("button", { name: "Show all steps" }),
@@ -379,7 +381,7 @@ describe("routed staff workspace", () => {
     ).toBe(false);
   });
   it("selects a guest through keyboard interaction and never asks for a manual ID", async () => {
-    window.history.replaceState({}, "", "/reservations/new");
+    window.history.replaceState({}, "", scopedPath("/reservations/new"));
     await mount();
     await userEvent.click(
       await screen.findByRole("button", { name: "Show all steps" }),
@@ -393,7 +395,7 @@ describe("routed staff workspace", () => {
     expect(screen.queryByLabelText("Room ID")).not.toBeInTheDocument();
   });
   it("requires review after a stale edit and uses the version shown when confirmation opened", async () => {
-    window.history.replaceState({}, "", "/reservations/42");
+    window.history.replaceState({}, "", scopedPath("/reservations/42"));
     cancellableResponses(true);
     await mount();
     await userEvent.click(
@@ -444,7 +446,7 @@ describe("routed staff workspace", () => {
     ).toEqual([0, 1]);
   });
   it("prevents duplicate guest creation while the first submission is pending", async () => {
-    window.history.replaceState({}, "", "/guests");
+    window.history.replaceState({}, "", scopedPath("/guests"));
     let finish: (value: Response) => void = () => {};
     api.mockImplementation(async (input) =>
       String(input) === "/api/v1/customers"
@@ -476,7 +478,7 @@ describe("routed staff workspace", () => {
     );
   });
   it("starts a new empty draft when another Owner signs in", async () => {
-    window.history.replaceState({}, "", "/reservations/new");
+    window.history.replaceState({}, "", scopedPath("/reservations/new"));
     await mount();
     await userEvent.click(
       await screen.findByRole("button", { name: "Show all steps" }),
@@ -497,7 +499,11 @@ describe("routed staff workspace", () => {
     );
   });
   it("reconciles a lost create after same-Owner recovery makes the committed room unavailable", async () => {
-    window.history.replaceState({}, "", "/reservations/new?guest=5");
+    window.history.replaceState(
+      {},
+      "",
+      scopedPath("/reservations/new?guest=5"),
+    );
     let committed = false;
     let requested: Record<string, unknown> = {};
     api.mockImplementation(async (input, init) => {
@@ -570,7 +576,7 @@ describe("routed staff workspace", () => {
     );
   });
   it("refreshes current reservation after a confirmed write in a new same-Owner login generation", async () => {
-    window.history.replaceState({}, "", "/reservations/42");
+    window.history.replaceState({}, "", scopedPath("/reservations/42"));
     cancellableResponses();
     await mount();
     await screen.findByRole("button", {

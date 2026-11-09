@@ -8,7 +8,6 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://127.0.0.1:15073',
-    extraHTTPHeaders: { 'X-Villas-Business': process.env.VILLAS_PROPERTY_ID ?? 'villa-rosa' },
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },

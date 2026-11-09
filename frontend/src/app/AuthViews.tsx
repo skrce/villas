@@ -1,10 +1,100 @@
 import { useEffect, useState } from "react";
 import {
   logout,
+  businessPrefix,
+  selectBusiness,
   refreshSession,
   startSignIn,
   useStaffSession,
 } from "../api/session";
+export function BusinessHome() {
+  const session = useStaffSession();
+  const [error, setError] = useState("");
+  if (session.status !== "choosing" && session.status !== "restricted")
+    return null;
+  return (
+    <main className="page business-home">
+      <section className="card">
+        <p className="eyebrow">Villas staff workspace</p>
+        <h1>
+          {session.status === "choosing"
+            ? "Choose a business"
+            : "Business unavailable"}
+        </h1>
+        <p>{session.identityEmail}</p>
+        {session.status === "restricted" && (
+          <p role="alert">{session.reason}</p>
+        )}
+        {!session.memberships.length && (
+          <p>
+            No business access is available in this session. Ask an Owner for an
+            invitation, then sign in again.
+          </p>
+        )}
+        <nav aria-label="Your businesses" className="business-choices">
+          {session.memberships.map((membership) => (
+            <a
+              className="button secondary"
+              key={membership.businessId}
+              href={`${businessPrefix(membership.businessId)}/today`}
+              onClick={(event) => {
+                if (
+                  event.button !== 0 ||
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.shiftKey ||
+                  event.altKey
+                )
+                  return;
+                event.preventDefault();
+                selectBusiness(membership.businessId);
+              }}
+            >
+              Open {membership.businessName}
+            </a>
+          ))}
+        </nav>
+        {session.provider === "synthetic" && (
+          <p role="status">Local demo: synthetic accounts and test data.</p>
+        )}
+        <div className="business-actions">
+          <button
+            className="button secondary"
+            onClick={() => {
+              try {
+                startSignIn();
+              } catch (failure) {
+                setError(String(failure));
+              }
+            }}
+          >
+            Sign in
+            {session.provider === "synthetic"
+              ? " to local demo"
+              : " with Google"}
+          </button>
+          <button
+            className="button secondary"
+            onClick={() => void refreshSession({ explicit: true })}
+          >
+            Check session
+          </button>
+          <button className="button quiet" onClick={() => void logout()}>
+            Sign out
+          </button>
+        </div>
+        {error && (
+          <p role="alert">
+            {error}{" "}
+            <a href="/auth/start" target="_blank" rel="noreferrer">
+              Open sign-in
+            </a>
+          </p>
+        )}
+      </section>
+    </main>
+  );
+}
 export function Login() {
   const session = useStaffSession();
   const [error, setError] = useState("");

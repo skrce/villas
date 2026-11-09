@@ -31,11 +31,11 @@ no process-wide or session-wide active business. Workers inherit no business con
 work must receive the principal and authorized scope explicitly and recheck access
 inside its own transaction.
 
-The current console takes its explicit ID from the authenticated session summary.
-Its fetch adapter supplies the header, rejects missing IDs, and invalidates captured
-clients/responses when the business changes. A denied grant refreshes global session
-state without logging out other businesses. The URL selector, business-specific
-browser caches/drafts and complete switching interface remain #47. Older open tabs
+The [console](business-workspace.md) selects its business from the tab URL and
+validated membership list. Its fetch adapter supplies the header, rejects missing
+context and invalidates captured clients/responses when business or login changes.
+A denied grant refreshes global identity without logging out other businesses. #47
+adds isolated browser caches, drafts, locks and recovery metadata. Older open tabs
 must reload the updated bundle; the API does not default an omitted selector.
 
 ## Transactions and queries

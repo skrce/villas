@@ -67,22 +67,7 @@ class StaffController(
             workspace?.staff,
             csrf.token,
             Instant.ofEpochMilli(authenticatedAt).plus(AuthenticationSettings.ABSOLUTE_LIMIT),
-            if (workspace == null) emptyList()
-            else
-                listOf(
-                    "guests:read",
-                    "guests:write",
-                    "rooms:read",
-                    "rooms:write",
-                    "rates:read",
-                    "rates:write",
-                    "reservations:read",
-                    "reservations:write",
-                    "maintenance:read",
-                    "maintenance:write",
-                    "audit:read",
-                    "staff:manage",
-                ),
+            workspace?.permissions ?: emptyList(),
             if (settings.synthetic) "synthetic" else "google",
             request.getSession(false).getAttribute(StaffSessionFilter.GENERATION) as String,
             workspace?.businessId,

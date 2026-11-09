@@ -1,3 +1,4 @@
+import { businessUrl, businessRequest } from "./business";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { addDays, propertyToday } from "../src/shared/format";
@@ -5,7 +6,7 @@ import { addDays, propertyToday } from "../src/shared/format";
 async function signIn(page: Page) {
   if (!process.env.VILLAS_LOCAL_INSTANCE?.startsWith("e2e-"))
     throw new Error("Use the disposable browser runner.");
-  await page.goto("/");
+  await page.goto(businessUrl("/"));
   const opened = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Sign in to local demo" }).click();
   const popup = await opened;
@@ -15,12 +16,14 @@ async function signIn(page: Page) {
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 }
 async function setup(page: Page, name: string) {
-  const session = await (await page.request.get("/api/v1/auth/session")).json();
+  const session = await (
+    await businessRequest(page).get("/api/v1/auth/session")
+  ).json();
   const headers = {
     "X-CSRF-TOKEN": session.csrfToken,
     Origin: "http://127.0.0.1:15073",
   };
-  const created = await page.request.post("/api/v1/apartments", {
+  const created = await businessRequest(page).post("/api/v1/apartments", {
     headers,
     data: {
       name,
@@ -37,7 +40,7 @@ test("Owners clean, inspect and reset rooms with dated maintenance on a phone wi
   await signIn(page);
   const { room, headers } = await setup(page, "Synthetic cleaning board");
   const today = propertyToday();
-  const maintenance = await page.request.post(
+  const maintenance = await businessRequest(page).post(
     `/api/v1/apartments/${room.id}/maintenance`,
     {
       headers: { ...headers, "Idempotency-Key": crypto.randomUUID() },
@@ -49,7 +52,7 @@ test("Owners clean, inspect and reset rooms with dated maintenance on a phone wi
     },
   );
   expect(maintenance.ok()).toBe(true);
-  await page.goto("/housekeeping");
+  await page.goto(businessUrl("/housekeeping"));
   await expect(
     page.getByRole("heading", { name: "Housekeeping", exact: true }),
   ).toBeVisible();
@@ -89,7 +92,9 @@ test("Owners clean, inspect and reset rooms with dated maintenance on a phone wi
   await expect(dialog).not.toBeVisible();
   await expect(card.getByText("Dirty", { exact: true })).toBeVisible();
   const history = await (
-    await page.request.get(`/api/v1/apartments/${room.id}/readiness/events`)
+    await businessRequest(page).get(
+      `/api/v1/apartments/${room.id}/readiness/events`,
+    )
   ).json();
   expect(history.items.map((event: { state: string }) => event.state)).toEqual([
     "IN_PROGRESS",
@@ -140,7 +145,7 @@ test("a lost readiness response remains recoverable from an archived room withou
     expect(response.ok()).toBe(true);
     await route.abort("failed");
   });
-  await page.goto("/housekeeping");
+  await page.goto(businessUrl("/housekeeping"));
   const card = page
     .locator(".housekeeping-card")
     .filter({ hasText: "Synthetic archived recovery" });
@@ -157,12 +162,12 @@ test("a lost readiness response remains recoverable from an archived room withou
   await expect(dialog.getByRole("alert")).toContainText(
     "could not be confirmed",
   );
-  const archived = await page.request.post(
+  const archived = await businessRequest(page).post(
     `/api/v1/apartments/${room.id}/status`,
     { headers, data: { active: false, expectedVersion: room.version } },
   );
   expect(archived.ok()).toBe(true);
-  await page.goto(`/rooms/${room.id}`);
+  await page.goto(businessUrl(`/rooms/${room.id}`));
   await page
     .getByRole("button", { name: "Check previous readiness save", exact: true })
     .click();
@@ -179,9 +184,11 @@ test("a lost readiness response remains recoverable from an archived room withou
     .click();
   await expect(dialog).not.toBeVisible();
   expect(posts).toBe(1);
-  const state = await (await page.request.get(target)).json();
+  const state = await (await businessRequest(page).get(target)).json();
   expect(state).toMatchObject({ state: "IN_PROGRESS", version: 1 });
-  const events = await (await page.request.get(`${target}/events`)).json();
+  const events = await (
+    await businessRequest(page).get(`${target}/events`)
+  ).json();
   expect(events.items).toHaveLength(1);
 });
 
@@ -202,7 +209,7 @@ test("empty daily lists retain accessible headings on desktop and phone", async 
         json: { ...data, [field]: [], nextCursor: null },
       });
     });
-    await page.goto(`/${path}`);
+    await page.goto(businessUrl(`/${path}`));
     await expect(
       page.getByRole("heading", {
         level: 2,

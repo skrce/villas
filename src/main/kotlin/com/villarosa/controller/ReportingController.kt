@@ -1,5 +1,6 @@
 package com.villarosa.controller
 
+import com.villarosa.security.BusinessScope
 import com.villarosa.service.*
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -49,7 +50,7 @@ class ReportingController(private val reports: PeriodReports, private val today:
             .contentType(MediaType("text", "csv", Charsets.UTF_8))
             .header(
                 HttpHeaders.CONTENT_DISPOSITION,
-                "attachment; filename=\"villas-${kind.name.lowercase()}-$startDate-$endDate.csv\"",
+                "attachment; filename=\"villas-${BusinessScope.id()}-${kind.name.lowercase()}-$startDate-$endDate.csv\"",
             )
             .header(HttpHeaders.CACHE_CONTROL, "no-store")
             .header("X-Content-Type-Options", "nosniff")

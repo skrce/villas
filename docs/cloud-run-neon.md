@@ -8,7 +8,8 @@ personal Google/Neon accounts as ABL, never employer credentials or ABL secrets/
 The conversion is in progress under [#44-#49](contracts/multi-tenancy.md). Shared
 Google identity and explicitly scoped staff membership management are implemented
 in #45. Domain requests and PostgreSQL row security require an authorized business
-in #46. Browser switching and shared cloud/recovery qualification remain pending.
+in #46. Browser switching and isolated state are implemented in #47. Shared
+cloud/recovery qualification remains #48/#49.
 Do not deploy this intermediate revision as a shared service.
 
 The earlier per-business Terraform modules remain a locally tested reference until

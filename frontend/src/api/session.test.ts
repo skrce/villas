@@ -1,26 +1,27 @@
+import { sessionFixture, scopedPath } from "../test/session";
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 
 const fetchMock = vi.fn<typeof fetch>();
-const payload = (id = 'owner-one') => ({ authenticated: true, propertyId: 'villa-rosa', staff: { id, email: `${id}@example.test`, role: 'OWNER', active: true, version: 0 }, generation: 'login-one', csrfToken: 'memory-only-csrf', expiresAt: '2099-01-01T00:00:00Z', permissions: ['staff:manage'], provider: 'synthetic' });
+const payload = (id = 'owner-one') => sessionFixture({ authenticated: true, propertyId: 'villa-rosa', staff: { id, email: `${id}@example.test`, role: 'OWNER', active: true, version: 0 }, generation: 'login-one', csrfToken: 'memory-only-csrf', expiresAt: '2099-01-01T00:00:00Z', permissions: ['staff:manage'], provider: 'synthetic' });
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const load = async () => { const session = await import('./session'); fetchMock.mockResolvedValueOnce(json(payload())); await session.refreshSession(); return session; };
-beforeEach(() => { vi.resetModules(); fetchMock.mockReset(); vi.stubGlobal('fetch', fetchMock); localStorage.clear(); });
+beforeEach(() => { vi.resetModules(); fetchMock.mockReset(); vi.stubGlobal('fetch', fetchMock); localStorage.clear(); window.history.replaceState({}, "", scopedPath("/today")); });
 afterEach(() => vi.unstubAllGlobals());
 
 describe('staff session boundaries', () => {
   it('refreshes a denied business grant without treating the identity as globally logged out', async () => {
     const session=await load();
     fetchMock.mockResolvedValueOnce(json({ code:'BUSINESS_ACCESS_DENIED' },403));
-    fetchMock.mockResolvedValueOnce(json({ ...payload(),staff:null,propertyId:null,identity:{id:'person-one',email:'owner@example.test'},memberships:[{businessId:'lake-house'}] }));
+    fetchMock.mockResolvedValueOnce(json({ ...payload(),staff:null,propertyId:null,identity:payload().identity,memberships:[{...payload('owner-lake').memberships[0],businessId:'lake-house',businessName:'Lake house'}] }));
     const response=await session.sessionFetch('/api/v1/apartments');
-    expect(session.getSession()).toMatchObject({status:'restricted',identityId:'person-one'});
+    expect(session.getSession()).toMatchObject({status:'restricted',identityId:payload().identity.id});
     await expect(response.json()).rejects.toThrow('session changed');
     expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/v1/auth/session');
   });
 
-  it.each([undefined, null, '', 'INVALID'])('rejects an authenticated response without a valid explicit business: %s', async (propertyId) => {
+  it.each([undefined, null, '', 'INVALID'])('rejects an authenticated response without a valid explicit business: %s', async (businessId) => {
     const session = await import('./session');
-    fetchMock.mockResolvedValueOnce(json({ ...payload(), propertyId }));
+    fetchMock.mockResolvedValueOnce(json({ ...payload(), memberships:[{...payload().memberships[0], businessId}] }));
     await session.refreshSession();
     expect(session.getSession().status).toBe('unavailable');
     const calls = fetchMock.mock.calls.length;
@@ -38,11 +39,12 @@ describe('staff session boundaries', () => {
     }
   });
 
-  it('invalidates captured clients when the explicit business changes without an actor or login change', async () => {
+  it('invalidates captured clients when the URL business changes within the same identity and login', async () => {
     const session = await load();
     const old = session.scopedSessionFetch('owner-one', session.getSessionEpoch());
-    fetchMock.mockResolvedValueOnce(json({ ...payload(), propertyId: 'lake-house' }));
+    fetchMock.mockResolvedValueOnce(json({ ...payload(), memberships:[...payload().memberships,{...payload('owner-lake').memberships[0],businessId:'lake-house',businessName:'Lake house'}] }));
     await session.refreshSession();
+    session.selectBusiness('lake-house');
     const calls = fetchMock.mock.calls.length;
     await expect(old('/api/v1/apartments')).rejects.toThrow('session changed');
     expect(fetchMock).toHaveBeenCalledTimes(calls);
@@ -53,7 +55,7 @@ describe('staff session boundaries', () => {
     fetchMock.mockResolvedValueOnce(json({ ...payload(), identity: { id: 'person-one', email: 'owner@example.test' } }));
     await session.refreshSession();
     const old = session.scopedSessionFetch('owner-one', session.getSessionEpoch());
-    fetchMock.mockResolvedValueOnce(json({ ...payload(), staff: null, identity: { id: same ? 'person-one' : 'person-two', email: 'owner@example.test' } }));
+    fetchMock.mockResolvedValueOnce(json({ ...payload(), staff: null, memberships:[], identity: { id: same ? 'person-one' : 'person-two', email: 'owner@example.test' } }));
     await session.refreshSession();
     expect(session.getSessionOwnerKey()).toBe(same ? 'owner-one' : 'identity:person-two');
     await expect(old('/api/v1/apartments')).rejects.toThrow('session changed');
@@ -187,5 +189,78 @@ describe('staff session boundaries', () => {
     fetchMock.mockResolvedValueOnce(json({ authenticated: false }));
     const dispose = session.installSessionEvents();
     expect(localStorage.length).toBe(0); dispose();
+  });
+});
+
+describe('URL business authorization', () => {
+  const businesses = () => ({ ...payload(), memberships: [
+    payload().memberships[0],
+    { ...payload('lake-owner').memberships[0], businessId: 'lake-house', businessName: 'Lake house', permissions: ['rooms:read'] },
+  ] });
+  it.each([false, true])('requires an explicit choice at an unscoped address with multiple=%s', async (multiple) => {
+    window.history.replaceState({}, '', '/rooms');
+    const session = await import('./session');
+    fetchMock.mockResolvedValueOnce(json(multiple ? businesses() : payload()));
+    await session.refreshSession();
+    expect(session.getSession().status).toBe('choosing');
+    await expect(session.sessionFetch('/api/v1/apartments')).rejects.toThrow('session changed');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    session.selectBusiness(multiple ? 'lake-house' : 'villa-rosa');
+    expect(window.location.pathname).toBe(multiple ? '/businesses/lake-house/today' : '/businesses/villa-rosa/today');
+    expect(session.getSession().status).toBe('authenticated');
+  });
+  it('uses the URL membership and its permissions when the compatibility summary points elsewhere', async () => {
+    window.history.replaceState({}, '', '/businesses/lake-house/rooms');
+    const session = await import('./session');
+    fetchMock.mockResolvedValueOnce(json({ ...businesses(), permissions: ['staff:manage'] }));
+    await session.refreshSession();
+    expect(session.getSession()).toMatchObject({ status: 'authenticated', propertyId: 'lake-house', staff: {id:'lake-owner'}, permissions:['rooms:read'] });
+    expect(session.legacyOperationScope()).toBeUndefined();
+    fetchMock.mockResolvedValueOnce(json([]));
+    await session.sessionFetch('/api/v1/apartments');
+    expect(new Headers(fetchMock.mock.calls.at(-1)?.[1]?.headers).get('X-Villas-Business')).toBe('lake-house');
+  });
+  it('never falls back from an unauthorized URL to another valid membership', async () => {
+    window.history.replaceState({}, '', '/businesses/unknown-business/rooms/7');
+    const session = await import('./session');
+    fetchMock.mockResolvedValueOnce(json(businesses())); await session.refreshSession();
+    expect(session.getSession()).toMatchObject({status:'restricted'});
+    expect(()=>session.selectBusiness('unknown-business')).toThrow('session changed');
+    await expect(session.sessionFetch('/api/v1/apartments')).rejects.toThrow('session changed');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    session.selectBusiness('lake-house');
+    expect(session.getSession()).toMatchObject({status:'authenticated',propertyId:'lake-house'});
+  });
+  it.each(['GET','POST'])('aborts and rejects held %s results when switching and returning to the original business', async (method) => {
+    const session = await import('./session');
+    fetchMock.mockResolvedValueOnce(json(businesses())); await session.refreshSession();
+    let finish!: (response:Response)=>void;
+    fetchMock.mockImplementationOnce(()=>new Promise<Response>(resolve=>{finish=resolve;}));
+    const held=session.sessionFetch('/api/v1/apartments',{method});
+    const rejected=expect(held).rejects.toThrow('session changed');
+    const signal=fetchMock.mock.calls.at(-1)?.[1]?.signal;
+    session.selectBusiness('lake-house'); session.selectBusiness('villa-rosa');
+    expect(signal?.aborted).toBe(true);
+    finish(json({view:'Private old response'})); await rejected;
+    expect(session.getSession()).toMatchObject({status:'authenticated',propertyId:'villa-rosa'});
+  });
+  it('invalidates old clients on browser history navigation before another request can start', async () => {
+    const session = await import('./session');
+    fetchMock.mockResolvedValueOnce(json(businesses())); await session.refreshSession();
+    const old=session.scopedSessionFetch('owner-one',session.getSessionEpoch(),'villa-rosa');
+    fetchMock.mockResolvedValueOnce(json(businesses())); const dispose=session.installSessionEvents();
+    await vi.waitFor(()=>expect(fetchMock).toHaveBeenCalledTimes(2));
+    window.history.pushState({},'','/businesses/lake-house/rooms'); window.dispatchEvent(new PopStateEvent('popstate'));
+    expect(session.getSession()).toMatchObject({propertyId:'lake-house'});
+    await expect(old('/api/v1/apartments')).rejects.toThrow('session changed');
+    dispose();
+  });
+  it.each(['business','actor','permissions'])('rejects ambiguous or incomplete %s metadata', async (invalid) => {
+    const data=businesses();
+    if(invalid==='business') data.memberships[1].businessId='villa-rosa';
+    if(invalid==='actor') data.memberships[1].staff.id='owner-one';
+    if(invalid==='permissions') delete (data.memberships[1] as Partial<typeof data.memberships[1]>).permissions;
+    const session=await import('./session'); fetchMock.mockResolvedValueOnce(json(data)); await session.refreshSession();
+    expect(session.getSession().status).toBe('unavailable');
   });
 });

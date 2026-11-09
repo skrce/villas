@@ -65,6 +65,9 @@ try {
   await run(['scripts/run-api.mjs', '--migrate']);
   await run(['scripts/dev-db.mjs', 'fixtures']);
   await run(['scripts/run-api.mjs', '--bootstrap-owner']);
+  process.env.VILLAS_NEW_BUSINESS_ID = `${process.env.VILLAS_PROPERTY_ID}-lake`;
+  process.env.VILLAS_NEW_BUSINESS_NAME = 'Lake business · Синтетички апартмани';
+  await run(['scripts/run-api.mjs', '--onboard-business']);
   await run(['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(2)], `${root}/frontend`);
 } catch (error) {
   if (!interruptedBy) console.error(error.message);

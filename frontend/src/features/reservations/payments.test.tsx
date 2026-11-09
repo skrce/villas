@@ -83,6 +83,8 @@ function mount() {
   const epoch = getSessionEpoch();
   const context = {
     apis: { ...buildApis(actor, epoch), reservationApi, paymentsApi },
+    businessId: "villa-rosa",
+    businessName: "Synthetic business",
     ownerId: actor,
     epoch,
     booking: {

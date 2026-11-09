@@ -8,24 +8,34 @@ import {
   useState,
 } from "react";
 import {
+  BrowserRouter,
   Navigate,
   NavLink,
   Route,
   Routes,
   useLocation,
 } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  hashKey,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { buildApis } from "../api/client";
 import { buildBookingActions } from "../api/bookingActions";
 import {
   API_BASE,
   getSessionEpoch,
-  getSessionOwnerKey,
+  assertWorkspaceCurrent,
+  businessPrefix,
+  legacyOperationScope,
+  workspaceScope,
+  type SessionState,
   logout,
   useStaffSession,
 } from "../api/session";
-import { Login } from "./AuthViews";
+import { BusinessHome, Login } from "./AuthViews";
 import { DraftContext, WorkspaceContext } from "./context";
+import { BusinessSwitcher } from "./BusinessSwitcher";
 import { PageHead, Pending } from "../shared/ui";
 
 const Calendar = lazy(() =>
@@ -96,15 +106,58 @@ const Staff = lazy(() =>
 
 export default function Workspace() {
   const session = useStaffSession();
+  const [businessDrafts] = useState(
+    () => new Map<string, Map<string, unknown>>(),
+  );
+  useEffect(() => () => businessDrafts.clear(), [businessDrafts]);
+  useEffect(() => {
+    if (session.status === "anonymous" && session.reason?.startsWith("logout"))
+      businessDrafts.clear();
+  }, [session, businessDrafts]);
+  if (session.status === "choosing" || session.status === "restricted")
+    return <BusinessHome />;
+  if (session.status !== "authenticated") return <Login />;
+  const scope = workspaceScope(
+    session.identityId,
+    session.propertyId,
+    session.staff.id,
+  );
+  let drafts = businessDrafts.get(scope);
+  if (!drafts) {
+    drafts = new Map<string, unknown>();
+    businessDrafts.set(scope, drafts);
+  }
+  return (
+    <BrowserRouter
+      key={session.propertyId}
+      basename={businessPrefix(session.propertyId)}
+    >
+      <ActiveWorkspace
+        key={`${scope}:${getSessionEpoch()}`}
+        session={session}
+        drafts={drafts}
+      />
+    </BrowserRouter>
+  );
+}
+function ActiveWorkspace({
+  session,
+  drafts,
+}: {
+  session: Extract<SessionState, { status: "authenticated" }>;
+  drafts: Map<string, unknown>;
+}) {
   const epoch = getSessionEpoch();
-  const [ownerId] = useState(getSessionOwnerKey);
-  const [drafts] = useState(() => new Map<string, unknown>());
+  const ownerId = session.staff.id;
+  const businessId = session.propertyId;
+  const scope = workspaceScope(session.identityId, businessId, ownerId);
   const cache = useMemo(
     () =>
       new QueryClient({
         defaultOptions: {
           queries: {
-            meta: { sessionEpoch: epoch },
+            meta: { sessionEpoch: epoch, businessId, actorId: ownerId },
+            queryKeyHashFn: (key) => hashKey([scope, ...key]),
             retry: false,
             staleTime: 30_000,
             refetchOnWindowFocus: false,
@@ -112,17 +165,19 @@ export default function Workspace() {
           mutations: { retry: false },
         },
       }),
-    [epoch],
+    [epoch, businessId, ownerId, scope],
   );
   const context = useMemo(() => {
-    const apis = buildApis(ownerId, epoch);
+    const apis = buildApis(ownerId, epoch, businessId);
     return {
       apis,
       ownerId,
+      businessId,
+      businessName: session.propertyName,
       epoch,
       booking: buildBookingActions(
         apis.reservationApi,
-        JSON.stringify([API_BASE, ownerId]),
+        JSON.stringify([API_BASE, scope]),
         String(epoch),
         apis.maintenanceApi,
         apis.apartmentApi,
@@ -131,16 +186,13 @@ export default function Workspace() {
           payments: apis.paymentsApi,
           operations: apis.operationsApi,
           actorId: ownerId,
+          assertCurrent: () =>
+            assertWorkspaceCurrent(epoch, businessId, ownerId),
+          legacyScope: legacyOperationScope(),
         },
       ),
     };
-  }, [ownerId, epoch]);
-  useEffect(() => () => drafts.clear(), [drafts]);
-  const signedOut =
-    session.status === "anonymous" && session.reason?.startsWith("logout");
-  useEffect(() => {
-    if (signedOut) drafts.clear();
-  }, [drafts, signedOut]);
+  }, [ownerId, businessId, epoch, scope, session.propertyName]);
   useEffect(
     () => () => {
       void cache.cancelQueries();
@@ -148,9 +200,6 @@ export default function Workspace() {
     },
     [cache],
   );
-  if (session.status !== "authenticated") return <Login />;
-  if (session.staff.id !== ownerId)
-    return <Pending label="Changing account…" />;
   const routes = [
     { to: "/today", name: "Today", icon: "⌂" },
     { to: "/calendar", name: "Calendar", icon: "▦" },
@@ -178,7 +227,7 @@ export default function Workspace() {
                   V
                 </span>
                 <span>
-                  Villas<small>{session.propertyName ?? "Villa Rosa"}</small>
+                  Villas<small>{session.propertyName}</small>
                 </span>
               </NavLink>
               <p className="nav-label">Workspace</p>
@@ -197,7 +246,7 @@ export default function Workspace() {
             </aside>
             <div className="workspace-body">
               <header className="topbar">
-                <span>Staff workspace</span>
+                <BusinessSwitcher />
                 <div className="account">
                   <span className="avatar" aria-hidden="true">
                     O
@@ -219,7 +268,7 @@ export default function Workspace() {
                   Local demo · Synthetic accounts and test data
                 </section>
               )}
-              <RouteContent>
+              <RouteContent businessName={session.propertyName}>
                 <Suspense fallback={<Pending label="Opening page…" />}>
                   <Routes>
                     <Route
@@ -268,9 +317,7 @@ export default function Workspace() {
                   </Routes>
                 </Suspense>
               </RouteContent>
-              <footer>
-                {session.propertyName ?? "Villa Rosa"} · Europe/Skopje
-              </footer>
+              <footer>{session.propertyName} · Europe/Skopje</footer>
             </div>
           </div>
         </DraftContext.Provider>
@@ -278,7 +325,13 @@ export default function Workspace() {
     </QueryClientProvider>
   );
 }
-function RouteContent({ children }: { children: React.ReactNode }) {
+function RouteContent({
+  children,
+  businessName,
+}: {
+  children: React.ReactNode;
+  businessName: string;
+}) {
   const { pathname, search } = useLocation();
   const pageIdentity =
     pathname === "/reservations/new"
@@ -292,8 +345,8 @@ function RouteContent({ children }: { children: React.ReactNode }) {
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     main.current?.focus();
-    document.title = `${pathname.startsWith("/today") ? "Today" : pathname.startsWith("/reports") ? "Reports" : pathname.startsWith("/front-desk") ? "Front desk" : pathname.startsWith("/housekeeping") ? "Housekeeping" : pathname.startsWith("/calendar") ? "Calendar" : pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · Villas`;
-  }, [pathname, pageIdentity]);
+    document.title = `${pathname.startsWith("/today") ? "Today" : pathname.startsWith("/reports") ? "Reports" : pathname.startsWith("/front-desk") ? "Front desk" : pathname.startsWith("/housekeeping") ? "Housekeeping" : pathname.startsWith("/calendar") ? "Calendar" : pathname.startsWith("/settings") ? "Owner settings" : pathname.startsWith("/guests") ? "Guests" : pathname.startsWith("/rooms") ? "Rooms" : "Reservations"} · ${businessName} · Villas`;
+  }, [pathname, pageIdentity, businessName]);
   return (
     <main ref={main} tabIndex={-1} id="main" className="main-content">
       <Fragment key={pageIdentity}>{children}</Fragment>

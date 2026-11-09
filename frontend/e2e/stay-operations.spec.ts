@@ -1,3 +1,4 @@
+import { businessUrl, businessRequest } from "./business";
 import { expect, test, type Page } from "@playwright/test";
 import { existsSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
@@ -22,7 +23,7 @@ test.afterEach(() => {
   if (existsSync(file)) rmSync(file);
 });
 async function signIn(page: Page) {
-  await page.goto("/");
+  await page.goto(businessUrl("/"));
   const opened = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Sign in to local demo" }).click();
   const popup = await opened;
@@ -32,7 +33,9 @@ async function signIn(page: Page) {
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
 }
 async function setup(page: Page, label: string) {
-  const session = await (await page.request.get("/api/v1/auth/session")).json();
+  const session = await (
+    await businessRequest(page).get("/api/v1/auth/session")
+  ).json();
   const headers = {
     "X-CSRF-TOKEN": session.csrfToken,
     Origin: "http://127.0.0.1:15073",
@@ -42,7 +45,7 @@ async function setup(page: Page, label: string) {
     [1, 5001],
     [2, 6001],
   ]) {
-    const created = await page.request.post("/api/v1/apartments", {
+    const created = await businessRequest(page).post("/api/v1/apartments", {
       headers,
       data: {
         name: `Synthetic ${label} room ${index}`,
@@ -53,7 +56,7 @@ async function setup(page: Page, label: string) {
     expect(created.ok()).toBe(true);
     const room = await created.json();
     rooms.push(room);
-    const rated = await page.request.put(
+    const rated = await businessRequest(page).put(
       `/api/v1/apartments/${room.id}/rates`,
       {
         headers,
@@ -67,7 +70,7 @@ async function setup(page: Page, label: string) {
     );
     expect(rated.ok()).toBe(true);
   }
-  const created = await page.request.post("/api/v1/customers", {
+  const created = await businessRequest(page).post("/api/v1/customers", {
     headers,
     data: { firstName: "Synthetic", lastName: `${label} guest` },
   });
@@ -75,7 +78,7 @@ async function setup(page: Page, label: string) {
   return { headers, rooms, guestId: await created.json() };
 }
 async function clean(page: Page, name: string) {
-  await page.goto("/housekeeping");
+  await page.goto(businessUrl("/housekeeping"));
   const card = page.locator(".housekeeping-card").filter({ hasText: name });
   for (const action of [
     "Start cleaning",
@@ -99,7 +102,9 @@ async function create(
   to: string,
 ) {
   await page.goto(
-    `/reservations/new?guest=${guest}&room=${room}&from=${from}&to=${to}`,
+    businessUrl(
+      `/reservations/new?guest=${guest}&room=${room}&from=${from}&to=${to}`,
+    ),
   );
   await page
     .getByRole("button", { name: "Show all steps", exact: true })
@@ -242,25 +247,25 @@ test("an Owner completes a repriced, moved and settled stay across property days
   await dialog.getByRole("button", { name: "Confirm time correction" }).click();
   await expect(dialog).not.toBeVisible();
   const record = await (
-    await page.request.get(`/api/v1/reservations/${id}`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}`)
   ).json();
   expect(record.phase).toBe("CHECKED_OUT");
   expect(record.checkedInAt).not.toBe(`${today}T10:00:00Z`);
   const ledger = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/ledger`)
   ).json();
   expect(ledger.outstandingCents).toBe(0);
   expect(ledger.totals.receivedCents).toBe(5001);
   const entries = await (
-    await page.request.get(`/api/v1/reservations/${id}/ledger/entries`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/ledger/entries`)
   ).json();
   expect(entries.items).toHaveLength(2);
   const prices = await (
-    await page.request.get(`/api/v1/reservations/${id}/prices`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/prices`)
   ).json();
   expect(prices.items).toHaveLength(5);
   const history = await (
-    await page.request.get(`/api/v1/reservations/${id}/events`)
+    await businessRequest(page).get(`/api/v1/reservations/${id}/events`)
   ).json();
   expect(history.items.map((event: { kind: string }) => event.kind)).toEqual([
     "CREATED",
@@ -273,7 +278,9 @@ test("an Owner completes a repriced, moved and settled stay across property days
     "CORRECTED",
   ]);
   const ready = await (
-    await page.request.get(`/api/v1/apartments/${rooms[0].id}/readiness`)
+    await businessRequest(page).get(
+      `/api/v1/apartments/${rooms[0].id}/readiness`,
+    )
   ).json();
   expect(ready.state).toBe("DIRTY");
   await page.screenshot({
@@ -282,7 +289,9 @@ test("an Owner completes a repriced, moved and settled stay across property days
   });
   await clean(page, rooms[0].name);
   const cleaning = await (
-    await page.request.get(`/api/v1/apartments/${rooms[0].id}/readiness/events`)
+    await businessRequest(page).get(
+      `/api/v1/apartments/${rooms[0].id}/readiness/events`,
+    )
   ).json();
   expect(
     cleaning.items.some(
@@ -290,7 +299,7 @@ test("an Owner completes a repriced, moved and settled stay across property days
         event.reservationId === id && event.state === "DIRTY",
     ),
   ).toBe(true);
-  await page.goto(`/reservations/${id}`);
+  await page.goto(businessUrl(`/reservations/${id}`));
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     `Reservation #${id}`,
   );
@@ -354,7 +363,10 @@ test("a lost check-in response remains read-only recoverable after reload and a 
   await expect(dialog).not.toBeVisible();
   expect(posts).toBe(1);
   expect(
-    (await (await page.request.get(`/api/v1/reservations/${id}`)).json())
-      .version,
+    (
+      await (
+        await businessRequest(page).get(`/api/v1/reservations/${id}`)
+      ).json()
+    ).version,
   ).toBe(2);
 });

@@ -3,7 +3,7 @@
 The Owner superseded the per-business layout with a shared app and database per
 environment. Follow [the tenancy contract](contracts/multi-tenancy.md) and #44-#49.
 Shared identity, explicit business data access and PostgreSQL row security are
-implemented. Browser switching remains #47; the operational reference still has a
+implemented, including explicit browser business selection and isolated state (#47). The operational reference still has a
 configured compatibility recovery target. Live Terraform commands are blocked before authentication until #48
 replaces the topology. Do not use the earlier setup instructions below to provision
 resources or treat them as shared-tenancy qualification.
@@ -12,7 +12,7 @@ resources or treat them as shared-tenancy qualification.
 The selected shared recovery design is in [Cloud Run + Neon](cloud-run-neon.md#backups-recovery-and-signals)
 and #48. The local reference verifies all-tenant dumps with a dedicated read-only BYPASSRLS
 role. Provider backup authority and selective business recovery remain #48.
-The current script purges global sessions and audits its configured business; it
+The current script purges global sessions, advances only its configured business's membership generations and audits that business; it
 must not be treated as a tenant-aware restore. The Docker Compose procedure below
 remains the single-business local reference. A local restore is separate from a
 timed off-server qualification.

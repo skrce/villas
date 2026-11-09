@@ -11,7 +11,7 @@ Requests select a business explicitly; entity creation and SQL inserts have no
 property default. Composite foreign keys prevent cross-business parents/actors,
 while row policies check transaction-local identity and membership claims.
 `property_identity` remains historical upgrade metadata. The configured ID/name seed
-that legacy registry record and provide the current console compatibility summary;
+that legacy registry record and provide the retained API compatibility summary;
 they cannot select a domain request's business. API resource IDs keep their existing
 shape. The server derives the data scope from current authorized membership, never a
 business field accepted in a guest/room/booking body.

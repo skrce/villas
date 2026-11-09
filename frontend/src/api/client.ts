@@ -15,10 +15,10 @@ import {
 } from './generated';
 import { API_BASE, scopedSessionFetch } from './session';
 
-export const buildApis = (staffId: string, epoch: number) => {
+export const buildApis = (staffId: string, epoch: number, businessId?: string) => {
   const configuration = new Configuration({
     basePath: API_BASE,
-    fetchApi: scopedSessionFetch(staffId, epoch),
+    fetchApi: scopedSessionFetch(staffId, epoch, businessId),
     credentials: 'same-origin',
   });
 

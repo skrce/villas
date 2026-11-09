@@ -9,7 +9,7 @@ retain seven days, with 24-hour loss/recovery targets.
 
 The engine transition below remains in use. V17 implements shared identity and staff
 memberships; V18 adds explicit domain request scope and PostgreSQL row security.
-Browser switching and shared hosting/recovery qualification remain pending under
+Browser switching is implemented in #47. Shared hosting/recovery qualification remains pending under
 [the tenancy contract](contracts/multi-tenancy.md).
 Live deployment is blocked; use [the current hosting guide](cloud-run-neon.md).
 
@@ -45,7 +45,8 @@ Before V18, `property_identity` binds the database to that ID and refuses unsafe
 legacy upgrades. V16 registers the business, V17 separates Google identity and
 memberships, and V18 adds [business request/database isolation](contracts/business-data-isolation.md).
 The shared runtime does not use a configured business as request authority. The
-current console compatibility summary still uses its configured ID; switching is #47.
+retained API compatibility summary still uses its configured ID; the #47 console
+selects explicitly from URL and memberships.
 
 The browser gate runs the entire workflow with a non-default business ID and name.
 Native checks cover booking races, exact prices/ledger balances, Unicode contacts,

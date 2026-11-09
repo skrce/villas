@@ -3,12 +3,14 @@ import {
   cloneElement,
   isValidElement,
   useEffect,
+  useContext,
   useId,
   useRef,
   type ComponentProps,
   type ReactNode,
 } from "react";
 import { Link } from "react-router-dom";
+import { WorkspaceContext } from "../app/context";
 export function TextArea({
   label,
   error,
@@ -209,10 +211,13 @@ export function PageHead({
   children?: ReactNode;
   actions?: ReactNode;
 }) {
+  const workspace = useContext(WorkspaceContext);
   return (
     <header className="page-head">
       <div>
-        <p className="eyebrow">{eyebrow || "Villa Rosa"}</p>
+        <p className="eyebrow">
+          {eyebrow || workspace?.businessName || "Staff workspace"}
+        </p>
         <h1>{title}</h1>
         {children && <p className="lede">{children}</p>}
       </div>

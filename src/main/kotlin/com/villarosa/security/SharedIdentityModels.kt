@@ -68,7 +68,26 @@ data class BusinessMembershipView(
     val businessId: String,
     val businessName: String,
     val staff: StaffView,
+    val permissions: List<String>,
 )
+
+object OwnerPermissions {
+    val ALL =
+        listOf(
+            "guests:read",
+            "guests:write",
+            "rooms:read",
+            "rooms:write",
+            "rates:read",
+            "rates:write",
+            "reservations:read",
+            "reservations:write",
+            "maintenance:read",
+            "maintenance:write",
+            "audit:read",
+            "staff:manage",
+        )
+}
 
 object BusinessIds {
     fun requireValid(value: String): String {

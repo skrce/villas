@@ -14,7 +14,7 @@ branch. Then read:
 2. [Release decisions](decisions.md): confirmed business policies and open inputs.
 3. [Implementation tracker](implementation.md): ten milestones and recorded evidence.
    Check the linked issue and current PRs before starting work.
-4. [Shared tenancy](contracts/multi-tenancy.md), [shared identity](contracts/shared-identity.md), [business data isolation](contracts/business-data-isolation.md) and the relevant [API](contracts/api.md), [reservations](contracts/reservations.md),
+4. [Shared tenancy](contracts/multi-tenancy.md), [shared identity](contracts/shared-identity.md), [business data isolation](contracts/business-data-isolation.md), [business workspaces](contracts/business-workspace.md) and the relevant [API](contracts/api.md), [reservations](contracts/reservations.md),
    [pricing](contracts/pricing.md), [payments](contracts/payments.md),
    [front-desk](contracts/front-desk.md), [housekeeping](contracts/housekeeping.md),
    [reporting](contracts/reporting.md) or [permissions](contracts/permissions.md) contract.
@@ -35,9 +35,10 @@ Villas is a responsive staff app for accommodation businesses, initially in Nort
 The Owner approved a shared app/database per environment. The registry and
 [shared Google identity/staff memberships](contracts/shared-identity.md) implement
 #44/#45. [Business data isolation](contracts/business-data-isolation.md) implements
-#46 with explicit request context and PostgreSQL row security. Next is #47 browser
-switching and #48/#49 hosting/release qualification. The current console still uses
-its explicit compatibility summary, while business APIs support authorized selectors.
+#46 with explicit request context and PostgreSQL row security. [Business workspaces](contracts/business-workspace.md)
+implement #47 with per-tab URL selection and separate caches, memory drafts and
+recovery namespaces. Next is #48 shared hosting/recovery, followed by #49 release
+qualification. The legacy summary grants no browser or domain authority.
 Owners are the only implemented role. Public booking, guest accounts, online payment
 processing and additional staff roles are outside the initial plan.
 
@@ -149,6 +150,7 @@ map proves the current filename.
 
 | Change | Regression starting points |
 | --- | --- |
+| Business switching, browser state and interrupted intent isolation | `BusinessSwitching.test.tsx`, `session.test.ts`, `bookingActions.test.ts`, `e2e/tenancy.spec.ts` and the business-workspace contract |
 | Business data isolation, row policies and full-backup authority | `BusinessDataIsolationIT`, `BusinessRowSecurityMigrationIT`, `DatabaseScope`, `BusinessScope` and the business-isolation contract |
 | Shared identity, onboarding and migration | `SharedIdentitiesIT`, `SharedIdentityMigrationIT`, `StaffAuthenticationIT`, `BusinessStaffController`, `BusinessOnboarding` and the shared-identity contract |
 | Sessions, staff and revocation | [StaffAuthenticationIT](../src/test/kotlin/com/villarosa/StaffAuthenticationIT.kt), [StaffAuthorityIT](../src/test/kotlin/com/villarosa/StaffAuthorityIT.kt), [session tests](../frontend/src/api/session.test.ts) |

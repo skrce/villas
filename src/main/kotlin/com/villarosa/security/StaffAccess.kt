@@ -83,6 +83,7 @@ class StaffAccess(
                     business.id,
                     business.name,
                     (staff.findByPropertyIdAndId(businessId, identity.id) ?: denied()).view(),
+                    OwnerPermissions.ALL,
                 )
             } catch (_: DomainException) {
                 null

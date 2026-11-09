@@ -44,7 +44,7 @@ class PeriodReports(
                 "REPORT_CHANGED",
                 "Saved records changed since this report was loaded. Refresh it before downloading.",
             )
-        return ReportCsv.encode(report)
+        return ReportCsv.encode(report, BusinessScope.id())
     }
 
     private fun snapshot(kind: ReportKind, start: String, end: String, room: Int?): PeriodReport {
@@ -323,7 +323,8 @@ class PeriodReports(
 object ReportCsv {
     const val MAX_BYTES = 5 * 1024 * 1024
 
-    fun encode(report: PeriodReport): ByteArray {
+    fun encode(report: PeriodReport, businessId: String): ByteArray {
+        com.villarosa.security.BusinessIds.requireValid(businessId)
         val common =
             listOf(
                 "report",
@@ -333,6 +334,7 @@ object ReportCsv {
                 "snapshot_id",
                 "currency",
                 "notices",
+                "business_id",
             )
         val prefix =
             listOf(
@@ -343,6 +345,7 @@ object ReportCsv {
                 report.snapshotId,
                 "EUR",
                 report.notices.joinToString(";"),
+                businessId,
             )
         val (columns, rows) =
             when (report.kind) {

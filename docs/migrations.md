@@ -5,7 +5,7 @@ V16 adds the business registry and tenant-safe parent/actor relationships withou
 rewriting V1-V15 or moving existing business records. Unknown legacy business IDs
 refuse the upgrade atomically. V18 replaces deployment-wide business authority with
 [explicit request scope and PostgreSQL row security](contracts/business-data-isolation.md).
-Browser switching and shared hosting/recovery qualification remain #47-#49.
+Browser switching is implemented in #47. Shared hosting/recovery qualification remains #48/#49; no additional schema migration is needed for browser switching.
 
 Flyway owns the PostgreSQL schema. Normal API startup validates it and never applies
 migrations. Hibernate uses `validate`; automatic SQL/Flyway initialization is disabled.

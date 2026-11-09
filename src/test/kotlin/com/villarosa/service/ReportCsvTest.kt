@@ -25,9 +25,15 @@ class ReportCsvTest {
                 emptyList(),
                 listOf("NO_ROOMS"),
             )
-        val csv = ReportCsv.encode(report).toString(Charsets.UTF_8)
+        val csv = ReportCsv.encode(report, "synthetic-business").toString(Charsets.UTF_8)
         assertThat(csv)
-            .contains("\"METADATA\"", "\"NO_ROOMS\"", "\"2026-01-01\"")
+            .contains(
+                "\"METADATA\"",
+                "\"NO_ROOMS\"",
+                "\"2026-01-01\"",
+                "\"business_id\"",
+                "\"synthetic-business\"",
+            )
             .doesNotContain("\"DATA\"")
     }
 
@@ -79,7 +85,10 @@ class ReportCsvTest {
                 emptyList(),
                 emptyList(),
             )
-        assertThat(assertThrows<DomainException> { ReportCsv.encode(report) }.code)
+        assertThat(
+                assertThrows<DomainException> { ReportCsv.encode(report, "synthetic-business") }
+                    .code
+            )
             .isEqualTo("EXPORT_TOO_LARGE")
     }
 }

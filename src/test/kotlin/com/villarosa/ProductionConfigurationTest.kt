@@ -56,7 +56,12 @@ constructor(
 
     @Test
     fun publicFrontendRoutesServeOnlyTheShellAndKnownAssetsWithSecurityHeaders() {
-        (ReleasePaths.pages.toList() + listOf("/reservations/123", "/guests/123", "/rooms/123"))
+        (ReleasePaths.pages.toList() +
+                listOf("/reservations/123", "/guests/123", "/rooms/123") +
+                (ReleasePaths.pages.filterNot { it.startsWith("/auth/") } +
+                        listOf("/reservations/123", "/guests/123", "/rooms/123"))
+                    .map { "/businesses/synthetic-lake$it" } +
+                listOf("/businesses/synthetic-lake"))
             .forEach { path ->
                 mvc.perform(get(path).accept("text/html"))
                     .andExpect(status().isOk)
@@ -81,6 +86,11 @@ constructor(
                 "/assets/private.json",
                 "/reservation/customer",
                 "/v3/api-docs",
+                "/businesses/synthetic-lake/api/v1/apartments",
+                "/businesses/synthetic-lake/internal/metrics",
+                "/businesses/synthetic-lake/assets/private.json",
+                "/businesses/synthetic-lake/auth/start",
+                "/businesses/INVALID/today",
             )
             .forEach { path ->
                 mvc.perform(get(path).accept("text/html")).andExpect(status().isUnauthorized)

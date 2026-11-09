@@ -3,7 +3,7 @@
 The Owner superseded the per-business layout with a shared app and database per
 environment. Follow [the tenancy contract](contracts/multi-tenancy.md) and #44-#49.
 Shared identity, explicit business data access and PostgreSQL row security are
-implemented. Browser switching remains #47; the operational reference still has a
+implemented, including explicit browser business selection and isolated state (#47). The operational reference still has a
 configured compatibility recovery target. Live Terraform commands are blocked before authentication until #48
 replaces the topology. Do not use the earlier setup instructions below to provision
 resources or treat them as shared-tenancy qualification.
