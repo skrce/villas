@@ -275,7 +275,7 @@ constructor(
         if (action == "RESTORE") service.status(id, 0, false)
         val before = service.findCustomerById(id).get()
         jdbc.execute(
-            "CREATE TRIGGER reject_profile_audit BEFORE INSERT ON business_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic audit failure'"
+            "CREATE OR REPLACE FUNCTION reject_profile_audit_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic audit failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER reject_profile_audit BEFORE INSERT ON business_events FOR EACH ROW EXECUTE FUNCTION reject_profile_audit_fn()"
         )
         try {
             assertThrows<org.springframework.dao.DataAccessException> {
@@ -293,7 +293,7 @@ constructor(
             val after = service.findCustomerById(id).get()
             assertThat(after).isEqualTo(before)
         } finally {
-            jdbc.execute("DROP TRIGGER reject_profile_audit")
+            jdbc.execute("DROP TRIGGER reject_profile_audit ON business_events")
         }
     }
 
@@ -412,7 +412,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

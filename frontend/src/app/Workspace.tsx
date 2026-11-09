@@ -178,7 +178,7 @@ export default function Workspace() {
                   V
                 </span>
                 <span>
-                  Villas<small>Villa Rosa</small>
+                  Villas<small>{session.propertyName ?? "Villa Rosa"}</small>
                 </span>
               </NavLink>
               <p className="nav-label">Workspace</p>
@@ -268,7 +268,9 @@ export default function Workspace() {
                   </Routes>
                 </Suspense>
               </RouteContent>
-              <footer>Villa Rosa · Europe/Skopje</footer>
+              <footer>
+                {session.propertyName ?? "Villa Rosa"} · Europe/Skopje
+              </footer>
             </div>
           </div>
         </DraftContext.Provider>

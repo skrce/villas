@@ -134,7 +134,7 @@ class DailyOperations(
         val until = today.plusDays(7)
         val rows =
             jdbc.query(
-                "SELECT a.id,a.name,a.reference,COALESCE(s.state,'DIRTY') AS readiness_state,COALESCE(s.version,0) AS readiness_version,s.changed_at,EXISTS(SELECT 1 FROM reservations r WHERE r.property_id=a.property_id AND r.room_id=a.id AND r.stay_phase='CHECKED_IN') AS occupied FROM apartments a LEFT JOIN room_readiness s ON s.property_id=a.property_id AND s.room_id=a.id WHERE a.property_id=? AND a.active=TRUE AND a.id>? AND (? IS NULL OR COALESCE(s.state,'DIRTY')=?) ORDER BY a.id LIMIT ?",
+                "SELECT a.id,a.name,a.reference,COALESCE(s.state,'DIRTY') AS readiness_state,COALESCE(s.version,0) AS readiness_version,s.changed_at,EXISTS(SELECT 1 FROM reservations r WHERE r.property_id=a.property_id AND r.room_id=a.id AND r.stay_phase='CHECKED_IN') AS occupied FROM apartments a LEFT JOIN room_readiness s ON s.property_id=a.property_id AND s.room_id=a.id WHERE a.property_id=? AND a.active=TRUE AND a.id>? AND (CAST(? AS TEXT) IS NULL OR COALESCE(s.state,'DIRTY')=?) ORDER BY a.id LIMIT ?",
                 { row, _ ->
                     val id = row.getInt("id")
                     HousekeepingRoom(

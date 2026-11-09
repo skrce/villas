@@ -22,7 +22,7 @@ data class Apartment(
     @Column(name = "top_season_price") val topSeasonPrice: Int? = null,
     @JsonIgnore
     @Column(name = "property_id", nullable = false)
-    val propertyId: String = "villa-rosa",
+    val propertyId: String = com.villarosa.service.PropertyScope.ID,
     @Version @Column(nullable = false) var version: Long = 0,
     @Column(nullable = false) var active: Boolean = true,
     @Column(nullable = false, length = 200)

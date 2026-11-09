@@ -12,7 +12,8 @@ object DatabaseMigrations {
     ): Flyway =
         Flyway.configure()
             .dataSource(url, username, password)
-            .locations("classpath:db/migration")
+            .locations("classpath:db/postgresql")
+            .placeholders(mapOf("propertyId" to com.villarosa.service.PropertyScope.ID))
             .target(target)
             .cleanDisabled(true)
             .baselineOnMigrate(false)

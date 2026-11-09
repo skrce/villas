@@ -27,6 +27,11 @@ dates, and UTC instants for events. Production starts empty. Synthetic fixtures 
 explicit local/test data. Do not infer a migration requirement from the old example
 data, and do not convert legacy test price integers into real rates.
 
+Each deployment serves one business. `VILLAS_PROPERTY_ID` and `VILLAS_PROPERTY_NAME`
+configure its identity. PostgreSQL binds the database to that ID; do not retarget an
+existing database to another business. Use separate app identities, credentials,
+Neon projects/databases and backup repositories.
+
 ## Checks and contracts
 
 Use the pinned Java/Node versions, npm 11.6.2, the Maven wrapper, and `npm ci`.
@@ -41,7 +46,7 @@ volumes are gone before deleting private recovery settings.
 
 Keep meaningful regression tests for changed behavior. Authentication/permissions,
 booking conflicts, money calculations, and migrations require tests. Test database
-behavior against the pinned MariaDB image, not only H2. Do not skip container tests
+behavior against the pinned PostgreSQL image, not only H2. Do not skip container tests
 when Docker is unavailable or replace provider checks with mocks and call them live.
 
 OpenAPI comes from backend mappings/annotations. Export with Maven verification,

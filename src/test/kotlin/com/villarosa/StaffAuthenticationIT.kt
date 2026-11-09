@@ -230,7 +230,7 @@ constructor(
     @Test
     fun failedAccountHandoffCannotRetainProviderTokensOrCreateAnAuthenticatedSession() {
         jdbc.execute(
-            "CREATE TRIGGER reject_login_audit BEFORE INSERT ON staff_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Synthetic audit failure'"
+            "CREATE OR REPLACE FUNCTION reject_login_audit_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic audit failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER reject_login_audit BEFORE INSERT ON staff_events FOR EACH ROW EXECUTE FUNCTION reject_login_audit_fn()"
         )
         try {
             assertThat(signIn().second.headers().firstValue("Location").get())
@@ -247,7 +247,7 @@ constructor(
             assertThat(attributes)
                 .doesNotContain("OAuth2AuthenticationToken", "OidcIdToken", "owner@example.test")
         } finally {
-            jdbc.execute("DROP TRIGGER reject_login_audit")
+            jdbc.execute("DROP TRIGGER reject_login_audit ON staff_events")
         }
         assertThat(signIn().second.headers().firstValue("Location").get())
             .isEqualTo("$BASE/auth/complete")
@@ -375,7 +375,7 @@ constructor(
         val PORT = TestOidcProvider.port()
         val BASE = "http://127.0.0.1:$PORT"
         val provider = TestOidcProvider("$BASE/login/oauth2/code/google")
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

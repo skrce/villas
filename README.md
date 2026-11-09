@@ -2,7 +2,7 @@
 
 Staff management for Villa Rosa, starting in North Macedonia with EUR and the
 `Europe/Skopje` property timezone. The application uses Kotlin/Spring, Java 21,
-React/TypeScript/Vite, and MariaDB.
+React/TypeScript/Vite, and PostgreSQL.
 
 Invited Google accounts establish server-side Owner sessions. The responsive workspace
 includes guest/room management, rates and reviewed quotes, a reservation calendar,
@@ -22,7 +22,8 @@ implementation from the open real-Google, deployment and pilot gates.
 Release work starts in the [deployment guide](docs/deployment.md),
 [recovery procedure](docs/recovery.md), [operations](docs/operations.md) and
 [release checklist](docs/release-checklist.md).
-Milestone 10 is active; hosting and live acceptance remain open.
+Milestone 10 is active. Cloud Run + Neon in Frankfurt is approved; resource setup
+and live acceptance remain open. See [the PostgreSQL transition](docs/postgresql-transition.md).
 
 ## Requirements
 
@@ -59,7 +60,10 @@ for port overrides and the UI/recovery conventions.
 
 ## Run locally
 
-Work in a standalone Villas checkout. From its root:
+Work in a fresh standalone Villas checkout for PostgreSQL. Legacy MariaDB volumes
+and their path-bound state remain intact; the launcher refuses their old project
+identity. Configure `VILLAS_PROPERTY_ID` and `VILLAS_PROPERTY_NAME` per business,
+using one deployment/database each. From the checkout root:
 
 ```sh
 cp .env.local.example .env.local
@@ -80,7 +84,7 @@ node scripts/run-api.mjs
 ```
 
 The database launcher creates a Compose project and volume specific to the checkout's
-absolute path. MariaDB binds to a random port on `127.0.0.1`. Generated local database
+absolute path. PostgreSQL binds to a random port on `127.0.0.1`. Generated local database
 credentials stay in ignored `.local-state/` files with owner-only permissions.
 The API launcher uses this database and ignores inherited Spring/database overrides.
 It binds to `127.0.0.1:9098` and validates the existing schema without changing it.
@@ -156,7 +160,7 @@ too. From the repository root, the complete check is:
 node scripts/check.mjs
 ```
 
-This runs a clean Maven build, unit/HTTP/configuration tests, mandatory MariaDB tests,
+This runs a clean Maven build, unit/HTTP/configuration tests, mandatory PostgreSQL tests,
 Kotlin formatting checks, OpenAPI/client drift checks, frontend lint, interaction
 tests, production build, and the Chromium workflows. Commit regenerated contract/client
 files before running the drift check. Docker must be available; database tests are
@@ -165,7 +169,7 @@ not silently skipped.
 The browser check uses a separate randomly named database, generated test credentials,
 the packaged API on port 19098, a synthetic OIDC provider on port 19108, and the
 production frontend build on port 15073. It exercises real HTTP authorization-code
-redirects and signed ID tokens against the private MariaDB database. It
+redirects and signed ID tokens against the private PostgreSQL database. It
 removes its own database volume on completion or SIGINT/SIGTERM interruption. If Docker
 cleanup fails, it retains local state for recovery and returns a failure. It refuses
 to reuse running servers.
@@ -218,7 +222,7 @@ limits. Logout and account revocation invalidate access. Real Google setup and l
 verification remain open at the owner's request; local OIDC tests do not close them.
 
 A new production database starts empty. Application startup neither creates tables
-nor loads demo records. Immutable SQL versions in `src/main/resources/db/migration`
+nor loads demo records. Immutable SQL versions in `src/main/resources/db/postgresql`
 are applied by the explicit migration command using a DDL-capable account. Runtime
 credentials should have only application permissions. Production role provisioning
 and deployment sequencing remain milestone 10 work.

@@ -62,6 +62,18 @@ export interface SessionView {
      * @type {string}
      * @memberof SessionView
      */
+    propertyId?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof SessionView
+     */
+    propertyName?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof SessionView
+     */
     provider?: string;
     /**
      * 
@@ -93,6 +105,8 @@ export function SessionViewFromJSONTyped(json: any, ignoreDiscriminator: boolean
         'expiresAt': json['expiresAt'] == null ? undefined : (new Date(json['expiresAt'])),
         'generation': json['generation'] == null ? undefined : json['generation'],
         'permissions': json['permissions'] == null ? undefined : json['permissions'],
+        'propertyId': json['propertyId'] == null ? undefined : json['propertyId'],
+        'propertyName': json['propertyName'] == null ? undefined : json['propertyName'],
         'provider': json['provider'] == null ? undefined : json['provider'],
         'staff': json['staff'] == null ? undefined : StaffViewFromJSON(json['staff']),
     };
@@ -114,6 +128,8 @@ export function SessionViewToJSONTyped(value?: SessionView | null, ignoreDiscrim
         'expiresAt': value['expiresAt'] == null ? value['expiresAt'] : value['expiresAt'].toISOString(),
         'generation': value['generation'],
         'permissions': value['permissions'],
+        'propertyId': value['propertyId'],
+        'propertyName': value['propertyName'],
         'provider': value['provider'],
         'staff': StaffViewToJSON(value['staff']),
     };

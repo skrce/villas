@@ -195,11 +195,11 @@ and UTC event time. No guest contact fields are returned. All calendar and histo
 queries are property-scoped. Pages reflect state at each request; they are not a
 frozen snapshot across concurrent edits. Refresh a calendar after a successful write.
 
-`InventoryIT` runs the selected MariaDB image and real migrations. It races creates,
+`InventoryIT` runs the selected PostgreSQL image and real migrations. It races creates,
 moves, extensions, cancellation, and maintenance, checks replay/rollback/property
 scope, and rejects each overlap shape while accepting adjacent stays. HTTP tests
 exercise keys, versions, and 400/404/409 responses. Browser checks use the packaged
-API and a private MariaDB. H2 is useful for fast regressions but is not evidence for
+API and a private PostgreSQL. H2 is useful for fast regressions but is not evidence for
 these native locking guarantees.
 
 `InventoryQueriesIT` checks half-open filters, cancellation/history visibility,

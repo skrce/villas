@@ -30,8 +30,8 @@ for (const mode of ['backup', 'restore']) test(`${mode} cancels a delayed, backp
   const snapshot = 'a'.repeat(64);
   const producer = "process.on('SIGTERM',()=>{}); setTimeout(()=>process.stdout.write(Buffer.alloc(4*1024*1024,65)),100);";
   try {
-    f.script('mariadb-dump', producer);
-    f.script('mariadb', `if(process.argv.includes('--batch')) console.log('0'); else process.exit(1);`);
+    f.script('pg_dump', producer);
+    f.script('psql', `if(process.argv.includes('--tuples-only')) console.log('0'); else process.exit(1);`);
     f.script('restic', `
 const command=process.argv[2];
 if(command==='snapshots') console.log(JSON.stringify(${mode === 'restore' ? `[{id:'${snapshot}',tags:['villas-complete']}]` : '[]'}));
@@ -49,7 +49,7 @@ test('failed partial dumps are discarded, abandoned pending snapshots are scoped
   const expired = `villas-pending-${old}-${old + 60_000}-${'a'.repeat(24)}`;
   try {
     f.env.AWS_SECRET_ACCESS_KEY = 'host-credential-must-not-escape';
-    f.script('mariadb-dump', "process.stdout.write('synthetic partial SQL',()=>process.exit(1));");
+    f.script('pg_dump', "process.stdout.write('synthetic partial SQL',()=>process.exit(1));");
     f.script('restic', `
 import {appendFileSync,readFileSync,writeFileSync} from 'node:fs';
 const args=process.argv.slice(2);

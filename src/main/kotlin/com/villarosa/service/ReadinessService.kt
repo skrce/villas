@@ -109,10 +109,10 @@ class ReadinessService(
     @Transactional(propagation = Propagation.MANDATORY)
     fun locked(room: Apartment): RoomReadiness {
         jdbc.update(
-            "INSERT IGNORE INTO room_readiness (room_id,property_id,state,version,changed_at) VALUES (?,?,'DIRTY',0,?)",
+            "INSERT INTO room_readiness (room_id,property_id,state,version,changed_at) VALUES (?,?,'DIRTY',0,?) ON CONFLICT DO NOTHING",
             room.id!!,
             PropertyScope.ID,
-            time.now().atOffset(ZoneOffset.UTC).toLocalDateTime(),
+            time.now().atOffset(ZoneOffset.UTC),
         )
         return readiness.locked(PropertyScope.ID, room.id!!)
             ?: missing("Room readiness does not exist.")

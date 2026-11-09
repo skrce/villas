@@ -21,7 +21,7 @@ for (const key of Object.keys(environment)) {
 Object.assign(environment, {
   VILLAS_MODE: 'local',
   VILLAS_BIND_ADDRESS: '127.0.0.1',
-  VILLAS_DB_URL: `jdbc:mariadb://127.0.0.1:${database.port()}/villarosa`,
+  VILLAS_DB_URL: `jdbc:postgresql://127.0.0.1:${database.port()}/villarosa`,
   VILLAS_DB_USERNAME: 'villas_local',
   VILLAS_DB_PASSWORD: database.password,
 });

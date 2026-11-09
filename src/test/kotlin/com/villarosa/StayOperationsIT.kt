@@ -595,12 +595,12 @@ constructor(
         val ready = clean()
         val stable = key()
         jdbc.execute(
-            "CREATE TRIGGER synthetic_stay_failure BEFORE INSERT ON inventory_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic stay failure'"
+            "CREATE OR REPLACE FUNCTION synthetic_stay_failure_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic stay failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER synthetic_stay_failure BEFORE INSERT ON inventory_events FOR EACH ROW EXECUTE FUNCTION synthetic_stay_failure_fn()"
         )
         try {
             assertThrows<RuntimeException> { stays.checkIn(id, 0, ready, stable) }
         } finally {
-            jdbc.execute("DROP TRIGGER synthetic_stay_failure")
+            jdbc.execute("DROP TRIGGER synthetic_stay_failure ON inventory_events")
         }
         assertThat(inventory.reservation(id).phase).isEqualTo(StayPhase.CONFIRMED)
         assertThat(
@@ -621,12 +621,12 @@ constructor(
         val expected = version()
         val stable = key()
         jdbc.execute(
-            "CREATE TRIGGER synthetic_checkout_failure BEFORE INSERT ON inventory_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic checkout failure'"
+            "CREATE OR REPLACE FUNCTION synthetic_checkout_failure_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic checkout failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER synthetic_checkout_failure BEFORE INSERT ON inventory_events FOR EACH ROW EXECUTE FUNCTION synthetic_checkout_failure_fn()"
         )
         try {
             assertThrows<RuntimeException> { stays.checkOut(id, expected, true, null, stable) }
         } finally {
-            jdbc.execute("DROP TRIGGER synthetic_checkout_failure")
+            jdbc.execute("DROP TRIGGER synthetic_checkout_failure ON inventory_events")
         }
         assertThat(inventory.reservation(id).phase).isEqualTo(StayPhase.CHECKED_IN)
         assertThat(readiness.read(room.id!!).state).isEqualTo(ReadinessState.CLEAN)
@@ -672,7 +672,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

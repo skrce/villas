@@ -2419,6 +2419,12 @@
             },
             "type": "array"
           },
+          "propertyId": {
+            "type": "string"
+          },
+          "propertyName": {
+            "type": "string"
+          },
           "provider": {
             "type": "string"
           },

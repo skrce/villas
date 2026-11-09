@@ -12,7 +12,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
 class RecoveryMigrationIT {
-    @Container val database = TestDatabases.mariaDb()
+    @Container val database = TestDatabases.postgres()
 
     private fun connection() =
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
@@ -37,7 +37,9 @@ class RecoveryMigrationIT {
                 )
                 if (partial)
                     sql.execute(
-                        checkNotNull(javaClass.getResource("/db/migration/V15__recovery_audit.sql"))
+                        checkNotNull(
+                                javaClass.getResource("/db/postgresql/V15__recovery_audit.sql")
+                            )
                             .readText()
                     )
             }
@@ -67,13 +69,13 @@ class RecoveryMigrationIT {
         connection().use { connection ->
             connection.createStatement().use { sql ->
                 sql.executeUpdate(
-                    "INSERT INTO staff_accounts(id,property_id,issuer,subject,email,security_version,created_at) VALUES('00000000-0000-0000-0000-000000000001','villa-rosa','https://accounts.google.com','synthetic-owner','owner@example.test',$version,UTC_TIMESTAMP(6))"
+                    "INSERT INTO staff_accounts(id,property_id,issuer,subject,email,security_version,created_at) VALUES('00000000-0000-0000-0000-000000000001','villa-rosa','https://accounts.google.com','synthetic-owner','owner@example.test',$version,CURRENT_TIMESTAMP(6))"
                 )
                 sql.executeUpdate(
                     "INSERT INTO SPRING_SESSION(PRIMARY_ID,SESSION_ID,CREATION_TIME,LAST_ACCESS_TIME,MAX_INACTIVE_INTERVAL,EXPIRY_TIME) VALUES('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002',1,1,259200,9999999999999)"
                 )
                 sql.executeUpdate(
-                    "INSERT INTO SPRING_SESSION_ATTRIBUTES VALUES('00000000-0000-0000-0000-000000000001','synthetic-context',X'ABCD')"
+                    "INSERT INTO SPRING_SESSION_ATTRIBUTES VALUES('00000000-0000-0000-0000-000000000001','synthetic-context',decode('ABCD','hex'))"
                 )
             }
         }

@@ -161,7 +161,7 @@ constructor(
     @Test
     fun guestCreationRollsBackWhenItsAuditCannotCommit() {
         jdbc.execute(
-            "CREATE TRIGGER reject_guest_audit BEFORE INSERT ON business_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic audit failure'"
+            "CREATE OR REPLACE FUNCTION reject_guest_audit_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic audit failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER reject_guest_audit BEFORE INSERT ON business_events FOR EACH ROW EXECUTE FUNCTION reject_guest_audit_fn()"
         )
         try {
             org.assertj.core.api.Assertions.assertThatThrownBy {
@@ -175,12 +175,12 @@ constructor(
                 )
                 .isZero()
         } finally {
-            jdbc.execute("DROP TRIGGER reject_guest_audit")
+            jdbc.execute("DROP TRIGGER reject_guest_audit ON business_events")
         }
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

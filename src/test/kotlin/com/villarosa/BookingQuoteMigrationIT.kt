@@ -9,10 +9,10 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
 class BookingQuoteMigrationIT {
-    @Container val database = TestDatabases.mariaDb()
+    @Container val database = TestDatabases.postgres()
 
     @ParameterizedTest
-    @ValueSource(ints = [0, 1, 2, 3, 4])
+    @ValueSource(ints = [0, 1, 2, 3, 4, 5, 6])
     fun quoteUpgradeResumesEveryDdlPrefixWithoutInventingHistoricalPrices(prefix: Int) {
         DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "10")
             .migrate()
@@ -29,12 +29,12 @@ class BookingQuoteMigrationIT {
                     "INSERT INTO reservations (customer_id,room_id,start_date,end_date) VALUES (1,1,'2030-01-01','2030-01-03')"
                 )
                 val statements =
-                    checkNotNull(javaClass.getResource("/db/migration/V11__booking_quotes.sql"))
+                    checkNotNull(javaClass.getResource("/db/postgresql/V11__booking_quotes.sql"))
                         .readText()
                         .split(';')
                         .map { it.trim() }
                         .filter { it.isNotEmpty() }
-                assertThat(statements).hasSize(4)
+                assertThat(statements).hasSize(6)
                 statements.take(prefix).forEach { sql.execute(it) }
             }
         }

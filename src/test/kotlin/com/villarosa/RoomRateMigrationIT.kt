@@ -11,7 +11,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
 class RoomRateMigrationIT {
-    @Container val database = TestDatabases.mariaDb()
+    @Container val database = TestDatabases.postgres()
 
     @ParameterizedTest
     @ValueSource(ints = [0, 1, 2])
@@ -31,7 +31,7 @@ class RoomRateMigrationIT {
                     "INSERT INTO reservations (customer_id,room_id,start_date,end_date) VALUES (1,1,'2030-01-01','2030-01-03')"
                 )
                 val statements =
-                    checkNotNull(javaClass.getResource("/db/migration/V10__room_rates.sql"))
+                    checkNotNull(javaClass.getResource("/db/postgresql/V10__room_rates.sql"))
                         .readText()
                         .split(';')
                         .map { it.trim() }
@@ -81,7 +81,7 @@ class RoomRateMigrationIT {
                         "INSERT INTO seasonal_rates VALUES ('other-property','foreign-property',1,'Test','2030-01-01','2030-01-02',100)",
                         "INSERT INTO seasonal_rates VALUES ('missing-room','villa-rosa',999,'Test','2030-01-01','2030-01-02',100)",
                     )) assertThrows<SQLException> { sql.executeUpdate(invalid) }
-                sql.execute("SET SESSION sql_mode=''")
+
                 assertThrows<SQLException> {
                     sql.executeUpdate(
                         "INSERT INTO seasonal_rates VALUES ('zero-date','villa-rosa',1,'Test','0000-00-00','2030-01-02',100)"

@@ -7,6 +7,7 @@ x-backup: &backup
   mem_limit: 512m
   pids_limit: 128
   environment:
+    VILLAS_BACKUP_DB_SSLMODE: disable
     VILLAS_BACKUP_DB_HOST: db
     VILLAS_BACKUP_DB_PASSWORD_FILE: /run/secrets/db_backup
     VILLAS_BACKUP_REPOSITORY_FILE: /run/secrets/backup_repository
@@ -14,7 +15,7 @@ x-backup: &backup
     VILLAS_BACKUP_CREDENTIALS_FILE: /run/secrets/backup_credentials
     VILLAS_BACKUP_HOST: ${VILLAS_BACKUP_HOST:?Set a separate environment backup identity}
     VILLAS_KEEP_HOURLY: "${VILLAS_KEEP_HOURLY:-0}"
-    VILLAS_KEEP_DAILY: ${VILLAS_KEEP_DAILY:?Approve retention first}
+    VILLAS_KEEP_DAILY: "${VILLAS_KEEP_DAILY:-7}"
     VILLAS_BACKUP_INTERVAL_SECONDS: "${VILLAS_BACKUP_INTERVAL_SECONDS:-}"
     VILLAS_BACKUP_MAX_JOB_SECONDS: "${VILLAS_BACKUP_MAX_JOB_SECONDS:-}"
     VILLAS_BACKUP_MAX_AGE_SECONDS: "${VILLAS_BACKUP_MAX_AGE_SECONDS:-}"

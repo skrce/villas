@@ -1,16 +1,16 @@
 services:
   restored-db:
-    image: ${VILLAS_MARIADB_IMAGE:?Use the pinned MariaDB image}
+    image: ${VILLAS_POSTGRES_IMAGE:?Use the pinned PostgreSQL image}
     environment:
-      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root
-      MARIADB_ROOT_HOST: localhost
-      MARIADB_DATABASE: villarosa
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_root
+      POSTGRES_USER: villas_root
+      POSTGRES_DB: villarosa
     secrets: [db_root, db_migration, db_runtime, db_backup]
     volumes:
-      - restored_database:/var/lib/mysql
+      - restored_database:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/10-villas.sh:ro
     healthcheck:
-      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      test: [CMD, pg_isready, --username=villas_root, --dbname=villarosa]
       interval: 5s
       timeout: 5s
       retries: 24
@@ -27,6 +27,7 @@ services:
     security_opt: [no-new-privileges:true]
     mem_limit: 512m
     environment:
+      VILLAS_BACKUP_DB_SSLMODE: disable
       VILLAS_BACKUP_DB_HOST: restored-db
       VILLAS_BACKUP_DB_PASSWORD_FILE: /run/secrets/db_migration
       VILLAS_BACKUP_REPOSITORY_FILE: /run/secrets/backup_repository
@@ -48,7 +49,7 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     environment:
-      VILLAS_DB_URL: jdbc:mariadb://restored-db:3306/villarosa
+      VILLAS_DB_URL: jdbc:postgresql://restored-db:5432/villarosa
       VILLAS_DB_USERNAME: villas_migration
       VILLAS_DB_PASSWORD_FILE: /run/secrets/db_migration
     secrets: [db_migration]

@@ -1,7 +1,8 @@
 # Deployment
 
-Milestone 10 is active. Hosting, domain, availability, operating cost and off-server
-backup configuration remain open under D04. This repository does not provision an
+Milestone 10 is active. D04 confirms Cloud Run + Neon in Frankfurt, free-first, with separate
+deployments/databases per business. Resource configuration, custom domain,
+availability and actual operating cost/backup verification remain open. This repository does not provision an
 account or use another project's infrastructure. Real Google acceptance and the
 staff pilot remain required. See [release-checklist.md](release-checklist.md).
 
@@ -11,8 +12,8 @@ The application image contains the verified Spring Boot JAR and Vite `dist` from
 the same revision. Docker does not rebuild the JAR. `scripts/build-release.mjs`
 copies only these artifacts into a temporary context. Source, `.env`, local state,
 test classes and credentials are excluded. Separate images contain the TLS proxy
-configuration and backup/monitoring tools. Base images are pinned in `deploy/images.json`; MariaDB is pinned
-in `mariadb-image.txt`. Review dependency/security updates before rebuilding.
+configuration and backup/monitoring tools. Base images are pinned in `deploy/images.json`; PostgreSQL is pinned
+in `postgres-image.txt`. Review dependency/security updates before rebuilding.
 
 ```sh
 node scripts/check.mjs
@@ -44,7 +45,7 @@ owned, removed and checked after cleanup.
 
 CI's `release-package` job consumes backend/frontend artifacts after their checks
 succeed, builds all three images and runs the rehearsal. These are not deployed images.
-A registry, provider credentials and environment deployment jobs require D04.
+A registry, provider credentials and environment deployment jobs require the selected personal resource configuration.
 Record registry digests and artifact checksums before deployment. Never deploy
 mutable tags such as `latest`.
 
@@ -57,8 +58,8 @@ and are identified in the manifest. Use a clean committed revision for a release
 ## Releasing a later change
 
 The repository currently runs checks, builds images and rehearses them locally in
-CI. It does not publish images to a registry or deploy to staging/production. Add
-those jobs after D04 is resolved, with this delivery sequence:
+CI. It does not publish images to a registry or deploy to staging/production. Prepare
+those jobs for the confirmed D04 architecture, with this delivery sequence:
 
 1. Merge a reviewed PR and require successful checks for the exact `master` commit.
 2. Publish the verified images for that commit and record immutable registry digests.
@@ -139,13 +140,14 @@ has no public app or ports and uses new target database credentials.
 
 ## Controlled startup and upgrades
 
-Do not provision until D04 and the environment checklist are approved. Keep an
+Use the approved D04 architecture and complete the environment checklist before
+activating public access or schedules. Keep an
 absolute private environment file with these nonsecret references:
 
 ```dotenv
 VILLAS_APP_IMAGE=registry.example/villas-app@sha256:FULL_DIGEST
 VILLAS_PROXY_IMAGE=registry.example/villas-proxy@sha256:FULL_DIGEST
-VILLAS_MARIADB_IMAGE=EXACT_CONTENT_OF_mariadb-image.txt
+VILLAS_POSTGRES_IMAGE=EXACT_CONTENT_OF_postgres-image.txt
 VILLAS_DOMAIN=CONFIRMED_DOMAIN
 VILLAS_SECRET_DIR=/absolute/private/villas-secrets
 ```
@@ -155,8 +157,8 @@ on every command. Review rendered configuration privately. In order:
 
 1. `up --detach --wait db` on a new volume. Never truncate/reuse an existing DB.
 2. `run --rm migrate`. A failure leaves traffic closed.
-3. Apply `deploy/runtime-grants.sql` through local-root `compose exec -T db`, using
-   `MYSQL_PWD` read from `/run/secrets/db_root`, without printing it.
+3. Apply `deploy/runtime-grants.sql` through the private database administrator `compose exec -T db`, using
+   `PGPASSWORD` read from `/run/secrets/db_root`, without printing it.
 4. Verify all business tables and staff/invitations are empty.
 5. Run offline `bootstrap-owner` once, mounting a private `initial_owner` file and
    setting `VILLAS_INITIAL_OWNER_EMAIL_FILE` only for that one-off container. It
@@ -170,9 +172,9 @@ wait for every in-flight scheduled/manual backup to exit; stopping the app alone
 does not stop backups. Confirm there is no active dump, then take and verify a
 controlled off-server backup without concurrent DDL. Record old image digests/schema
 version, then run the new image's one-off migration.
-Apply reviewed grants for new tables before starting it. A failed migration may
-have committed partial MariaDB DDL. Inspect privately; never infer no change from
-an error. Do not start an app whose readiness or migrations fail. After successful
+Apply reviewed grants for new tables before starting it. PostgreSQL migrations run transactionally. Inspect history and schema after a
+failure before retrying, including any future migration that requires nontransactional
+DDL. Do not start an app whose readiness or migrations fail. After successful
 verification, recreate monitoring with the replaced app, resume the backup scheduler
 and confirm protection before reopening writes.
 

@@ -30,7 +30,7 @@ const probe = async (t, { mode = 'ok', signal, failCleanup = false, realPlaywrig
   mkdirSync(join(directory, 'target/test-classes/com/villas/browser'), { recursive: true });
   writeFileSync(join(directory, 'target/test-classes/com/villas/browser/BrowserClockConfiguration.class'), 'launcher fixture');
   writeFileSync(join(directory, 'target/test-classes/com/villas/browser/BrowserFileClock.class'), 'launcher fixture');
-  cpSync(join(root, 'mariadb-image.txt'), join(directory, 'mariadb-image.txt'));
+  cpSync(join(root, 'postgres-image.txt'), join(directory, 'postgres-image.txt'));
   cpSync(join(root, 'dev/fixtures.sql'), join(directory, 'dev/fixtures.sql'));
   const dockerLog = join(directory, 'docker.log');
   const ready = join(directory, 'ready');

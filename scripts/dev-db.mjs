@@ -9,7 +9,7 @@ const database = localDatabase({ create: command === 'start' });
 switch (command) {
   case 'start':
     database.compose(['up', '--detach', '--wait', '--wait-timeout', '120']);
-    console.log(`Villas MariaDB is ready on 127.0.0.1:${database.port()}.`);
+    console.log(`Villas PostgreSQL is ready on 127.0.0.1:${database.port()}.`);
     break;
   case 'status':
     database.compose(['ps']);

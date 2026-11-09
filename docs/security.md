@@ -97,7 +97,7 @@ Synthetic identity tests prove the local account contract and are not Google evi
 
 ## Verification
 
-`StaffDirectoryIT` uses the pinned MariaDB image and real migrations. It checks
+`StaffDirectoryIT` uses the pinned PostgreSQL image and real migrations. It checks
 explicit bootstrap, exact invitation matching, account mismatch, expiry, replay,
 canonical identity across a verified rename, current generation checks, last-owner
 races, property isolation, stale edits, and atomic rollback after audit failure.

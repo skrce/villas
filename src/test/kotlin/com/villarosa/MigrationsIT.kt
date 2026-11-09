@@ -16,11 +16,31 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
 class MigrationsIT {
-    @Container val database = TestDatabases.mariaDb()
+    @Container val database = TestDatabases.postgres()
     @TempDir lateinit var recovery: Path
 
     private fun connection(): Connection =
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
+
+    @Test
+    fun anotherBusinessDatabaseCannotStartTheApplication() {
+        DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        val source =
+            org.springframework.jdbc.datasource.DriverManagerDataSource(
+                database.jdbcUrl,
+                database.username,
+                database.password,
+            )
+        PropertyDatabaseBinding(source)
+        connection().use { connection ->
+            connection.createStatement().use { sql ->
+                sql.executeUpdate(
+                    "UPDATE property_identity SET property_id='other-business' WHERE singleton=1"
+                )
+            }
+        }
+        assertThrows<IllegalArgumentException> { PropertyDatabaseBinding(source) }
+    }
 
     @Test
     fun emptyDatabaseMigratesAndRerunsWithoutBusinessData() {
@@ -161,7 +181,7 @@ class MigrationsIT {
     }
 
     @Test
-    fun zeroComponentsAndImpossibleDaysCannotBeStoredEvenWithPermissiveSqlMode() {
+    fun zeroComponentsAndImpossibleDaysCannotBeStored() {
         DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
         connection().use { connection ->
             connection.createStatement().use { statement ->
@@ -169,7 +189,7 @@ class MigrationsIT {
                 statement.executeUpdate(
                     "INSERT INTO customers (id, first_name, last_name, phone, address) VALUES (1, 'Test', 'Guest', '000', 'Synthetic')"
                 )
-                statement.execute("SET SESSION sql_mode='ALLOW_INVALID_DATES'")
+
                 for ((start, end) in
                     listOf(
                         "2026-00-01" to "2026-01-03",
@@ -243,7 +263,7 @@ class MigrationsIT {
                     }
                 statement
                     .executeQuery(
-                        "SHOW INDEX FROM reservations WHERE Key_name='reservation_calendar'"
+                        "SELECT indexname FROM pg_indexes WHERE schemaname='public' AND tablename='reservations' AND indexname='reservation_calendar'"
                     )
                     .use { result -> assertThat(result.next()).isTrue() }
             }
@@ -251,7 +271,7 @@ class MigrationsIT {
     }
 
     @Test
-    fun partialDdlNeedsReviewedRepairAndRerunsWithoutDroppingSavedRecords() {
+    fun failedMigrationRollsBackDdlAndPreservesSavedRecords() {
         DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
         connection().use { connection ->
             connection.createStatement().use { statement ->
@@ -270,7 +290,7 @@ class MigrationsIT {
             recovery.resolve("V999__synthetic_recovery.sql"),
             """
             CREATE TABLE IF NOT EXISTS recovery_marker (id INT PRIMARY KEY);
-            INSERT IGNORE INTO recovery_marker (id) VALUES (1);
+            INSERT INTO recovery_marker (id) VALUES (1) ON CONFLICT DO NOTHING;
             ALTER TABLE migration_precondition ADD COLUMN IF NOT EXISTS ready INT;
             """
                 .trimIndent(),
@@ -278,7 +298,8 @@ class MigrationsIT {
         val flyway =
             Flyway.configure()
                 .dataSource(database.jdbcUrl, database.username, database.password)
-                .locations("classpath:db/migration", "filesystem:$recovery")
+                .locations("classpath:db/postgresql", "filesystem:$recovery")
+                .placeholders(mapOf("propertyId" to com.villarosa.service.PropertyScope.ID))
                 .cleanDisabled(true)
                 .baselineOnMigrate(false)
                 .load()
@@ -286,10 +307,14 @@ class MigrationsIT {
         assertThrows<FlywayException> { flyway.migrate() }
         connection().use { connection ->
             connection.createStatement().use { statement ->
-                statement.executeQuery("SELECT COUNT(*) FROM recovery_marker").use { result ->
-                    result.next()
-                    assertThat(result.getInt(1)).isEqualTo(1)
-                }
+                statement
+                    .executeQuery(
+                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='recovery_marker'"
+                    )
+                    .use { result ->
+                        result.next()
+                        assertThat(result.getInt(1)).isZero()
+                    }
                 statement.executeQuery("SELECT COUNT(*) FROM reservations").use { result ->
                     result.next()
                     assertThat(result.getInt(1)).isEqualTo(1)
@@ -297,7 +322,6 @@ class MigrationsIT {
                 statement.execute("CREATE TABLE migration_precondition (id INT PRIMARY KEY)")
             }
         }
-        flyway.repair()
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1)
         assertThat(flyway.migrate().migrationsExecuted).isZero()
         flyway.validate()
@@ -334,7 +358,9 @@ class MigrationsIT {
                     "INSERT INTO reservations (id, customer_id, room_id, start_date, end_date) VALUES (1, 1, 1, '2026-03-28', '2026-03-30')"
                 )
                 statement.execute("ALTER TABLE customers ADD COLUMN email VARCHAR(254) NULL")
-                statement.execute("ALTER TABLE customers MODIFY COLUMN address VARCHAR(500) NULL")
+                statement.execute(
+                    "ALTER TABLE customers ALTER COLUMN address TYPE VARCHAR(500), ALTER COLUMN address DROP NOT NULL"
+                )
             }
         }
         val flyway =
@@ -362,7 +388,7 @@ class MigrationsIT {
                         assertThat(row.getString(6)).isEqualTo("2026-03-28")
                     }
                 statement.executeUpdate(
-                    "INSERT INTO customers (first_name,last_name) VALUES ('Walk','In')"
+                    "INSERT INTO customers (id,first_name,last_name) VALUES (2,'Walk','In')"
                 )
                 assertThrows<SQLException> {
                     statement.executeUpdate("UPDATE customers SET active=2 WHERE id=1")
@@ -424,7 +450,7 @@ class MigrationsIT {
                     statement.executeUpdate("UPDATE apartments SET reference='ROOM-1' WHERE id=2")
                 }
                 statement.executeUpdate(
-                    "INSERT INTO apartments (capacity, property_id, reference) VALUES (2,'other','ROOM-1')"
+                    "INSERT INTO apartments (id, capacity, property_id, reference) VALUES (3,2,'other','ROOM-1')"
                 )
             }
         }

@@ -12,7 +12,7 @@ x-app: &app
   logging: *logging
   environment: &app-env
     VILLAS_MODE: production
-    VILLAS_DB_URL: jdbc:mariadb://db:3306/villarosa
+    VILLAS_DB_URL: jdbc:postgresql://db:5432/villarosa
     VILLAS_DB_USERNAME: villas_runtime
     VILLAS_DB_PASSWORD_FILE: /run/secrets/db_runtime
     VILLAS_PUBLIC_URL: https://${VILLAS_DOMAIN:?Set the Villas domain}
@@ -22,19 +22,19 @@ x-app: &app
     db: { condition: service_healthy }
 services:
   db:
-    image: ${VILLAS_MARIADB_IMAGE:?Use the pinned MariaDB image}
+    image: ${VILLAS_POSTGRES_IMAGE:?Use the pinned PostgreSQL image}
     restart: unless-stopped
     logging: *logging
     environment:
-      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root
-      MARIADB_ROOT_HOST: localhost
-      MARIADB_DATABASE: villarosa
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_root
+      POSTGRES_USER: villas_root
+      POSTGRES_DB: villarosa
     secrets: [db_root, db_migration, db_runtime, db_backup]
     volumes:
-      - database:/var/lib/mysql
+      - database:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/10-villas.sh:ro
     healthcheck:
-      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      test: [CMD, pg_isready, --username=villas_root, --dbname=villarosa]
       interval: 5s
       timeout: 5s
       retries: 24
@@ -49,7 +49,7 @@ services:
     profiles: [operations]
     command: [migrate]
     environment:
-      VILLAS_DB_URL: jdbc:mariadb://db:3306/villarosa
+      VILLAS_DB_URL: jdbc:postgresql://db:5432/villarosa
       VILLAS_DB_USERNAME: villas_migration
       VILLAS_DB_PASSWORD_FILE: /run/secrets/db_migration
     secrets: [db_migration]

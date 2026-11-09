@@ -19,7 +19,7 @@ data class Customer(
     @Column(name = "address", length = 500) var address: String? = null,
     @JsonIgnore
     @Column(name = "property_id", nullable = false)
-    val propertyId: String = "villa-rosa",
+    val propertyId: String = com.villarosa.service.PropertyScope.ID,
     @Version @Column(nullable = false) var version: Long = 0,
     @Column(length = 254) var email: String? = null,
     @Column(length = 2000) var notes: String? = null,

@@ -254,7 +254,7 @@ constructor(
         val offer = quotes.create(b.id!!, "2026-11-07", "2026-11-10", 2)
         val stable = key()
         jdbc.execute(
-            "CREATE TRIGGER synthetic_allocation_failure BEFORE INSERT ON inventory_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic allocation failure'"
+            "CREATE OR REPLACE FUNCTION synthetic_allocation_failure_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic allocation failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER synthetic_allocation_failure BEFORE INSERT ON inventory_events FOR EACH ROW EXECUTE FUNCTION synthetic_allocation_failure_fn()"
         )
         try {
             assertThrows<RuntimeException> {
@@ -269,7 +269,7 @@ constructor(
                 )
             }
         } finally {
-            jdbc.execute("DROP TRIGGER synthetic_allocation_failure")
+            jdbc.execute("DROP TRIGGER synthetic_allocation_failure ON inventory_events")
         }
         assertThat(allocations.page(id, "0", 100, null)).isEqualTo(before)
         assertThat(readiness.read(a.id!!).state).isEqualTo(ReadinessState.CLEAN)
@@ -295,7 +295,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

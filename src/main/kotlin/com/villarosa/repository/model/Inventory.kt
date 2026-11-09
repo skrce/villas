@@ -45,7 +45,7 @@ data class InventoryOperation(
     @Column(name = "operation_kind", nullable = false, length = 32) val kind: String = "",
     @Column(name = "operation_key", nullable = false, length = 36) val key: String = "",
     @Column(name = "request_hash", nullable = false, length = 64) val requestHash: String = "",
-    @Column(name = "result_json", columnDefinition = "LONGTEXT") val resultJson: String? = null,
+    @Column(name = "result_json", columnDefinition = "TEXT") val resultJson: String? = null,
     @Column(name = "created_at", nullable = false) val createdAt: Instant = Instant.now(),
 )
 

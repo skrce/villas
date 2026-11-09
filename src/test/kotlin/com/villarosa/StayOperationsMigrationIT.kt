@@ -13,7 +13,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
 class StayOperationsMigrationIT {
-    @Container val database = TestDatabases.mariaDb()
+    @Container val database = TestDatabases.postgres()
 
     @ParameterizedTest
     @MethodSource("prefixes")
@@ -39,7 +39,7 @@ class StayOperationsMigrationIT {
                         .use { it.next() }
                 if (tableExists)
                     sql.executeUpdate(
-                        "INSERT INTO room_readiness(room_id,property_id,state,version,changed_at) VALUES (1,'villa-rosa','CLEAN',4,'2026-11-07 00:00:00') ON DUPLICATE KEY UPDATE state='CLEAN',version=4"
+                        "INSERT INTO room_readiness(room_id,property_id,state,version,changed_at) VALUES (1,'villa-rosa','CLEAN',4,'2026-11-07 00:00:00') ON CONFLICT (room_id) DO UPDATE SET state='CLEAN',version=4"
                     )
             }
         }
@@ -109,7 +109,7 @@ class StayOperationsMigrationIT {
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password).use {
             connection ->
             connection.createStatement().use { sql ->
-                sql.execute("SET time_zone='+03:00'")
+                sql.execute("SET TIME ZONE 'Europe/Moscow'")
                 sql.executeUpdate(
                     "INSERT INTO apartments(id,capacity,name,reference) VALUES (1,4,'Synthetic UTC room','UTC-1')"
                 )
@@ -132,7 +132,7 @@ class StayOperationsMigrationIT {
             checkNotNull(
                     StayOperationsMigrationIT::class
                         .java
-                        .getResource("/db/migration/V12__stay_operations.sql")
+                        .getResource("/db/postgresql/V12__stay_operations.sql")
                 )
                 .readText()
                 .split(';')

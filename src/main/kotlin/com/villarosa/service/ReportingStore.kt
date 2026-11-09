@@ -24,24 +24,27 @@ object ReportMoney {
           GROUP BY e.property_id,e.reservation_id
         ) f ON f.property_id=r.property_id AND f.reservation_id=r.id
     """
-    const val AMOUNT = "CAST(JSON_VALUE(p.quote_json,'$.price.totalCents') AS DECIMAL(65,0))"
+    private const val CENTS = "(p.quote_json::json #>> '{price,totalCents}')"
+    const val AMOUNT =
+        "CASE WHEN $CENTS ~ '^[1-9][0-9]{0,15}$' THEN CAST($CENTS AS NUMERIC(65,0)) ELSE NULL END"
     const val INVALID_SOURCE =
         """r.accepted_quote_id IS NOT NULL AND (
         p.id IS NULL
-        OR COALESCE(JSON_TYPE(JSON_EXTRACT(p.quote_json,'$.price.totalCents')),'')<>'INTEGER'
-        OR COALESCE(JSON_VALUE(p.quote_json,'$.price.totalCents'),'') NOT REGEXP '^[1-9][0-9]{0,15}$'
+        OR COALESCE(json_typeof(p.quote_json::json #> '{price,totalCents}'),'')<>'number'
+        OR COALESCE($CENTS,'') !~ '^[1-9][0-9]{0,15}$'
         OR ($AMOUNT) NOT BETWEEN 1 AND 9007199254740991
-        OR BINARY COALESCE(JSON_VALUE(p.quote_json,'$.id'),'')<>BINARY r.accepted_quote_id
-        OR BINARY COALESCE(JSON_VALUE(p.quote_json,'$.price.currency'),'')<>'EUR'
-        OR BINARY COALESCE(JSON_VALUE(p.quote_json,'$.startDate'),'')<>BINARY CAST(r.start_date AS CHAR)
-        OR BINARY COALESCE(JSON_VALUE(p.quote_json,'$.endDate'),'')<>BINARY CAST(r.end_date AS CHAR)
+        OR COALESCE(p.quote_json::json ->> 'id','')<>r.accepted_quote_id
+        OR COALESCE(p.quote_json::json #>> '{price,currency}','')<>'EUR'
+        OR COALESCE(p.quote_json::json ->> 'startDate','')<>CAST(r.start_date AS TEXT)
+        OR COALESCE(p.quote_json::json ->> 'endDate','')<>CAST(r.end_date AS TEXT)
     )"""
     const val AGREED = "CASE WHEN p.id IS NULL THEN NULL ELSE $AMOUNT END"
     const val OWED =
         "CASE WHEN p.id IS NULL THEN NULL WHEN r.stay_phase IN ('CANCELLED','NO_SHOW') THEN 0 ELSE $AMOUNT END"
     const val RECEIVED = "(COALESCE(f.paid,0)-COALESCE(f.refunded,0))"
-    const val OUTSTANDING = "GREATEST(0,($OWED)-$RECEIVED)"
-    const val CREDIT = "GREATEST(0,$RECEIVED-($OWED))"
+    const val OUTSTANDING =
+        "CASE WHEN ($OWED) IS NULL THEN NULL ELSE GREATEST(0,($OWED)-$RECEIVED) END"
+    const val CREDIT = "CASE WHEN ($OWED) IS NULL THEN NULL ELSE GREATEST(0,$RECEIVED-($OWED)) END"
     const val FIELDS =
         "($AGREED) AS agreed,($OWED) AS owed,($RECEIVED) AS received,($OUTSTANDING) AS outstanding,($CREDIT) AS credit"
 
@@ -104,7 +107,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
     fun rooms(room: Int?) =
         jdbc
             .query(
-                "SELECT id,name,reference,capacity,active FROM apartments WHERE property_id=? AND (? IS NULL OR id=?) ORDER BY id LIMIT ?",
+                "SELECT id,name,reference,capacity,active FROM apartments WHERE property_id=? AND (CAST(? AS INTEGER) IS NULL OR id=?) ORDER BY id LIMIT ?",
                 { r, _ ->
                     CalendarRoom(
                         r.getInt(1),
@@ -181,7 +184,7 @@ class ReportingStore(private val jdbc: JdbcTemplate) {
     fun maintenance(dates: StayDates, room: Int?) =
         jdbc
             .query(
-                "SELECT id,room_id,start_date,end_date,reason,version FROM maintenance_blocks WHERE property_id=? AND status='ACTIVE' AND start_date<? AND end_date>? AND (? IS NULL OR room_id=?) ORDER BY room_id,start_date,id LIMIT ?",
+                "SELECT id,room_id,start_date,end_date,reason,version FROM maintenance_blocks WHERE property_id=? AND status='ACTIVE' AND start_date<? AND end_date>? AND (CAST(? AS INTEGER) IS NULL OR room_id=?) ORDER BY room_id,start_date,id LIMIT ?",
                 { r, _ ->
                     CalendarMaintenance(
                         r.getInt(1),

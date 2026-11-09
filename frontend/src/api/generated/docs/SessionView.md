@@ -11,6 +11,8 @@ Name | Type
 `expiresAt` | Date
 `generation` | string
 `permissions` | Array&lt;string&gt;
+`propertyId` | string
+`propertyName` | string
 `provider` | string
 `staff` | [StaffView](StaffView.md)
 
@@ -26,6 +28,8 @@ const example = {
   "expiresAt": null,
   "generation": null,
   "permissions": null,
+  "propertyId": null,
+  "propertyName": null,
   "provider": null,
   "staff": null,
 } satisfies SessionView

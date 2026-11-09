@@ -283,12 +283,12 @@ constructor(
             val count = ledger.history(booking, "0", 100).items.size
             val stable = key()
             jdbc.execute(
-                "CREATE TRIGGER synthetic_ledger_failure BEFORE INSERT ON business_events FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic ledger failure'"
+                "CREATE OR REPLACE FUNCTION synthetic_ledger_failure_fn() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'Synthetic ledger failure' USING ERRCODE='45000'; END \$\$; CREATE TRIGGER synthetic_ledger_failure BEFORE INSERT ON business_events FOR EACH ROW EXECUTE FUNCTION synthetic_ledger_failure_fn()"
             )
             try {
                 assertThrows<RuntimeException> { action(stable) }
             } finally {
-                jdbc.execute("DROP TRIGGER synthetic_ledger_failure")
+                jdbc.execute("DROP TRIGGER synthetic_ledger_failure ON business_events")
             }
             assertThat(version()).isEqualTo(expected)
             assertThat(ledger.history(booking, "0", 100).items).hasSize(count)
@@ -306,7 +306,7 @@ constructor(
 
     @Test
     fun historiesAreBoundedAndIdsRemainStringsBeyondJavascriptPrecision() {
-        jdbc.execute("ALTER TABLE ledger_entries AUTO_INCREMENT=9007199254741000")
+        jdbc.execute("ALTER TABLE ledger_entries ALTER COLUMN id RESTART WITH 9007199254741000")
         val a = pay(100).ledgerEntry!!
         val b = pay(200).ledgerEntry!!
         assertThat(a.id.toLong()).isGreaterThan(EuroCents.MAX)
@@ -416,7 +416,7 @@ constructor(
     }
 
     companion object {
-        @Container @JvmField val database = TestDatabases.mariaDb()
+        @Container @JvmField val database = TestDatabases.postgres()
 
         @JvmStatic
         @BeforeAll

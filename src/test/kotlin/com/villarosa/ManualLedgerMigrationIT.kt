@@ -11,7 +11,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 @Testcontainers
 class ManualLedgerMigrationIT {
-    @Container val database = TestDatabases.mariaDb()
+    @Container val database = TestDatabases.postgres()
 
     @ParameterizedTest
     @ValueSource(ints = [0, 1, 2])
@@ -29,7 +29,7 @@ class ManualLedgerMigrationIT {
                     "INSERT INTO reservations(id,customer_id,room_id,start_date,end_date,version) VALUES(1,1,1,'2030-01-01','2030-01-03',7),(2,1,1,'2030-02-01','2030-02-03',2)"
                 )
                 sql.executeUpdate(
-                    "INSERT INTO staff_accounts(id,property_id,issuer,subject,email,role,active,security_version,version,created_at) VALUES('00000000-0000-0000-0000-000000000001','villa-rosa','http://synthetic','synthetic','owner@example.test','OWNER',TRUE,0,0,UTC_TIMESTAMP(6))"
+                    "INSERT INTO staff_accounts(id,property_id,issuer,subject,email,role,active,security_version,version,created_at) VALUES('00000000-0000-0000-0000-000000000001','villa-rosa','http://synthetic','synthetic','owner@example.test','OWNER',TRUE,0,0,CURRENT_TIMESTAMP(6))"
                 )
                 statements().take(prefix).forEach { sql.execute(it) }
                 if (prefix == 2) {
@@ -80,7 +80,7 @@ class ManualLedgerMigrationIT {
                     sql.executeUpdate("UPDATE ledger_entries SET $change WHERE id=1")
                 }
                 sql.executeUpdate(
-                    "INSERT INTO ledger_entries(id,property_id,reservation_id,reservation_version,actor_id,operation_key,kind,currency,amount_cents,method,payment_id,reason,effective_date,recorded_at) VALUES(2,'villa-rosa',1,9,'00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','REFUND','EUR',501,'CASH',1,'Synthetic refund','2026-11-07',UTC_TIMESTAMP(6))"
+                    "INSERT INTO ledger_entries(id,property_id,reservation_id,reservation_version,actor_id,operation_key,kind,currency,amount_cents,method,payment_id,reason,effective_date,recorded_at) VALUES(2,'villa-rosa',1,9,'00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000002','REFUND','EUR',501,'CASH',1,'Synthetic refund','2026-11-07',CURRENT_TIMESTAMP(6))"
                 )
                 assertThrows<SQLException> {
                     sql.executeUpdate("UPDATE ledger_entries SET reservation_id=2 WHERE id=2")
@@ -93,10 +93,10 @@ class ManualLedgerMigrationIT {
     }
 
     private fun paymentSql() =
-        "INSERT INTO ledger_entries(id,property_id,reservation_id,reservation_version,actor_id,operation_key,kind,currency,amount_cents,method,effective_date,recorded_at) VALUES(1,'villa-rosa',1,8,'00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','PAYMENT','EUR',2501,'CASH','2026-11-07',UTC_TIMESTAMP(6))"
+        "INSERT INTO ledger_entries(id,property_id,reservation_id,reservation_version,actor_id,operation_key,kind,currency,amount_cents,method,effective_date,recorded_at) VALUES(1,'villa-rosa',1,8,'00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000001','PAYMENT','EUR',2501,'CASH','2026-11-07',CURRENT_TIMESTAMP(6))"
 
     private fun statements() =
-        checkNotNull(javaClass.getResource("/db/migration/V13__manual_ledger.sql"))
+        checkNotNull(javaClass.getResource("/db/postgresql/V13__manual_ledger.sql"))
             .readText()
             .split(';')
             .map(String::trim)

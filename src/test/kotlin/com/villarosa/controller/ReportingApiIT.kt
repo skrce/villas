@@ -111,7 +111,7 @@ constructor(
     companion object {
         @org.testcontainers.junit.jupiter.Container
         @JvmField
-        val database = com.villarosa.TestDatabases.mariaDb()
+        val database = com.villarosa.TestDatabases.postgres()
 
         @JvmStatic
         @org.junit.jupiter.api.BeforeAll
