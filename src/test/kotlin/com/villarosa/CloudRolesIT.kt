@@ -64,6 +64,9 @@ class CloudRolesIT {
                 it.createStatement().use { sql ->
                     sql.executeQuery("SELECT property_id FROM staff_property_lock FOR UPDATE")
                         .use { rows -> assertThat(rows.next()).isTrue() }
+                    sql.executeQuery("SELECT active FROM businesses FOR SHARE").use { rows ->
+                        assertThat(rows.next()).isTrue()
+                    }
                     sql.executeQuery("SELECT singleton FROM staff_identity_lock FOR UPDATE").use {
                         rows ->
                         assertThat(rows.next()).isTrue()

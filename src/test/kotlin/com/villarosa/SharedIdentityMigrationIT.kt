@@ -53,10 +53,15 @@ class SharedIdentityMigrationIT {
             names.associateWith { table ->
                 require(table.matches(Regex("[a-z_]+")))
                 connection.createStatement().use { statement ->
-                    statement.executeQuery("SELECT row_to_json(t)::text FROM $table t").use { rows
-                        ->
-                        buildList { while (rows.next()) add(rows.getString(1)) }.sorted()
-                    }
+                    statement
+                        .executeQuery(
+                            if (table == "businesses")
+                                "SELECT (to_jsonb(t)-'lock_token')::text FROM $table t"
+                            else "SELECT row_to_json(t)::text FROM $table t"
+                        )
+                        .use { rows ->
+                            buildList { while (rows.next()) add(rows.getString(1)) }.sorted()
+                        }
                 }
             }
         }
@@ -98,6 +103,10 @@ class SharedIdentityMigrationIT {
             .isEqualTo(if (sameSubject) "1" else "2")
         assertThat(scalar("SELECT id FROM staff_identities WHERE subject='synthetic-owner'"))
             .isEqualTo("00000000-0000-0000-0000-000000000001")
+        assertThat(
+                scalar("SELECT COUNT(*) FROM businesses WHERE lock_token<>0 OR lock_token IS NULL")
+            )
+            .isEqualTo("0")
         assertThat(scalar("SELECT COUNT(*) FROM spring_session")).isEqualTo("0")
         assertThat(scalar("SELECT COUNT(*) FROM spring_session_attributes")).isEqualTo("0")
         assertThat(migrate().migrationsExecuted).isZero()

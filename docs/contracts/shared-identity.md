@@ -94,6 +94,10 @@ read and membership locks before existing domain locks. Refreshing the locked bu
 entity rechecks active state after a wait. Revocation/rename/deactivation committed
 before these locks prevents the write; an already-admitted write finishes first.
 
+The business registry has a constrained zero-valued `lock_token` column. PostgreSQL
+requires an UPDATE privilege for locking SELECTs; runtime receives column-only UPDATE
+on that token, with no authority to edit business settings or create businesses.
+
 Only offline bootstrap/recovery omits a staff actor. It still locks the business and
 records its system invitation event. The runtime can update identity coordination and
 validated identity/membership data but cannot create businesses, coordination rows or

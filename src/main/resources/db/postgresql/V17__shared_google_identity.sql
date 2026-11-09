@@ -1,3 +1,7 @@
+-- Locking SELECTs require an UPDATE grant; the zero token keeps business settings read-only.
+ALTER TABLE businesses ADD COLUMN lock_token SMALLINT NOT NULL DEFAULT 0
+    CONSTRAINT business_lock_token CHECK(lock_token=0);
+
 CREATE TABLE staff_identities (
     id VARCHAR(36) NOT NULL PRIMARY KEY,
     issuer VARCHAR(255) NOT NULL CHECK (CHAR_LENGTH(issuer)>0),

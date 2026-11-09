@@ -20,7 +20,7 @@ Property IDs are not client-controlled fields in the console.
 | `staff_accounts` | Per-business Owner membership retaining the original staff/actor ID, active state and independent security generation; issuer/subject references the canonical identity. |
 | `staff_identity_lock` | Global sign-in/onboarding coordination only. |
 | `business_onboarding` | Per-business setup hash and scoped first-invitation receipt for operator retries; runtime cannot insert it. |
-| `businesses` | Stable tenant ID, validated display name, active state, EUR, Europe/Skopje, version and UTC creation instant. Runtime cannot create or change registry entries. |
+| `businesses` | Stable tenant ID, validated display name, active state, EUR, Europe/Skopje, version and UTC creation instant. Runtime cannot create or change business settings; column-only UPDATE on a constrained zero lock token supports locking SELECTs. |
 | `apartments` | Named room with a property-unique uppercase reference, capacity, orientation/view/bed/features/floor, optional legacy test price integers, active/archive flag, optimistic version, and property scope |
 | `customers` | Required first/last names, optional phone/email/address/notes, active/archive flag, optimistic version, and property scope. No uniqueness claim on shared contacts. |
 | `reservations` | Guest/room references, SQL DATE check-in/out, positive guest count, status/version, UTC creation instant, property scope and accepted quote reference. Historical records may have no price. |
