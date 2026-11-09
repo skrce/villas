@@ -101,11 +101,19 @@
     <build>
         <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
         <testSourceDirectory>${project.basedir}/src/test/kotlin</testSourceDirectory>
+        <resources>
+            <resource><directory>src/main/resources</directory></resource>
+            <resource>
+                <directory>deploy</directory>
+                <targetPath>release</targetPath>
+                <includes><include>runtime-grants.sql</include></includes>
+            </resource>
+        </resources>
         <testResources>
             <testResource><directory>src/test/resources</directory></testResource>
             <testResource>
                 <directory>${project.basedir}</directory>
-                <includes><include>postgres-image.txt</include><include>deploy/recovery-quarantine.sql</include></includes>
+                <includes><include>postgres-image.txt</include><include>deploy/recovery-quarantine.sql</include><include>deploy/cloud/*.sql</include></includes>
             </testResource>
         </testResources>
         <plugins>

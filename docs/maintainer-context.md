@@ -61,8 +61,8 @@ are retained seven days, with 24-hour loss/recovery targets. Actual resource set
 monitoring ownership and live verification remain open. No cloud deployment or
 production/pilot acceptance is implied by the local demo.
 
-For the next release session, inspect #11 and the current PR/CI heads first. Follow the confirmed
-D04 architecture and [PostgreSQL transition](postgresql-transition.md); prepare
+For the next release session, inspect #11 and the current PR/CI heads first. Follow [Cloud Run + Neon](cloud-run-neon.md), the confirmed
+D04 architecture and [PostgreSQL transition](postgresql-transition.md); configure
 separate per-business resources within the free-tier target; set up the Villas-specific Google
 client under #4 when the Owner is ready. Configure separate staging/production
 secrets and off-server protection, qualify external availability/alert delivery,
@@ -127,6 +127,7 @@ gate even when all implementation PRs are merged.
 | Generated API contract/client | `frontend/openapi.json`, `frontend/src/api/generated/`, `ApiContractTest.kt`, `scripts/sync-openapi.mjs`, `generate-api.mjs` |
 | Local process/database ownership | `scripts/local-db.mjs`, `dev-db.mjs`, `run-api.mjs`, `demo.mjs`, `e2e.mjs` |
 | Release image, secrets, SPA, health and isolated container rehearsal | `deploy/`, `scripts/build-release.mjs`, `release-check.mjs`, `PrivateSettings.kt`, `ReleaseHttp.kt` |
+| Frankfurt setup, phased workload creation, keyless publication and operator rollout | `deploy/cloud/`, `.github/workflows/release.yml`, `scripts/cloud-*.mjs`, `publish-release.mjs`, `docs/cloud-run-neon.md` |
 | Encrypted streams, isolated restore, session quarantine and privacy-safe alerts | `deploy/backup.mjs`, `backup.compose.yaml`, `restore.compose.yaml`, `recovery-quarantine.sql`, `monitor.mjs`, `ops/OperationalSignals.kt` |
 
 Backend paths in the table are relative to `src/main/kotlin/com/villarosa/` unless
@@ -186,7 +187,7 @@ After-await UI/cache/draft side effects belong in its guarded completion callbac
 
 ## Run and verify
 
-Use pinned versions from `.java-version`, `.node-version`, `frontend/package.json`
+Use pinned versions from `.java-version`, `.node-version`, `terraform-version.txt`, `frontend/package.json`
 and the checked-in Maven wrapper. From this repository, with Docker available:
 
 ```sh
@@ -195,7 +196,9 @@ npm --prefix frontend ci
 node scripts/check.mjs
 ```
 
-The full check runs clean Maven verification, native PostgreSQL migrations/concurrency
+The full check also requires the pinned Terraform binary (`VILLAS_TERRAFORM_BINARY`
+may supply its absolute path). Cloud validation uses mock providers without a
+backend or account. The full check runs clean Maven verification, native PostgreSQL migrations/concurrency
 checks, OpenAPI/client drift checks, frontend formatting/lint/coverage/build, owned
 launcher tests and Chromium against the packaged API, disposable PostgreSQL and synthetic
 OIDC. Do not replace native tests with H2 or silently skip them. For a contract change,
@@ -218,9 +221,13 @@ before expecting merged backend changes to appear in a packaged demo.
 ## Delivery checklist
 
 For an ordinary app update, follow [the later-change release procedure](deployment.md#releasing-a-later-change).
-CI currently checks and rehearses images. Registry publication and staging/production
-deployment jobs require the selected personal resources and live verification. ABL's release controls inform that implementation. Villas has its own resources,
-credentials, migrations and acceptance evidence. PostgreSQL is the approved database.
+CI checks/rehearses images and validates cloud templates with mock providers. The
+[Cloud Run + Neon guide](cloud-run-neon.md) owns keyless registry publication and
+the explicit staging/production operator rollout. The publisher cannot deploy or
+read secrets. Frankfurt templates have phased secrets/jobs/service initialization,
+private defaults, static maintenance and runtime database fencing. Actual resources,
+Google clients, alert delivery, off-server recovery and the pilot remain open.
+Villas uses separate personal resources from ABL and every other business.
 
 Use a `codex/` branch and small PRs linked to the active milestone. Keep an independent
 review on each PR, address material findings, run required checks and merge only after

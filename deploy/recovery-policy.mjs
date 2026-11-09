@@ -31,3 +31,16 @@ export function backupDelay(environment = process.env) {
   }
   return delay;
 }
+
+export function protectedSnapshotAge(snapshots, host, now = Date.now()) {
+  if (!Array.isArray(snapshots)) throw new Error('Backup snapshot metadata is unavailable.');
+  const instants = snapshots.flatMap(snapshot => {
+    if (snapshot?.hostname !== host || !Array.isArray(snapshot.paths) || snapshot.paths.length !== 1 || snapshot.paths[0] !== '/villas.dump' || !/^[a-f0-9]{64}$/.test(snapshot.id ?? '') || !Array.isArray(snapshot.tags) || !snapshot.tags.includes('villas-complete')) return [];
+    const tags = snapshot.tags.filter(tag => /^villas-protected-[0-9]{13}$/.test(tag));
+    if (tags.length !== 1) return [];
+    const instant = Number(tags[0].slice('villas-protected-'.length));
+    return instant > 0 && instant <= now ? [instant] : [];
+  });
+  if (!instants.length) throw new Error('No verified backup protection time is available.');
+  return Math.floor((now - Math.max(...instants)) / 1000);
+}

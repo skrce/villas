@@ -1,5 +1,11 @@
 # Operational signals and alerts
 
+The selected [Cloud Run + Neon setup](cloud-run-neon.md#backups-recovery-and-signals)
+uses fixed application logs and provider metrics/alerts. Cloud mode denies all
+`/internal/**` HTTP endpoints; `/health` is data-free. Offline schema checks and
+GCS metadata freshness jobs replace continuous database readiness polling. The
+private-loopback monitor described below remains the Docker Compose reference.
+
 Operational ownership, actual alert destination and deployed verification remain open
 under D04. The repository provides private counters, bounded logging, a monitor and
 local synthetic delivery tests. It has not sent a real operational alert.

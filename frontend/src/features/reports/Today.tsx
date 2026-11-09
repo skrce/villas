@@ -12,11 +12,13 @@ import { deskLabel, phaseLabel, type DeskList } from "../../shared/operations";
 import { Empty, Notice, PageHead, Pending } from "../../shared/ui";
 import { errorMessage } from "../../shared/errors";
 import { useOnline } from "../../shared/useOnline";
+import { useActivity } from "../../shared/useActivity";
 import { todaySchema, type Today as TodayData } from "./data";
 
 export function Today() {
   const { apis } = useWorkspace();
   const online = useOnline();
+  const active = useActivity();
   const query = useQuery({
     queryKey: ["today"],
     queryFn: async ({ signal }) => {
@@ -27,7 +29,7 @@ export function Today() {
       }
     },
     staleTime: 0,
-    refetchInterval: 60_000,
+    refetchInterval: active ? 60_000 : false,
     refetchOnWindowFocus: true,
   });
   const data = query.data;
@@ -77,6 +79,12 @@ export function Today() {
             Property day {dateLabel(data.propertyDate)} · Europe/Skopje · Read{" "}
             {eventLabel(new Date(data.readAt))}
           </p>
+          {!active && (
+            <p className="hint" role="status">
+              Automatic refresh paused while idle. Use Refresh today for the
+              latest records.
+            </p>
+          )}
           {(!online || query.isError) && (
             <Notice error>
               These are previously loaded records. Refresh when connected before

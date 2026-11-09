@@ -5,6 +5,11 @@ commands are distinct from deployed acceptance. Keep [issue #11](https://github.
 consistent with this record. [Real Google acceptance](https://github.com/skrce/villas/issues/4)
 is still open.
 
+Frankfurt setup and routine upgrades follow [Cloud Run + Neon](cloud-run-neon.md).
+Templates/mock-provider checks, image publication, actual provisioning, live Google,
+delivered alerts, timed off-server restore and the Owner pilot are separate evidence.
+Custom domain remains deferred; provider HTTPS is sufficient for the first release.
+
 | Gate | Required evidence | Status |
 | --- | --- | --- |
 | Environment | Owner-approved personal host, domain, TLS, budget, availability and operational owner | Frankfurt Cloud Run + Neon confirmed; actual resources and live verification pending |

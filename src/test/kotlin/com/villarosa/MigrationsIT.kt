@@ -23,6 +23,44 @@ class MigrationsIT {
         DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
 
     @Test
+    fun offlineCheckRequiresTheWholeSchemaAndMatchingBusinessWithoutApplyingPendingMigrations() {
+        DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "14")
+            .migrate()
+        assertThrows<FlywayException> {
+            DatabaseMigrations.check(database.jdbcUrl, database.username, database.password)
+        }
+        assertThat(
+                DatabaseMigrations.configured(
+                        database.jdbcUrl,
+                        database.username,
+                        database.password,
+                    )
+                    .info()
+                    .pending()
+            )
+            .hasSize(1)
+        DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+        connection().use {
+            it.createStatement().use { sql ->
+                sql.execute(
+                    "CREATE ROLE schema_check LOGIN PASSWORD 'synthetic'; GRANT CONNECT ON DATABASE ${database.databaseName} TO schema_check; GRANT USAGE ON SCHEMA public TO schema_check; GRANT SELECT ON ALL TABLES IN SCHEMA public TO schema_check"
+                )
+            }
+        }
+        DatabaseMigrations.check(database.jdbcUrl, "schema_check", "synthetic")
+        connection().use {
+            it.createStatement().use { sql ->
+                sql.executeUpdate(
+                    "UPDATE property_identity SET property_id='other-business' WHERE singleton=1"
+                )
+            }
+        }
+        assertThrows<IllegalArgumentException> {
+            DatabaseMigrations.check(database.jdbcUrl, "schema_check", "synthetic")
+        }
+    }
+
+    @Test
     fun anotherBusinessBindingRejectsTheUpgradeBeforeAnyDdl() {
         DatabaseMigrations.configured(database.jdbcUrl, database.username, database.password, "14")
             .migrate()

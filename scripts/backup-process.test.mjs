@@ -100,3 +100,26 @@ else if(process.argv[2]==='dump') process.stdout.write(Buffer.alloc(16*1024*1024
     assert.equal(readFileSync(completed, 'utf8'), 'complete\ncomplete\n');
   } finally { f.close(); }
 });
+
+test('GCS freshness reads durable protection metadata without database credentials or ambient Google keys', async () => {
+  const f = fixture(); const calls = join(f.directory, 'cloud-calls');
+  try {
+    delete f.env.VILLAS_BACKUP_REPOSITORY_FILE;
+    delete f.env.VILLAS_BACKUP_CREDENTIALS_FILE;
+    delete f.env.VILLAS_BACKUP_DB_PASSWORD_FILE;
+    Object.assign(f.env, { VILLAS_CLOUD_RUN: '1', VILLAS_GOOGLE_PROJECT_ID: 'villas-synthetic-staging', VILLAS_BACKUP_REPOSITORY: 'gs:villas-synthetic-lake-backup:/repository', VILLAS_BACKUP_READ_ONLY: '1', GOOGLE_APPLICATION_CREDENTIALS: '/private/do-not-use.json', GOOGLE_ACCESS_TOKEN: 'must-not-escape' });
+    f.script('restic', `
+import {writeFileSync} from 'node:fs';
+writeFileSync(${JSON.stringify(calls)},JSON.stringify({args:process.argv.slice(2),env:process.env}));
+console.log(JSON.stringify([{id:'a'.repeat(64),hostname:'villas-rehearsal-test',paths:['/villas.dump'],tags:['villas-complete','villas-protected-'+(Date.now()-1000)]}]));
+`);
+    assert.equal((await f.run('check-age')).code, 0);
+    const record = JSON.parse(readFileSync(calls, 'utf8'));
+    assert.equal(record.env.GOOGLE_PROJECT_ID, 'villas-synthetic-staging');
+    for (const key of ['GOOGLE_APPLICATION_CREDENTIALS', 'GOOGLE_ACCESS_TOKEN', 'PGPASSWORD', 'HOME']) assert.equal(record.env[key], undefined);
+    assert.equal(record.args[0], '--no-lock');
+    assert.equal((await f.run('backup')).code, 1);
+    f.env.VILLAS_BACKUP_REPOSITORY = 's3:https://other.example.test/bucket';
+    assert.equal((await f.run('check-age')).code, 1);
+  } finally { f.close(); }
+});

@@ -1,0 +1,71 @@
+name: Publish verified release
+
+on:
+  workflow_dispatch:
+    inputs:
+      checks_run_id:
+        description: Successful master-push Checks run for this exact revision
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: villas-release-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/master'
+    environment: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VILLAS_CHECKS_RUN_ID: ${{ inputs.checks_run_id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with: { persist-credentials: false }
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with: { node-version-file: .node-version }
+      - run: node scripts/cloud-release-input.mjs
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.checks_run_id }}
+          name: backend-contract-and-app
+          path: target
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.checks_run_id }}
+          name: frontend-release
+          path: frontend/dist
+      - run: npm install --global npm@11.6.2
+      - run: npm --prefix frontend ci
+      - run: npx --no-install playwright install --with-deps chromium
+        working-directory: frontend
+      - run: node scripts/build-release.mjs
+      - run: node scripts/release-check.mjs
+      - run: node scripts/publish-release.mjs
+        env:
+          VILLAS_REGISTRY_PROJECT: ${{ vars.VILLAS_REGISTRY_PROJECT }}
+          VILLAS_WIF_PROVIDER: ${{ vars.VILLAS_WIF_PROVIDER }}
+          VILLAS_PUBLISHER_ACCOUNT: ${{ vars.VILLAS_PUBLISHER_ACCOUNT }}
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: verified-release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/release/build.json
+            target/release/verified.json
+            target/release/publication.json
+          if-no-files-found: error

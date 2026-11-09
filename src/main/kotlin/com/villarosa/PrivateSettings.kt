@@ -26,7 +26,9 @@ object PrivateSettings {
             .toMap()
 
     fun install() {
-        resolve().forEach { (name, value) -> System.setProperty(name, value) }
+        val settings = resolve()
+        CloudSettings.validate(System.getenv(), settings)
+        settings.forEach { (name, value) -> System.setProperty(name, value) }
     }
 
     private fun read(name: String, file: String): String {

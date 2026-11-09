@@ -40,5 +40,15 @@ private fun execute(args: Array<String>) {
         DatabaseMigrations.fromEnvironment()
         return
     }
+    if (args.contentEquals(arrayOf("check-schema"))) {
+        val settings = PrivateSettings.resolve()
+        DatabaseMigrations.check(
+            settings.getValue("VILLAS_DB_URL"),
+            settings.getValue("VILLAS_DB_USERNAME"),
+            settings.getValue("VILLAS_DB_PASSWORD"),
+        )
+        println("Villas schema and business binding verified.")
+        return
+    }
     runApplication<Application>(*args)
 }

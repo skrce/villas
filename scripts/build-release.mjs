@@ -51,6 +51,7 @@ try {
   rmSync(context, { recursive: true }); mkdirSync(context);
   cpSync(join(root, 'deploy/proxy.Dockerfile'), join(context, 'Dockerfile'));
   cpSync(join(root, 'deploy/Caddyfile'), join(context, 'Caddyfile'));
+  cpSync(join(root, 'deploy/maintenance.Caddyfile'), join(context, 'maintenance.Caddyfile'));
   run(['build', '--build-arg', `CADDY_IMAGE=${pins.proxy}`, '--label', `org.opencontainers.image.revision=${source}`, '--tag', `${prefix}-proxy:${source}`, context]);
   rmSync(context, { recursive: true }); mkdirSync(context);
   for (const name of ['backup.mjs', 'monitor.mjs', 'recovery-policy.mjs', 'recovery-quarantine.sql']) cpSync(join(root, 'deploy', name), join(context, name));

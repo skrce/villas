@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync 
 import { isAbsolute, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { backupDelay, maximumBackupJob } from './recovery-policy.mjs';
+import { backupDelay, maximumBackupJob, maximumBackupAge, protectedSnapshotAge } from './recovery-policy.mjs';
 
 const stageError = stage => new Error(`Villas backup operation failed at ${stage}. Inspect the private environment and repository; the target must remain quarantined after a restore failure.`);
 const privateLine = name => {
@@ -34,19 +34,28 @@ const sqlEnvironment = () => ({ PATH: process.env.PATH, TZ: 'UTC', PGPASSWORD: p
 const sqlArguments = () => {
   const host = process.env.VILLAS_BACKUP_DB_HOST;
   if (!/^[a-z0-9][a-z0-9.-]{0,252}$/.test(host ?? '')) throw stageError('database-host');
+  if (process.env.VILLAS_CLOUD_RUN === '1' && (!/^ep-[a-z0-9-]+(?:\.c-[0-9]+)?\.eu-central-1\.aws\.neon\.tech$/.test(host) || host.includes('-pooler'))) throw stageError('database-host');
   return [`--host=${host}`, '--port=5432', '--username=' + (process.argv[2] === 'restore' ? 'villas_migration' : 'villas_backup')];
 };
 const resticEnvironment = () => {
-  const repository = privateLine('VILLAS_BACKUP_REPOSITORY_FILE');
+  if (process.env.VILLAS_BACKUP_REPOSITORY && process.env.VILLAS_BACKUP_REPOSITORY_FILE) throw stageError('repository-source');
+  const repository = process.env.VILLAS_BACKUP_REPOSITORY ?? privateLine('VILLAS_BACKUP_REPOSITORY_FILE');
   const local = process.env.VILLAS_BACKUP_LOCAL_REHEARSAL === '1' && /^e2e-[a-f0-9]{12}$/.test(process.env.VILLAS_LOCAL_INSTANCE ?? '');
+  const gcs = /^gs:[a-z0-9][a-z0-9-]{2,61}[a-z0-9]:\/[a-z0-9/-]+$/.test(repository);
   if (isAbsolute(repository)) {
     if (!local) throw stageError('local-repository-is-rehearsal-only');
-  } else {
+  } else if (!gcs) {
     let url;
     try { url = new URL(repository.replace(/^s3:/, '')); } catch { throw stageError('repository'); }
     if (!repository.startsWith('s3:') || url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw stageError('repository');
   }
+  if (process.env.VILLAS_CLOUD_RUN === '1' && !gcs) throw stageError('cloud-repository');
   const env = { PATH: process.env.PATH, TZ: 'UTC', RESTIC_REPOSITORY: repository, RESTIC_PASSWORD: privateLine('VILLAS_BACKUP_PASSWORD_FILE'), RESTIC_CACHE_DIR: '/tmp/restic-cache' };
+  if (gcs) {
+    const project = process.env.VILLAS_GOOGLE_PROJECT_ID;
+    if (process.env.VILLAS_CLOUD_RUN !== '1' || process.env.VILLAS_BACKUP_CREDENTIALS_FILE || !/^villas-[a-z0-9-]{1,23}[a-z0-9]$/.test(project ?? '')) throw stageError('cloud-repository-identity');
+    env.GOOGLE_PROJECT_ID = project;
+  }
   if (process.env.VILLAS_BACKUP_CREDENTIALS_FILE) {
     let credentials;
     try {
@@ -109,7 +118,12 @@ const checked = async (command, args, env, stage, options) => {
   if (result.code !== 0) throw stageError(stage);
   return result.output;
 };
-const restic = (args, stage, capture = false) => checked('restic', args, resticEnvironment(), stage, { capture });
+const resticArguments = args => {
+  const readOnly = process.env.VILLAS_BACKUP_READ_ONLY === '1';
+  if (readOnly && !['check', 'snapshots', 'dump'].includes(args[0])) throw stageError('read-only-repository');
+  return readOnly ? ['--no-lock', ...args] : args;
+};
+const restic = (args, stage, capture = false) => checked('restic', resticArguments(args), resticEnvironment(), stage, { capture });
 const sql = (statement, stage) => checked('psql', [...sqlArguments(), '--no-psqlrc', '--quiet', '--tuples-only', '--no-align', '--set=ON_ERROR_STOP=1', '--dbname=villarosa'], sqlEnvironment(), stage, { capture: true, input: statement });
 const host = () => {
   const name = process.env.VILLAS_BACKUP_HOST;
@@ -169,7 +183,7 @@ const backup = async () => {
   let id;
   try { id = result.output.trim().split('\n').map(line => JSON.parse(line)).find(line => line.message_type === 'summary')?.snapshot_id; } catch { throw stageError('backup-summary'); }
   if (!/^[a-f0-9]{64}$/.test(id ?? '')) throw stageError('backup-summary');
-  await restic(['tag', '--remove', tag, '--add', 'villas-complete', id], 'snapshot-commit');
+  await restic(['tag', '--remove', tag, '--add', 'villas-complete', '--add', `villas-protected-${started}`, id], 'snapshot-commit');
   await restic(['forget', '--host', host(), '--path', '/villas.dump', '--tag', 'villas-complete', '--group-by', 'host,paths', '--keep-hourly', String(hourly), '--keep-daily', String(daily), '--prune'], 'retention');
   status(true, 'complete', started);
   console.log('villas_backup_complete');
@@ -184,7 +198,7 @@ const restore = async id => {
   try { snapshots = JSON.parse(await restic(['snapshots', '--json', '--host', host(), '--tag', 'villas-complete', id], 'snapshot-selection', true)); } catch { throw stageError('snapshot-selection'); }
   if (snapshots.length !== 1 || snapshots[0].id !== id || !snapshots[0].tags?.includes('villas-complete')) throw stageError('snapshot-selection');
   if ((await sql("SELECT (SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f'))+(SELECT COUNT(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public');", 'empty-target')).trim() !== '0') throw stageError('target-is-not-empty');
-  const metadataSource = start('restic', ['dump', id, '/villas.dump'], resticEnvironment(), { pipe: true }); metadataSource.child.stdin.end();
+  const metadataSource = start('restic', resticArguments(['dump', id, '/villas.dump']), resticEnvironment(), { pipe: true }); metadataSource.child.stdin.end();
   const metadata = start('pg_restore', ['--list'], { PATH: process.env.PATH, TZ: 'UTC' }, { capture: true, pipe: true });
   const listed = await transfer(metadataSource, metadata, { catalogue: true });
   if (listed.some(result => result.code !== 0)) throw stageError('restore-catalogue');
@@ -195,7 +209,7 @@ const restore = async id => {
     const entries = listed[1].output.split('\n').filter(line => !/^\d+; \d+ \d+ SCHEMA - public /.test(line));
     if (!entries.some(line => /^\d+;/.test(line))) throw stageError('restore-catalogue');
     writeFileSync(catalogue, entries.join('\n'), { mode: 0o600 });
-    const dump = start('restic', ['dump', id, '/villas.dump'], resticEnvironment(), { pipe: true }); dump.child.stdin.end();
+    const dump = start('restic', resticArguments(['dump', id, '/villas.dump']), resticEnvironment(), { pipe: true }); dump.child.stdin.end();
     const database = start('pg_restore', [...sqlArguments(), '--no-owner', '--no-acl', '--single-transaction', '--exit-on-error', `--use-list=${catalogue}`, '--dbname=villarosa'], sqlEnvironment(), { pipe: true }); database.child.stdout.resume();
     const results = await transfer(dump, database);
     if (results.some(result => result.code !== 0)) throw stageError('restore-stream');
@@ -207,8 +221,15 @@ const restore = async id => {
 
 try {
   const command = process.argv[2];
+  if (process.env.VILLAS_BACKUP_READ_ONLY === '1' && !['verify', 'check-age', 'snapshots', 'restore'].includes(command)) throw stageError('read-only-repository');
   if (command === 'init') await restic(['init'], 'repository-init');
   else if (command === 'verify') await restic(['check', '--read-data'], 'repository-check');
+  else if (command === 'check-age') {
+    const snapshots = JSON.parse(await restic(['snapshots', '--json', '--host', host(), '--tag', 'villas-complete'], 'snapshot-age', true));
+    const age = protectedSnapshotAge(snapshots, host());
+    if (age > maximumBackupAge()) throw stageError('snapshot-too-old');
+    console.log('villas_backup_fresh');
+  }
   else if (command === 'snapshots') console.log(await restic(['snapshots', '--json', '--host', host(), '--tag', 'villas-complete'], 'snapshots', true));
   else if (command === 'restore' && process.argv.length === 4) await restore(process.argv[3]);
   else if (command === 'backup') await runBackup();

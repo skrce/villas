@@ -41,7 +41,8 @@ object ReleasePaths : RequestMatcher {
         )
     private val detail = Regex("/(reservations|guests|rooms)/[0-9]+")
     private val asset = Regex("/assets/[A-Za-z0-9_.-]+\\.(js|css|svg|png|webp|woff2?)")
-    val health = setOf("/internal/health/live", "/internal/health/ready", "/internal/metrics")
+    val health =
+        setOf("/health", "/internal/health/live", "/internal/health/ready", "/internal/metrics")
 
     override fun matches(request: HttpServletRequest): Boolean {
         if (request.method != "GET") return false
@@ -110,7 +111,8 @@ class ReleaseHealth(private val dataSource: DataSource) {
             .map { checkNotNull(it.filename).substringAfter("V").substringBefore("__").toInt() }
             .sorted()
 
-    @GetMapping("/internal/health/live", produces = [MediaType.TEXT_PLAIN_VALUE]) fun live() = "UP"
+    @GetMapping("/health", "/internal/health/live", produces = [MediaType.TEXT_PLAIN_VALUE])
+    fun live() = "UP"
 
     @GetMapping("/internal/health/ready", produces = [MediaType.TEXT_PLAIN_VALUE])
     fun ready(): ResponseEntity<String> {
