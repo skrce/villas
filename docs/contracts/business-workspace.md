@@ -45,6 +45,10 @@ remain linked to that controller. Response bodies recheck their captured scope a
 parsing. Browser history selection runs before router pop-state listeners, and fetch
 admission also verifies the current URL.
 
+Transaction-time membership/business rechecks also return scoped 403 denials. A
+coordination row hidden by row security rechecks global identity before classifying
+the denial; canonical identity failures remain 401. The staff lock order is unchanged.
+
 A business denial immediately removes that grant from the local snapshot and hides
 its protected UI while refreshing global metadata. It does not log out other valid
 memberships. An unconfirmed global session hides every business until rechecked.

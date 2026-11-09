@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -654,9 +656,78 @@ constructor(
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
+    fun aHiddenStaffCoordinationRowDeniesOnlyTheUnavailableBusiness(deactivateBusiness: Boolean) {
+        val actor = access.resolve(login, "villa-rosa")
+        val browser = TestHttpSession.create(sessions, mvc, login)
+        if (deactivateBusiness)
+            operator.update("UPDATE businesses SET active=FALSE WHERE id='villa-rosa'")
+        else
+            operator.update(
+                "UPDATE staff_accounts SET security_version=security_version+1 WHERE property_id='villa-rosa' AND id=?",
+                actor.id,
+            )
+        val failure =
+            assertThrows<DomainException> {
+                directory.invite(actor, "must-not-invite@example.test", "villa-rosa")
+            }
+        assertThat(failure.code).isEqualTo("BUSINESS_ACCESS_DENIED")
+        assertThat(failure.status.value()).isEqualTo(403)
+        assertThat(
+                operator.queryForObject(
+                    "SELECT COUNT(*) FROM staff_invitations WHERE email='must-not-invite@example.test'",
+                    Long::class.java,
+                )
+            )
+            .isZero()
+        assertThat(access.person(login).id).isEqualTo(login.id)
+        mvc.perform(get("/api/v1/auth/session").cookie(browser.cookie))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.authenticated").value(true))
+            .andExpect(jsonPath("$.memberships[0].businessId").value("runtime-lake"))
+        mvc.perform(
+                get("/api/v1/apartments")
+                    .cookie(browser.cookie)
+                    .header("X-Villas-Business", "runtime-lake")
+            )
+            .andExpect(status().isOk)
+        mvc.perform(
+                get("/api/v1/apartments")
+                    .cookie(browser.cookie)
+                    .header("X-Villas-Business", "villa-rosa")
+            )
+            .andExpect(status().isForbidden)
+    }
+
+    @Test
+    fun canonicalRevocationBehindAHiddenCoordinationRowStillDeniesTheWholeSession() {
+        val actor = access.resolve(login, "villa-rosa")
+        val browser = TestHttpSession.create(sessions, mvc, login)
+        operator.update(
+            "UPDATE staff_identities SET security_version=security_version+1 WHERE id=?",
+            login.id,
+        )
+        val failure =
+            assertThrows<DomainException> {
+                directory.invite(actor, "must-not-invite@example.test", "villa-rosa")
+            }
+        assertThat(failure.code).isEqualTo("SESSION_REVOKED")
+        assertThat(failure.status.value()).isEqualTo(401)
+        mvc.perform(get("/api/v1/auth/session").cookie(browser.cookie))
+            .andExpect(status().isUnauthorized)
+        mvc.perform(
+                get("/api/v1/apartments")
+                    .cookie(browser.cookie)
+                    .header("X-Villas-Business", "runtime-lake")
+            )
+            .andExpect(status().isUnauthorized)
+    }
+
     @Test
     fun revocationCommittedWhileARestrictedWriteWaitsPreventsAllDomainChanges() {
         val actor = access.resolve(login, "villa-rosa")
+        val browser = TestHttpSession.create(sessions, mvc, login)
         val worker = Executors.newSingleThreadExecutor()
         try {
             DriverManager.getConnection(database.jdbcUrl, database.username, database.password)
@@ -700,7 +771,8 @@ constructor(
                             "The restricted write did not reach the expected database lock."
                         }
                         blocker.commit()
-                        assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo("SESSION_REVOKED")
+                        assertThat(result.get(10, TimeUnit.SECONDS))
+                            .isEqualTo("BUSINESS_ACCESS_DENIED")
                     } finally {
                         blocker.rollback()
                     }
@@ -713,6 +785,15 @@ constructor(
                 )
                 .isZero()
             inside("runtime-lake") { customers.createCustomer("Still", "Authorized", null, null) }
+            mvc.perform(get("/api/v1/auth/session").cookie(browser.cookie))
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.authenticated").value(true))
+            mvc.perform(
+                    get("/api/v1/apartments")
+                        .cookie(browser.cookie)
+                        .header("X-Villas-Business", "runtime-lake")
+                )
+                .andExpect(status().isOk)
         } finally {
             worker.shutdownNow()
             check(worker.awaitTermination(10, TimeUnit.SECONDS))

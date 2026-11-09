@@ -72,7 +72,7 @@ constructor(
                     TestData.ownerIdentity().id,
                 )
             }
-            assertThat(result.get(15, TimeUnit.SECONDS)).isEqualTo("SESSION_REVOKED")
+            assertThat(result.get(15, TimeUnit.SECONDS)).isEqualTo("BUSINESS_ACCESS_DENIED")
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM customers", Long::class.java))
                 .isZero()
             assertThat(

@@ -20,7 +20,9 @@ caller's permitted identity and membership metadata.
 Missing context returns `400 BUSINESS_REQUIRED`; malformed or duplicate context
 returns `400 INVALID_BUSINESS`. Unregistered, inactive, unauthorized, revoked and
 conflicting context returns `403 BUSINESS_ACCESS_DENIED`. This preserves the cookie's
-other memberships. Invalid global identity/session generations return 401. A valid
+other memberships. The same distinction applies when revocation wins between
+request resolution and transaction/staff-lock admission. Invalid global identity/session
+generations return 401. A valid
 business scope cannot read a foreign resource, quote, report source or saved operation.
 Well-formed foreign resource IDs return the same not-found response as absent IDs.
 
