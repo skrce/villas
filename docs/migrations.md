@@ -40,6 +40,8 @@ Each new database binds to the validated deployment `VILLAS_PROPERTY_ID`. Flyway
 uses that value for property defaults, the staff lock and `property_identity`.
 Changing the configured ID does not retarget existing records. Startup refuses a
 database bound to another business. Runtime cannot rewrite that binding/history.
+Web startup also requires the V16 registry and an active configured business. Only
+the explicit migration preflight accepts an older schema so it can apply V16.
 
 ## Upgrades and failures
 

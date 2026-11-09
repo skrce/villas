@@ -16,7 +16,12 @@ class PropertyDatabaseBinding(dataSource: DataSource) {
     }
 
     companion object {
-        fun verify(connection: Connection) {
+        fun verify(connection: Connection) = verify(connection, requireRegistry = true)
+
+        fun verifyBeforeMigration(connection: Connection) =
+            verify(connection, requireRegistry = false)
+
+        private fun verify(connection: Connection, requireRegistry: Boolean) {
             connection
                 .prepareStatement("SELECT property_id FROM property_identity WHERE singleton=1")
                 .use { statement ->
@@ -32,6 +37,9 @@ class PropertyDatabaseBinding(dataSource: DataSource) {
                 connection.metaData.getTables(null, "public", "businesses", arrayOf("TABLE")).use {
                     it.next()
                 }
+            require(registry || !requireRegistry) {
+                "Apply the business registry migration before starting the application."
+            }
             if (registry) {
                 connection.prepareStatement("SELECT active FROM businesses WHERE id=?").use {
                     statement ->

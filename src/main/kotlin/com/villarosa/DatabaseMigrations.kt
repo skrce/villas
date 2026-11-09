@@ -37,7 +37,7 @@ object DatabaseMigrations {
                 connection.metaData
                     .getTables(null, "public", "property_identity", arrayOf("TABLE"))
                     .use { it.next() }
-            if (bound) PropertyDatabaseBinding.verify(connection)
+            if (bound) PropertyDatabaseBinding.verifyBeforeMigration(connection)
         }
         return configured(url, username, password).migrate().also {
             java.sql.DriverManager.getConnection(url, username, password).use {

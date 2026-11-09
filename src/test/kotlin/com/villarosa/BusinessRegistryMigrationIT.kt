@@ -179,6 +179,24 @@ class BusinessRegistryMigrationIT {
     }
 
     @Test
+    fun legacyDatabaseCannotStartTheApplicationButCanRunTheExplicitUpgrade() {
+        migrate("15")
+        val source =
+            org.springframework.jdbc.datasource.DriverManagerDataSource(
+                database.jdbcUrl,
+                database.username,
+                database.password,
+            )
+        assertThrows<IllegalArgumentException> { PropertyDatabaseBinding(source) }
+        assertThat(
+                DatabaseMigrations.migrate(database.jdbcUrl, database.username, database.password)
+                    .migrationsExecuted
+            )
+            .isEqualTo(1)
+        PropertyDatabaseBinding(source)
+    }
+
+    @Test
     fun businessRegistryValidatesInitialMarketSettingsAndInactiveBusinessCannotStart() {
         migrate()
         connection().use(PropertyDatabaseBinding::verify)
